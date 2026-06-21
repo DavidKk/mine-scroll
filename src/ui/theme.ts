@@ -1,11 +1,16 @@
-export const CELL_SIZE = 36;
 export const CELL_GAP = 3;
-export const CELL_STEP = CELL_SIZE + CELL_GAP;
-export const CELL_RADIUS = 7;
+export const DEFAULT_CELL_SIZE = 36;
 export const PANEL_RADIUS = 14;
 export const GRID_PADDING = 14;
 export const HUD_HEIGHT = 58;
 export const HUD_GAP = 10;
+
+export interface GridMetrics {
+  cellSize: number;
+  cellGap: number;
+  cellStep: number;
+  cellRadius: number;
+}
 
 export const THEME = {
   canvasBg: '#16161f',
@@ -38,7 +43,6 @@ export const THEME = {
   resetWon: '#34d399',
   resetLost: '#f87171',
 
-  /** 现代数字配色 */
   numbers: [
     '',
     '#60a5fa',
@@ -52,23 +56,61 @@ export const THEME = {
   ] as const,
 } as const;
 
-export type StatusKind = 'idle' | 'playing' | 'won' | 'lost';
+/** 大棋盘时自动缩小格子，避免 Canvas 超出视口；fixedCellSize 强制固定格宽 */
+export function computeGridMetrics(
+  rows: number,
+  cols: number,
+  maxGrid?: { width: number; height: number },
+  fixedCellSize?: number,
+): GridMetrics {
+  if (fixedCellSize !== undefined) {
+    return {
+      cellSize: fixedCellSize,
+      cellGap: CELL_GAP,
+      cellStep: fixedCellSize + CELL_GAP,
+      cellRadius: Math.max(4, Math.round(fixedCellSize * 0.19)),
+    };
+  }
 
-export function getCanvasSize(rows: number, cols: number): { width: number; height: number } {
-  const gridWidth = cols * CELL_STEP - CELL_GAP + GRID_PADDING * 2;
-  const gridHeight = rows * CELL_STEP - CELL_GAP + GRID_PADDING * 2;
-  const width = gridWidth;
-  const height = HUD_HEIGHT + HUD_GAP + gridHeight;
-  return { width, height };
+  const maxGridW = maxGrid?.width ?? 540;
+  const maxGridH = maxGrid?.height ?? 440;
+  const padding = GRID_PADDING * 2;
+
+  const fromWidth = Math.floor((maxGridW - padding + CELL_GAP) / cols - CELL_GAP);
+  const fromHeight = Math.floor((maxGridH - padding + CELL_GAP) / rows - CELL_GAP);
+  const cellSize = Math.max(22, Math.min(DEFAULT_CELL_SIZE, fromWidth, fromHeight));
+
+  return {
+    cellSize,
+    cellGap: CELL_GAP,
+    cellStep: cellSize + CELL_GAP,
+    cellRadius: Math.max(4, Math.round(cellSize * 0.19)),
+  };
+}
+
+export function getCanvasSize(
+  rows: number,
+  cols: number,
+  grid: GridMetrics,
+): { width: number; height: number } {
+  const gridWidth = cols * grid.cellStep - grid.cellGap + GRID_PADDING * 2;
+  const gridHeight = rows * grid.cellStep - grid.cellGap + GRID_PADDING * 2;
+  return { width: gridWidth, height: HUD_HEIGHT + HUD_GAP + gridHeight };
 }
 
 export function getGridOrigin(): { x: number; y: number } {
   return { x: GRID_PADDING, y: HUD_HEIGHT + HUD_GAP + GRID_PADDING };
 }
 
-export function cellPixelOrigin(row: number, col: number, gridOriginX: number, gridOriginY: number): { x: number; y: number } {
+export function cellPixelOrigin(
+  row: number,
+  col: number,
+  gridOriginX: number,
+  gridOriginY: number,
+  grid: GridMetrics,
+): { x: number; y: number } {
   return {
-    x: gridOriginX + col * CELL_STEP,
-    y: gridOriginY + row * CELL_STEP,
+    x: gridOriginX + col * grid.cellStep,
+    y: gridOriginY + row * grid.cellStep,
   };
 }

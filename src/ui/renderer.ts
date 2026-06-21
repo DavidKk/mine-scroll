@@ -1,16 +1,15 @@
 import type { CellView, GameStatus } from '../core/types.ts';
+import type { AiHintDisplay } from '../core/ai/types.ts';
 import {
-  CELL_GAP,
-  CELL_RADIUS,
-  CELL_SIZE,
-  CELL_STEP,
   GRID_PADDING,
-  HUD_GAP,
   HUD_HEIGHT,
+  HUD_GAP,
   PANEL_RADIUS,
   THEME,
   cellPixelOrigin,
+  computeGridMetrics,
   getGridOrigin,
+  type GridMetrics,
 } from './theme.ts';
 
 export interface LayoutMetrics {
@@ -21,11 +20,18 @@ export interface LayoutMetrics {
   gridWidth: number;
   gridHeight: number;
   resetButton: { x: number; y: number; size: number };
+  grid: GridMetrics;
 }
 
-export function getLayoutMetrics(rows: number, cols: number): LayoutMetrics {
-  const gridWidth = cols * CELL_STEP - CELL_GAP + GRID_PADDING * 2;
-  const gridHeight = rows * CELL_STEP - CELL_GAP + GRID_PADDING * 2;
+export function getLayoutMetrics(
+  rows: number,
+  cols: number,
+  maxGrid?: { width: number; height: number },
+  fixedCellSize?: number,
+): LayoutMetrics {
+  const grid = computeGridMetrics(rows, cols, maxGrid, fixedCellSize);
+  const gridWidth = cols * grid.cellStep - grid.cellGap + GRID_PADDING * 2;
+  const gridHeight = rows * grid.cellStep - grid.cellGap + GRID_PADDING * 2;
   const origin = getGridOrigin();
   const resetSize = 40;
   const resetX = (gridWidth - resetSize) / 2;
@@ -39,6 +45,7 @@ export function getLayoutMetrics(rows: number, cols: number): LayoutMetrics {
     gridWidth,
     gridHeight,
     resetButton: { x: resetX, y: resetY, size: resetSize },
+    grid,
   };
 }
 
@@ -90,48 +97,82 @@ function strokeRoundRect(
   ctx.stroke();
 }
 
-function drawHiddenCell(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  const grad = ctx.createLinearGradient(x, y, x, y + CELL_SIZE);
+function drawHiddenCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  g: GridMetrics,
+): void {
+  const grad = ctx.createLinearGradient(x, y, x, y + g.cellSize);
   grad.addColorStop(0, THEME.cellHiddenHighlight);
   grad.addColorStop(1, THEME.cellHidden);
-  fillRoundRect(ctx, x, y, CELL_SIZE, CELL_SIZE, CELL_RADIUS, grad);
-  strokeRoundRect(ctx, x + 0.5, y + 0.5, CELL_SIZE - 1, CELL_SIZE - 1, CELL_RADIUS, THEME.panelBorder);
+  fillRoundRect(ctx, x, y, g.cellSize, g.cellSize, g.cellRadius, grad);
+  strokeRoundRect(
+    ctx,
+    x + 0.5,
+    y + 0.5,
+    g.cellSize - 1,
+    g.cellSize - 1,
+    g.cellRadius,
+    THEME.panelBorder,
+  );
 }
 
-function drawRevealedCellBg(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  fillRoundRect(ctx, x, y, CELL_SIZE, CELL_SIZE, CELL_RADIUS, THEME.cellRevealed);
-  strokeRoundRect(ctx, x + 0.5, y + 0.5, CELL_SIZE - 1, CELL_SIZE - 1, CELL_RADIUS, THEME.cellRevealedBorder);
+function drawRevealedCellBg(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  g: GridMetrics,
+): void {
+  fillRoundRect(ctx, x, y, g.cellSize, g.cellSize, g.cellRadius, THEME.cellRevealed);
+  strokeRoundRect(
+    ctx,
+    x + 0.5,
+    y + 0.5,
+    g.cellSize - 1,
+    g.cellSize - 1,
+    g.cellRadius,
+    THEME.cellRevealedBorder,
+  );
 }
 
-function drawFlag(ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
-  const px = cx - 5;
-  const py = cy - 7;
+function drawFlag(ctx: CanvasRenderingContext2D, cx: number, cy: number, cellSize: number): void {
+  const scale = cellSize / 36;
+  const px = cx - 5 * scale;
+  const py = cy - 7 * scale;
   ctx.strokeStyle = THEME.flagPole;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * scale;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(px, py);
-  ctx.lineTo(px, py + 14);
+  ctx.lineTo(px, py + 14 * scale);
   ctx.stroke();
 
   ctx.fillStyle = THEME.flagCloth;
   ctx.beginPath();
-  ctx.moveTo(px + 1, py);
-  ctx.lineTo(px + 11, py + 4);
-  ctx.lineTo(px + 1, py + 8);
+  ctx.moveTo(px + scale, py);
+  ctx.lineTo(px + 11 * scale, py + 4 * scale);
+  ctx.lineTo(px + scale, py + 8 * scale);
   ctx.closePath();
   ctx.fill();
 }
 
-function drawMine(ctx: CanvasRenderingContext2D, cx: number, cy: number, explosive: boolean): void {
-  const r = 9;
+function drawMine(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  explosive: boolean,
+): void {
+  const scale = cellSize / 36;
+  const r = 9 * scale;
   if (explosive) {
-    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r + 6);
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r + 6 * scale);
     glow.addColorStop(0, 'rgba(239,68,68,0.45)');
     glow.addColorStop(1, 'rgba(239,68,68,0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r + 6 * scale, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -142,17 +183,17 @@ function drawMine(ctx: CanvasRenderingContext2D, cx: number, cy: number, explosi
 
   ctx.fillStyle = THEME.mineCore;
   ctx.beginPath();
-  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 5 * scale, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.strokeStyle = THEME.mineSpark;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * scale;
   ctx.lineCap = 'round';
   for (let i = 0; i < 8; i += 1) {
     const angle = (Math.PI * 2 * i) / 8;
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(angle) * (r + 2), cy + Math.sin(angle) * (r + 2));
-    ctx.lineTo(cx + Math.cos(angle) * (r + 6), cy + Math.sin(angle) * (r + 6));
+    ctx.moveTo(cx + Math.cos(angle) * (r + 2 * scale), cy + Math.sin(angle) * (r + 2 * scale));
+    ctx.lineTo(cx + Math.cos(angle) * (r + 6 * scale), cy + Math.sin(angle) * (r + 6 * scale));
     ctx.stroke();
   }
 }
@@ -215,7 +256,7 @@ function drawHudPill(
   w: number,
   h: number,
   text: string,
-  align: 'left' | 'right',
+  align: 'left' | 'right' | 'center',
 ): void {
   fillRoundRect(ctx, x, y, w, h, h / 2, THEME.hudPillBg);
   strokeRoundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, h / 2, THEME.hudPillBorder);
@@ -224,8 +265,28 @@ function drawHudPill(
   ctx.font = '600 22px "SF Mono", "JetBrains Mono", "Fira Code", monospace';
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
-  const tx = align === 'left' ? x + 14 : x + w - 14;
+  const tx =
+    align === 'left' ? x + 14 : align === 'right' ? x + w - 14 : x + w / 2;
   ctx.fillText(text, tx, y + h / 2);
+}
+
+function hudPillWidth(text: string, min = 48, max = 88): number {
+  return Math.min(max, Math.max(min, text.length * 13 + 22));
+}
+
+/** 旗子画在格子之上 */
+function drawCellMarksOverlay(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  view: CellView,
+  g: GridMetrics,
+): void {
+  if (view.revealed || !view.flagged) return;
+
+  const cx = x + g.cellSize / 2;
+  const cy = y + g.cellSize / 2;
+  drawFlag(ctx, cx, cy, g.cellSize);
 }
 
 function drawCell(
@@ -233,35 +294,42 @@ function drawCell(
   x: number,
   y: number,
   view: CellView,
+  g: GridMetrics,
 ): void {
-  const cx = x + CELL_SIZE / 2;
-  const cy = y + CELL_SIZE / 2;
-
-  if (view.flagged && !view.revealed) {
-    drawHiddenCell(ctx, x, y);
-    drawFlag(ctx, cx, cy);
-    return;
-  }
+  const cx = x + g.cellSize / 2;
+  const cy = y + g.cellSize / 2;
 
   if (!view.revealed) {
-    drawHiddenCell(ctx, x, y);
+    drawHiddenCell(ctx, x, y, g);
     return;
   }
 
-  drawRevealedCellBg(ctx, x, y);
+  drawRevealedCellBg(ctx, x, y, g);
 
   if (view.isMine) {
-    drawMine(ctx, cx, cy, true);
+    drawMine(ctx, cx, cy, g.cellSize, true);
     return;
   }
 
   if (view.adjacentMines && view.adjacentMines > 0) {
     ctx.fillStyle = THEME.numbers[view.adjacentMines] ?? THEME.hudText;
-    ctx.font = '700 17px "Inter", "Segoe UI", system-ui, sans-serif';
+    const fontSize = Math.max(12, Math.round(g.cellSize * 0.47));
+    ctx.font = `700 ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(view.adjacentMines), cx, cy + 0.5);
   }
+}
+
+export interface ScrollPressureState {
+  /** 剩余整秒（显示用） */
+  seconds: number;
+  /** 0→1，越满越接近上移 */
+  progress: number;
+  /** 最后 3 秒高亮 */
+  urgent: boolean;
+  /** 本次卷轴事件会离屏的行数 */
+  batchRows?: number;
 }
 
 export interface RenderState {
@@ -272,6 +340,133 @@ export interface RenderState {
   mineTotal: number;
   flagCount: number;
   elapsedSeconds: number;
+  hudLeftDisplay?: string;
+  /** 无尽：消雷数（独立胶囊，靠左、重开按钮前） */
+  hudDefusedDisplay?: string;
+  /** 覆盖右侧 HUD（无尽模式卷轴倒计时） */
+  hudRightDisplay?: string;
+  /** 无尽卷轴：准备上移压迫感 UI */
+  scrollPressure?: ScrollPressureState;
+  /** AI 建议高亮（屏幕行坐标） */
+  aiHint?: AiHintDisplay | null;
+}
+
+function drawScrollPressureBar(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  pressure: ScrollPressureState,
+): void {
+  const { gridWidth } = layout;
+  const gridTop = HUD_HEIGHT + HUD_GAP;
+  const barY = gridTop + 2;
+  const barH = 5;
+  const barW = gridWidth - GRID_PADDING * 2;
+  const barX = GRID_PADDING;
+
+  ctx.save();
+
+  fillRoundRect(ctx, barX, barY, barW, barH, 2, 'rgba(15, 15, 22, 0.9)');
+  const fillW = Math.max(barH, barW * pressure.progress);
+  fillRoundRect(
+    ctx,
+    barX,
+    barY,
+    fillW,
+    barH,
+    2,
+    pressure.urgent ? 'rgba(239, 68, 68, 0.95)' : 'rgba(251, 191, 36, 0.85)',
+  );
+
+  const batchNote = pressure.batchRows && pressure.batchRows > 1 ? ` ×${pressure.batchRows}` : '';
+  const label = pressure.urgent
+    ? `准备上移${batchNote} · ${pressure.seconds}s`
+    : `上移倒数${batchNote} · ${pressure.seconds}s`;
+  const fontSize = pressure.urgent ? 13 : 12;
+  ctx.font = `600 ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = pressure.urgent ? '#fca5a5' : '#fcd34d';
+  ctx.fillText(label, barX + barW / 2, HUD_HEIGHT + HUD_GAP / 2);
+
+  ctx.restore();
+}
+
+/** 即将离屏行警戒色带（不绘制数字，避免与盘面冲突） */
+function drawScrollDangerBand(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  pressure: ScrollPressureState,
+  visibleRows: number,
+): void {
+  const { gridOriginX, gridOriginY, gridWidth, grid } = layout;
+  const coveredRows = Math.max(1, Math.min(visibleRows, Math.floor(pressure.batchRows ?? 1)));
+  const startScreenRow = Math.max(0, visibleRows - coveredRows);
+  const rowY = gridOriginY + startScreenRow * grid.cellStep;
+  const rowH = (coveredRows - 1) * grid.cellStep + grid.cellSize;
+  const bandAlpha = pressure.urgent ? 0.32 : 0.12 + pressure.progress * 0.1;
+  const bandW = gridWidth - GRID_PADDING * 2 + 4;
+
+  ctx.save();
+
+  fillRoundRect(
+    ctx,
+    gridOriginX - 2,
+    rowY - 2,
+    bandW,
+    rowH + 4,
+    grid.cellRadius + 2,
+    pressure.urgent ? `rgba(239, 68, 68, ${bandAlpha})` : `rgba(251, 191, 36, ${bandAlpha})`,
+  );
+
+  if (pressure.urgent) {
+    strokeRoundRect(
+      ctx,
+      gridOriginX - 2,
+      rowY - 2,
+      bandW,
+      rowH + 4,
+      grid.cellRadius + 2,
+      'rgba(252, 165, 165, 0.7)',
+      1.5,
+    );
+  }
+
+  ctx.restore();
+}
+
+function drawAiHint(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  hint: AiHintDisplay,
+): void {
+  const { gridOriginX, gridOriginY, grid } = layout;
+  const { x, y } = cellPixelOrigin(hint.row, hint.col, gridOriginX, gridOriginY, grid);
+
+  const isGuess = hint.confidence === 'guess';
+  const color =
+    hint.kind === 'flag'
+      ? 'rgba(244, 63, 94, 0.55)'
+      : hint.kind === 'unflag'
+        ? 'rgba(251, 146, 60, 0.55)'
+        : hint.kind === 'chord'
+        ? 'rgba(129, 140, 248, 0.55)'
+        : isGuess
+          ? 'rgba(251, 191, 36, 0.5)'
+          : 'rgba(52, 211, 153, 0.55)';
+
+  ctx.save();
+  fillRoundRect(ctx, x - 2, y - 2, grid.cellSize + 4, grid.cellSize + 4, grid.cellRadius + 2, color);
+  strokeRoundRect(
+    ctx,
+    x - 2,
+    y - 2,
+    grid.cellSize + 4,
+    grid.cellSize + 4,
+    grid.cellRadius + 2,
+    isGuess ? 'rgba(251, 191, 36, 0.95)' : 'rgba(255, 255, 255, 0.85)',
+    2,
+  );
+  ctx.restore();
 }
 
 export function renderFrame(
@@ -279,7 +474,8 @@ export function renderFrame(
   layout: LayoutMetrics,
   state: RenderState,
 ): void {
-  const { width, height, gridOriginX, gridOriginY, resetButton, gridWidth, gridHeight } = layout;
+  const { width, height, gridOriginX, gridOriginY, resetButton, gridWidth, gridHeight, grid } =
+    layout;
 
   ctx.clearRect(0, 0, width, height);
 
@@ -290,18 +486,37 @@ export function renderFrame(
   // HUD
   fillRoundRect(ctx, GRID_PADDING / 2, 6, width - GRID_PADDING, HUD_HEIGHT - 6, 10, THEME.panelBg);
 
-  const pillW = 72;
   const pillH = 34;
   const pillY = (HUD_HEIGHT - pillH) / 2;
-  const mineRemaining = state.mineTotal - state.flagCount;
-  drawHudPill(ctx, 12, pillY, pillW, pillH, String(mineRemaining).padStart(3, '0'), 'left');
+  const hudLeft =
+    state.hudLeftDisplay ?? String(state.mineTotal - state.flagCount).padStart(3, '0');
+  const leftPillW = hudPillWidth(
+    hudLeft,
+    state.hudLeftDisplay?.includes('♥') ? 72 : 48,
+    state.hudLeftDisplay?.includes('♥') ? 80 : 88,
+  );
+  drawHudPill(ctx, 12, pillY, leftPillW, pillH, hudLeft, 'left');
+
+  const resetGap = 8;
+  if (state.hudDefusedDisplay) {
+    const defusedPillW = hudPillWidth(state.hudDefusedDisplay, 56, 118);
+    const defusedX = Math.max(
+      12 + leftPillW + 6,
+      resetButton.x - resetGap - defusedPillW,
+    );
+    drawHudPill(ctx, defusedX, pillY, defusedPillW, pillH, state.hudDefusedDisplay, 'center');
+  }
+
+  const hudRight =
+    state.hudRightDisplay ?? String(state.elapsedSeconds).padStart(3, '0');
+  const rightPillW = hudPillWidth(hudRight, 48, state.hudRightDisplay?.startsWith('↑') ? 80 : 72);
   drawHudPill(
     ctx,
-    width - pillW - 12,
+    width - rightPillW - 12,
     pillY,
-    pillW,
+    rightPillW,
     pillH,
-    String(state.elapsedSeconds).padStart(3, '0'),
+    hudRight,
     'right',
   );
 
@@ -334,9 +549,26 @@ export function renderFrame(
   const gridTop = HUD_HEIGHT + HUD_GAP;
   fillRoundRect(ctx, 0, gridTop, gridWidth, gridHeight, 12, THEME.panelBg);
 
+  if (state.scrollPressure && state.status === 'playing') {
+    drawScrollPressureBar(ctx, layout, state.scrollPressure);
+  }
+
   for (const view of state.views) {
-    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY);
-    drawCell(ctx, x, y, view);
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    drawCell(ctx, x, y, view, grid);
+  }
+
+  for (const view of state.views) {
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    drawCellMarksOverlay(ctx, x, y, view, grid);
+  }
+
+  if (state.scrollPressure && state.status === 'playing') {
+    drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
+  }
+
+  if (state.aiHint && state.status !== 'lost') {
+    drawAiHint(ctx, layout, state.aiHint);
   }
 }
 
@@ -351,13 +583,14 @@ export function hitTestCell(
   const localY = y - layout.gridOriginY;
   if (localX < 0 || localY < 0) return null;
 
-  const col = Math.floor(localX / CELL_STEP);
-  const row = Math.floor(localY / CELL_STEP);
+  const { grid } = layout;
+  const col = Math.floor(localX / grid.cellStep);
+  const row = Math.floor(localY / grid.cellStep);
   if (row < 0 || row >= rows || col < 0 || col >= cols) return null;
 
-  const inCellX = localX - col * CELL_STEP;
-  const inCellY = localY - row * CELL_STEP;
-  if (inCellX > CELL_SIZE || inCellY > CELL_SIZE) return null;
+  const inCellX = localX - col * grid.cellStep;
+  const inCellY = localY - row * grid.cellStep;
+  if (inCellX > grid.cellSize || inCellY > grid.cellSize) return null;
 
   return { row, col };
 }

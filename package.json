@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types scripts/run-tests.ts",
+    "simulate:ai": "node --experimental-strip-types scripts/simulate-endless-ai.ts"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
