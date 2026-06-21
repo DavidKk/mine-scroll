@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "cutouts": {
+    "source": "docs/design-assets/production/core-cutouts-production-v1.png",
+    "grid": {
+      "rows": 4,
+      "cols": 4,
+      "sourceCell": 313,
+      "outputSize": 256
+    },
+    "items": {
+      "mine-standard": "/assets/game/cutouts/mine-standard.png",
+      "mine-exploded": "/assets/game/cutouts/mine-exploded.png",
+      "mine-cracked": "/assets/game/cutouts/mine-cracked.png",
+      "mine-hit-flash": "/assets/game/cutouts/mine-hit-flash.png",
+      "flag-blue": "/assets/game/cutouts/flag-blue.png",
+      "flag-danger-red": "/assets/game/cutouts/flag-danger-red.png",
+      "flag-wrong-correction": "/assets/game/cutouts/flag-wrong-correction.png",
+      "flag-pole": "/assets/game/cutouts/flag-pole.png",
+      "heart-full": "/assets/game/cutouts/heart-full.png",
+      "heart-empty": "/assets/game/cutouts/heart-empty.png",
+      "heart-lost": "/assets/game/cutouts/heart-lost.png",
+      "heart-refill": "/assets/game/cutouts/heart-refill.png",
+      "warning-triangle": "/assets/game/cutouts/warning-triangle.png",
+      "danger-exclamation": "/assets/game/cutouts/danger-exclamation.png",
+      "shield-safe-zone": "/assets/game/cutouts/shield-safe-zone.png",
+      "chord-crosshair": "/assets/game/cutouts/chord-crosshair.png"
+    }
+  },
+  "fx": {
+    "source": "docs/design-assets/production/fx-additive-sprites-production-v1.png",
+    "grid": {
+      "rows": 8,
+      "cols": 8,
+      "frameWidth": 192,
+      "frameHeight": 128
+    },
+    "effects": {
+      "mine-explosion": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/mine-explosion/frame-01.png",
+          "/assets/game/fx/mine-explosion/frame-02.png",
+          "/assets/game/fx/mine-explosion/frame-03.png",
+          "/assets/game/fx/mine-explosion/frame-04.png",
+          "/assets/game/fx/mine-explosion/frame-05.png",
+          "/assets/game/fx/mine-explosion/frame-06.png",
+          "/assets/game/fx/mine-explosion/frame-07.png",
+          "/assets/game/fx/mine-explosion/frame-08.png"
+        ]
+      },
+      "combo-burst": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/combo-burst/frame-01.png",
+          "/assets/game/fx/combo-burst/frame-02.png",
+          "/assets/game/fx/combo-burst/frame-03.png",
+          "/assets/game/fx/combo-burst/frame-04.png",
+          "/assets/game/fx/combo-burst/frame-05.png",
+          "/assets/game/fx/combo-burst/frame-06.png",
+          "/assets/game/fx/combo-burst/frame-07.png",
+          "/assets/game/fx/combo-burst/frame-08.png"
+        ]
+      },
+      "safe-reveal": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/safe-reveal/frame-01.png",
+          "/assets/game/fx/safe-reveal/frame-02.png",
+          "/assets/game/fx/safe-reveal/frame-03.png",
+          "/assets/game/fx/safe-reveal/frame-04.png",
+          "/assets/game/fx/safe-reveal/frame-05.png",
+          "/assets/game/fx/safe-reveal/frame-06.png",
+          "/assets/game/fx/safe-reveal/frame-07.png",
+          "/assets/game/fx/safe-reveal/frame-08.png"
+        ]
+      },
+      "flag-pop": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/flag-pop/frame-01.png",
+          "/assets/game/fx/flag-pop/frame-02.png",
+          "/assets/game/fx/flag-pop/frame-03.png",
+          "/assets/game/fx/flag-pop/frame-04.png",
+          "/assets/game/fx/flag-pop/frame-05.png",
+          "/assets/game/fx/flag-pop/frame-06.png",
+          "/assets/game/fx/flag-pop/frame-07.png",
+          "/assets/game/fx/flag-pop/frame-08.png"
+        ]
+      },
+      "wrong-flag-break": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/wrong-flag-break/frame-01.png",
+          "/assets/game/fx/wrong-flag-break/frame-02.png",
+          "/assets/game/fx/wrong-flag-break/frame-03.png",
+          "/assets/game/fx/wrong-flag-break/frame-04.png",
+          "/assets/game/fx/wrong-flag-break/frame-05.png",
+          "/assets/game/fx/wrong-flag-break/frame-06.png",
+          "/assets/game/fx/wrong-flag-break/frame-07.png",
+          "/assets/game/fx/wrong-flag-break/frame-08.png"
+        ]
+      },
+      "heart-refill": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/heart-refill/frame-01.png",
+          "/assets/game/fx/heart-refill/frame-02.png",
+          "/assets/game/fx/heart-refill/frame-03.png",
+          "/assets/game/fx/heart-refill/frame-04.png",
+          "/assets/game/fx/heart-refill/frame-05.png",
+          "/assets/game/fx/heart-refill/frame-06.png",
+          "/assets/game/fx/heart-refill/frame-07.png",
+          "/assets/game/fx/heart-refill/frame-08.png"
+        ]
+      },
+      "level-up": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/level-up/frame-01.png",
+          "/assets/game/fx/level-up/frame-02.png",
+          "/assets/game/fx/level-up/frame-03.png",
+          "/assets/game/fx/level-up/frame-04.png",
+          "/assets/game/fx/level-up/frame-05.png",
+          "/assets/game/fx/level-up/frame-06.png",
+          "/assets/game/fx/level-up/frame-07.png",
+          "/assets/game/fx/level-up/frame-08.png"
+        ]
+      },
+      "score-pop": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/score-pop/frame-01.png",
+          "/assets/game/fx/score-pop/frame-02.png",
+          "/assets/game/fx/score-pop/frame-03.png",
+          "/assets/game/fx/score-pop/frame-04.png",
+          "/assets/game/fx/score-pop/frame-05.png",
+          "/assets/game/fx/score-pop/frame-06.png",
+          "/assets/game/fx/score-pop/frame-07.png",
+          "/assets/game/fx/score-pop/frame-08.png"
+        ]
+      }
+    }
+  },
+  "previews": {
+    "cutouts": "/assets/game/preview-cutouts.png",
+    "fx": "/assets/game/preview-fx.png"
+  }
+}

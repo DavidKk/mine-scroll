@@ -19,10 +19,11 @@ import {
 import { cellKey, isCellBlocked } from '../types.ts';
 
 export const ENDLESS_COLS = 9;
-/** 内部缓冲行数（传送带窗口；需容纳至少两轮最高批量上移的未来内容） */
-export const ENDLESS_WINDOW_ROWS = 23;
-/** 屏幕可见行数 */
-export const ENDLESS_VISIBLE_ROWS = 11;
+/** 屏幕可见行数（竖长盘，类似俄罗斯方块井） */
+export const ENDLESS_VISIBLE_ROWS = 20;
+/** 内部缓冲行数（≥ 可见行 + 双轮最高批量上移余量） */
+export const ENDLESS_WINDOW_BUFFER = 12;
+export const ENDLESS_WINDOW_ROWS = ENDLESS_VISIBLE_ROWS + ENDLESS_WINDOW_BUFFER;
 /** 开局卷轴间隔（毫秒） */
 export const ENDLESS_SCROLL_MS_START = 9000;
 /** 最快卷轴间隔（毫秒） */

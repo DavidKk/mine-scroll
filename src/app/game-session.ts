@@ -26,9 +26,13 @@ import type { GameModeId, LifeLossReport, ModeSession } from '../core/types.ts';
 import type { AiHintDisplay, AiMove } from '../core/ai/types.ts';
 import { getEndlessAiStepMs } from '../core/ai/solver.ts';
 import { createGameCanvas, type GameCanvasController } from '../ui/game-canvas.ts';
-import { createGameLog, type GameLogController } from '../ui/game-log.ts';
 import { DEFAULT_CELL_SIZE } from '../ui/theme.ts';
 import type { GameCanvasHudStats, GameCanvasLogLine } from '../ui/game-canvas.ts';
+
+interface CanvasLogController {
+  append(text: string, kind?: GameCanvasLogLine['kind']): void;
+  clear(): void;
+}
 
 export interface GameSessionCallbacks {
   onBack(): void;
@@ -57,22 +61,17 @@ export function mountGameSession(
   let aiOscillationCount = 0;
   const recentLogLines: GameCanvasLogLine[] = [];
   let logOpen = false;
+  let startOverlayOpen = true;
 
   root.className = 'app';
   root.replaceChildren();
 
   const canvasContainer = document.createElement('div');
   canvasContainer.className = 'app__canvas app__canvas--endless';
-
-  const logContainer = document.createElement('div');
-  logContainer.className = 'app__log';
-
-  logContainer.hidden = true;
-  root.append(canvasContainer, logContainer);
+  root.append(canvasContainer);
 
   let view!: GameCanvasController;
-  const domGameLog: GameLogController = createGameLog(logContainer);
-  const gameLog: GameLogController = {
+  const gameLog: CanvasLogController = {
     append(text, kind = 'system') {
       recentLogLines.push({
         time: new Date().toLocaleTimeString('zh-CN', {
@@ -87,12 +86,10 @@ export function mountGameSession(
       while (recentLogLines.length > 80) {
         recentLogLines.shift();
       }
-      domGameLog.append(text, kind);
       view?.repaint();
     },
     clear() {
       recentLogLines.length = 0;
-      domGameLog.clear();
       view?.repaint();
     },
   };
@@ -655,17 +652,8 @@ export function mountGameSession(
 
   function startArcadeRun(): void {
     if (session.state.status !== 'idle') return;
-    const col = Math.floor(session.state.board.cols / 2);
-    const row = Math.min(2, ENDLESS_VISIBLE_ROWS - 1);
-    const beforeLives = session.lives;
-    gameLog.append('开始', 'system');
-    const next = revealAt(session, toBoardRow(row), col);
-    applySession(next, beforeLives, { trigger: `START 开格 ${formatCell(row, col)}` });
-    if (next.state.status === 'playing') {
-      markGameClockStarted();
-      startScrollTimer();
-      refreshAiHint();
-    }
+    startOverlayOpen = false;
+    gameLog.append('请点击任意格开始', 'system');
     render();
   }
 
@@ -705,6 +693,7 @@ export function mountGameSession(
       getStats: () => getCanvasHudStats(),
       getRecentLogs: () => recentLogLines,
       isLogOpen: () => logOpen,
+      showStartOverlay: () => startOverlayOpen && session.state.status === 'idle',
       onStart: () => startArcadeRun(),
       onRestart: () => restartGame(),
       onSpace: () => {
@@ -767,8 +756,13 @@ export function mountGameSession(
         ? { hexRadius: hexRadius ?? session.state.board.hexRadius, fullscreen: fullscreenShell }
         : isEndless
           ? {
-              fixedCellSize: DEFAULT_CELL_SIZE,
               fixedGridRows: ENDLESS_VISIBLE_ROWS,
+              fitViewport: {
+                cols: session.state.board.cols,
+                rows: ENDLESS_VISIBLE_ROWS,
+                maxCellSize: DEFAULT_CELL_SIZE,
+                minCellSize: 18,
+              },
               getHudRightDisplay: () => getScrollCountdownDisplay(),
               getScrollPressure: () => getScrollPressureState(),
               fullscreen: fullscreenShell,
@@ -790,6 +784,7 @@ export function mountGameSession(
     aiWaitLogged = false;
     aiOscillationCell = null;
     aiOscillationCount = 0;
+    startOverlayOpen = true;
     view = mountCanvas();
     view.resetTimer();
     gameLog.clear();

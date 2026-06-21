@@ -1,6 +1,14 @@
 import type { CellView, GameStatus } from '../core/types.ts';
 import type { AiHintDisplay } from '../core/ai/types.ts';
-import { DEFAULT_CELL_SIZE } from './theme.ts';
+import { DEFAULT_CELL_SIZE, FONTS, THEME, computeViewportCellSize } from './theme.ts';
+import {
+  drawChipLabel,
+  drawHudIcon,
+  drawIconTextButton,
+  drawLivesRow,
+  parseLivesDisplay,
+  type HudIconName,
+} from './hud-sprites.ts';
 import {
   getHexLayoutMetrics,
   hitTestHexCell,
@@ -18,6 +26,12 @@ import {
   type LayoutMetrics,
   type ScrollPressureState,
 } from './renderer.ts';
+import {
+  drawImageContained,
+  getGameFxBlendMode,
+  getGameFxFrames,
+  type GameFxName,
+} from './game-assets.ts';
 
 export interface GameCanvasCallbacks {
   onReveal(row: number, col: number): void;
@@ -52,9 +66,21 @@ export interface GameCanvasFullscreenOptions {
   getRecentLogs?: () => GameCanvasLogLine[];
   isLogOpen?: () => boolean;
   onStart?: () => void;
+  /** idle 时是否仍显示「开始」遮罩（false = 已点开始，等待玩家首击） */
+  showStartOverlay?: () => boolean;
   onRestart?: () => void;
   onSpace?: () => void;
   onDevAuto?: () => void;
+}
+
+export interface ViewportFitOptions {
+  cols: number;
+  rows: number;
+  minCellSize?: number;
+  maxCellSize?: number;
+  safe?: number;
+  topReserve?: number;
+  bottomReserve?: number;
 }
 
 export interface GameCanvasOptions {
@@ -65,6 +91,8 @@ export interface GameCanvasOptions {
   fixedCellSize?: number;
   /** 固定棋盘行数（无尽卷轴：Canvas 高度不随缓冲变化） */
   fixedGridRows?: number;
+  /** 全屏时按视口拟合格子尺寸（竖长无尽盘） */
+  fitViewport?: ViewportFitOptions;
   /** 每次绘制时读取右侧 HUD（卷轴倒计时等） */
   getHudRightDisplay?: () => string | undefined;
   /** 无尽卷轴压迫感（准备上移倒数） */
@@ -122,16 +150,45 @@ export function createGameCanvas(
   const isHex = canvasOptions.hexRadius !== undefined;
   const fixedCellSize = canvasOptions.fixedCellSize;
   const fixedGridRows = canvasOptions.fixedGridRows;
+  const fitViewport = canvasOptions.fitViewport;
   const getHudRightDisplayFn = canvasOptions.getHudRightDisplay;
   const getScrollPressureFn = canvasOptions.getScrollPressure;
   const fullscreen = canvasOptions.fullscreen;
   const hexLayout = isHex ? getHexLayoutMetrics(canvasOptions.hexRadius!) : null;
   let currentRows = fixedGridRows ?? rows;
   let currentCols = cols;
+  let fittedCellSize: number | undefined = fixedCellSize;
+
+  function getFullscreenBoardReserves(shellW: number): { safe: number; top: number; bottom: number } {
+    const safe = Math.max(16, Math.min(28, shellW * 0.028));
+    const topBarH = shellW < 560 ? 68 : 76;
+    return {
+      safe,
+      top: topBarH + safe * 2,
+      bottom: 80 + safe + 16,
+    };
+  }
+
+  function resolveInitialCellSize(): number | undefined {
+    if (fixedCellSize !== undefined) return fixedCellSize;
+    if (!fitViewport || !fullscreen) return undefined;
+    const reserves = getFullscreenBoardReserves(window.innerWidth);
+    return computeViewportCellSize(
+      fitViewport.cols,
+      fitViewport.rows,
+      window.innerWidth,
+      window.innerHeight,
+      reserves,
+      { min: fitViewport.minCellSize, max: fitViewport.maxCellSize },
+    );
+  }
+
+  fittedCellSize = resolveInitialCellSize();
+
   let squareLayout: LayoutMetrics | null = isHex
     ? null
     : fullscreen
-      ? getBoardOnlyLayoutMetrics(currentRows, cols, canvasOptions.maxGrid, fixedCellSize)
+      ? getBoardOnlyLayoutMetrics(currentRows, cols, canvasOptions.maxGrid, fittedCellSize)
       : getLayoutMetrics(currentRows, cols, canvasOptions.maxGrid, fixedCellSize);
 
   const canvas = document.createElement('canvas');
@@ -172,6 +229,29 @@ export function createGameCanvas(
   let comboFxStartedAt = 0;
   let animationFrameId: number | null = null;
 
+  type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode';
+  interface CellFx {
+    kind: CellFxKind;
+    row: number;
+    col: number;
+    startedAt: number;
+    durationMs: number;
+  }
+
+  interface ParticleFx {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    color: string;
+    startedAt: number;
+    durationMs: number;
+  }
+
+  const cellEffects: CellFx[] = [];
+  const particles: ParticleFx[] = [];
+
   function syncFullscreenCanvasSize(): void {
     if (!fullscreen) return;
     const nextWidth = Math.max(320, window.innerWidth);
@@ -196,7 +276,31 @@ export function createGameCanvas(
     }
   }
 
+  function syncViewportFitLayout(): void {
+    if (!fitViewport || isHex || !squareLayout) return;
+    const reserves = getFullscreenBoardReserves(width);
+    const nextCell = computeViewportCellSize(
+      fitViewport.cols,
+      fitViewport.rows,
+      width,
+      height,
+      reserves,
+      { min: fitViewport.minCellSize, max: fitViewport.maxCellSize },
+    );
+    if (nextCell === fittedCellSize) return;
+    fittedCellSize = nextCell;
+    squareLayout = getBoardOnlyLayoutMetrics(
+      fitViewport.rows,
+      fitViewport.cols,
+      canvasOptions.maxGrid,
+      nextCell,
+    );
+    boardWidth = squareLayout.width;
+    boardHeight = squareLayout.height;
+  }
+
   function syncBoardSizeFromLayout(): void {
+    if (fullscreen && fitViewport) syncViewportFitLayout();
     boardWidth = isHex ? hexLayout!.width : squareLayout!.width;
     boardHeight = isHex ? hexLayout!.height : squareLayout!.height;
   }
@@ -231,9 +335,230 @@ export function createGameCanvas(
     });
   }
 
+  function viewKey(view: CellView): string {
+    return `${view.row},${view.col}`;
+  }
+
+  function queueCellEffect(kind: CellFxKind, row: number, col: number, now: number): void {
+    const durationMs =
+      kind === 'explode' ? 760 : kind === 'flag' || kind === 'unflag' ? 360 : 420;
+    cellEffects.push({ kind, row, col, startedAt: now, durationMs });
+    while (cellEffects.length > 48) {
+      cellEffects.shift();
+    }
+  }
+
+  function collectCellEffects(previous: CellView[], next: CellView[]): void {
+    if (!fullscreen || previous.length === 0) return;
+    const now = performance.now();
+    const prevByKey = new Map(previous.map((view) => [viewKey(view), view]));
+    let queued = 0;
+    for (const view of next) {
+      const prev = prevByKey.get(viewKey(view));
+      if (!prev) continue;
+      if (!prev.revealed && view.revealed) {
+        queueCellEffect('reveal', view.row, view.col, now);
+        queued += 1;
+        if (view.isMine) {
+          queueCellEffect('explode', view.row, view.col, now);
+          queued += 1;
+        }
+      } else if (!prev.flagged && view.flagged) {
+        queueCellEffect('flag', view.row, view.col, now);
+        queued += 1;
+      } else if (prev.flagged && !view.flagged) {
+        queueCellEffect('unflag', view.row, view.col, now);
+        queued += 1;
+      }
+      if (queued >= 24) break;
+    }
+    if (queued > 0) scheduleAnimationFrame();
+  }
+
+  function pruneEffects(now: number): void {
+    for (let i = cellEffects.length - 1; i >= 0; i -= 1) {
+      const fx = cellEffects[i]!;
+      if (now - fx.startedAt > fx.durationMs) cellEffects.splice(i, 1);
+    }
+    for (let i = particles.length - 1; i >= 0; i -= 1) {
+      const fx = particles[i]!;
+      if (now - fx.startedAt > fx.durationMs) particles.splice(i, 1);
+    }
+  }
+
+  function drawCellEffects(effectCtx: CanvasRenderingContext2D, now: number): void {
+    if (isHex || !squareLayout || cellEffects.length === 0) return;
+    const { gridOriginX, gridOriginY, grid } = squareLayout;
+
+    effectCtx.save();
+    for (const fx of cellEffects) {
+      const age = now - fx.startedAt;
+      const t = Math.max(0, Math.min(1, age / fx.durationMs));
+      const { x, y } = cellPixelForFx(fx.row, fx.col, gridOriginX, gridOriginY, grid);
+      const cx = x + grid.cellSize / 2;
+      const cy = y + grid.cellSize / 2;
+
+      if (fx.kind === 'reveal') {
+        drawFxFrame(effectCtx, 'safe-reveal', t, cx, cy, grid.cellSize * 2.1, grid.cellSize * 2.1);
+      } else if (fx.kind === 'flag') {
+        drawFxFrame(effectCtx, 'flag-pop', t, cx, cy, grid.cellSize * 2.2, grid.cellSize * 1.7);
+      } else if (fx.kind === 'explode') {
+        drawFxFrame(effectCtx, 'mine-explosion', t, cx, cy, grid.cellSize * 3.2, grid.cellSize * 2.4);
+      }
+
+      if (fx.kind === 'reveal') {
+        const alpha = 1 - t;
+        const pad = 2 + t * grid.cellSize * 0.18;
+        fillRounded(
+          x - pad,
+          y - pad,
+          grid.cellSize + pad * 2,
+          grid.cellSize + pad * 2,
+          grid.cellRadius + 4,
+          `rgba(96, 165, 250, ${0.18 * alpha})`,
+        );
+        strokeRounded(
+          x - pad + 0.5,
+          y - pad + 0.5,
+          grid.cellSize + pad * 2 - 1,
+          grid.cellSize + pad * 2 - 1,
+          grid.cellRadius + 4,
+          `rgba(147, 197, 253, ${0.65 * alpha})`,
+          1.5,
+        );
+      }
+
+      if (fx.kind === 'flag' || fx.kind === 'unflag') {
+        const alpha = 1 - t;
+        const radius = grid.cellSize * (0.28 + t * 0.42);
+        effectCtx.strokeStyle =
+          fx.kind === 'flag'
+            ? `rgba(99, 102, 241, ${0.7 * alpha})`
+            : `rgba(245, 158, 11, ${0.65 * alpha})`;
+        effectCtx.lineWidth = Math.max(1, grid.cellSize * 0.055);
+        effectCtx.beginPath();
+        effectCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+        effectCtx.stroke();
+      }
+
+      if (fx.kind === 'explode') {
+        const alpha = 1 - t;
+        const radius = grid.cellSize * (0.35 + t * 1.15);
+        const glow = effectCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        glow.addColorStop(0, `rgba(248, 113, 113, ${0.48 * alpha})`);
+        glow.addColorStop(0.45, `rgba(251, 146, 60, ${0.28 * alpha})`);
+        glow.addColorStop(1, 'rgba(248, 113, 113, 0)');
+        effectCtx.fillStyle = glow;
+        effectCtx.beginPath();
+        effectCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+        effectCtx.fill();
+
+        effectCtx.strokeStyle = `rgba(254, 202, 202, ${0.8 * alpha})`;
+        effectCtx.lineWidth = Math.max(1.5, grid.cellSize * 0.05);
+        effectCtx.lineCap = 'round';
+        for (let i = 0; i < 10; i += 1) {
+          const angle = (Math.PI * 2 * i) / 10 + t * 0.45;
+          const inner = grid.cellSize * (0.22 + t * 0.38);
+          const outer = grid.cellSize * (0.38 + t * 0.78);
+          effectCtx.beginPath();
+          effectCtx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+          effectCtx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+          effectCtx.stroke();
+        }
+      }
+    }
+    effectCtx.restore();
+
+    if (cellEffects.length > 0) scheduleAnimationFrame();
+  }
+
+  function drawFxFrame(
+    fxCtx: CanvasRenderingContext2D,
+    name: GameFxName,
+    t: number,
+    cx: number,
+    cy: number,
+    w: number,
+    h: number,
+  ): boolean {
+    const frames = getGameFxFrames(name);
+    if (!frames || frames.length === 0) return false;
+    const index = Math.min(frames.length - 1, Math.floor(t * frames.length));
+    const frame = frames[index];
+    if (!frame) return false;
+
+    fxCtx.save();
+    fxCtx.globalCompositeOperation = getGameFxBlendMode(name);
+    fxCtx.globalAlpha = Math.max(0, Math.min(1, 1 - Math.max(0, t - 0.82) / 0.18));
+    drawImageContained(fxCtx, frame, cx - w / 2, cy - h / 2, w, h, 1);
+    fxCtx.restore();
+    return true;
+  }
+
+  function cellPixelForFx(
+    row: number,
+    col: number,
+    gridOriginX: number,
+    gridOriginY: number,
+    grid: LayoutMetrics['grid'],
+  ): { x: number; y: number } {
+    return {
+      x: gridOriginX + col * grid.cellStep,
+      y: gridOriginY + row * grid.cellStep,
+    };
+  }
+
+  function spawnComboParticles(combo: number): void {
+    const now = performance.now();
+    const palette = comboColor(combo);
+    const count = Math.min(42, 14 + Math.floor(combo / 2));
+    const originX = width / 2;
+    const originY = Math.max(120, boardOffsetY + boardHeight * 0.34);
+
+    for (let i = 0; i < count; i += 1) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.45;
+      const speed = 1.4 + Math.random() * 3.1 + Math.min(3, combo / 24);
+      particles.push({
+        x: originX + (Math.random() - 0.5) * 80,
+        y: originY + (Math.random() - 0.5) * 28,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 1.2,
+        size: 2.2 + Math.random() * 3.8,
+        color: palette.stroke,
+        startedAt: now,
+        durationMs: 680 + Math.random() * 420,
+      });
+    }
+    while (particles.length > 120) {
+      particles.shift();
+    }
+    scheduleAnimationFrame();
+  }
+
+  function drawParticles(particleCtx: CanvasRenderingContext2D, now: number): void {
+    if (particles.length === 0) return;
+    particleCtx.save();
+    for (const fx of particles) {
+      const t = Math.max(0, Math.min(1, (now - fx.startedAt) / fx.durationMs));
+      const alpha = 1 - t;
+      const gravity = 2.2 * t * t;
+      const x = fx.x + fx.vx * t * 42;
+      const y = fx.y + fx.vy * t * 42 + gravity * 16;
+      particleCtx.globalAlpha = alpha;
+      particleCtx.fillStyle = fx.color;
+      particleCtx.beginPath();
+      particleCtx.arc(x, y, fx.size * (1 - t * 0.35), 0, Math.PI * 2);
+      particleCtx.fill();
+    }
+    particleCtx.restore();
+    if (particles.length > 0) scheduleAnimationFrame();
+  }
+
   function paint(): void {
     syncFullscreenCanvasSize();
     syncBoardSizeFromLayout();
+    const now = performance.now();
+    pruneEffects(now);
     const hudRight = getHudRightDisplayFn?.() ?? currentHudRightDisplay;
     const scrollPressure = getScrollPressureFn?.();
     const renderState = {
@@ -274,6 +599,8 @@ export function createGameCanvas(
       });
     }
 
+    drawCellEffects(ctx, now);
+
     if (fullscreen) {
       ctx.restore();
       drawFullscreenOverlay(ctx, fullscreen, width, height);
@@ -305,6 +632,93 @@ export function createGameCanvas(
     ctx.stroke();
   }
 
+  function drawChip(
+    shellCtx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    label: string,
+    value: string,
+    align: 'left' | 'center' | 'right' = 'left',
+    labelIcon?: HudIconName,
+  ): void {
+    fillRounded(x, y, w, h, 10, THEME.hudPillBg);
+    strokeRounded(x + 0.5, y + 0.5, w - 1, h - 1, 10, THEME.hudPillBorder);
+    shellCtx.fillStyle = THEME.hudMuted;
+    shellCtx.font = `600 10px ${FONTS.display}`;
+    shellCtx.textAlign = 'left';
+    shellCtx.textBaseline = 'top';
+    drawChipLabel(shellCtx, x, y + 8, label, align, w, labelIcon);
+
+    const lives = parseLivesDisplay(value);
+    if (lives) {
+      const iconSize = 18;
+      const rowW = lives.max * iconSize + (lives.max - 1) * 4;
+      const rowX =
+        align === 'left' ? x + 12 : align === 'right' ? x + w - 12 - rowW : x + (w - rowW) / 2;
+      if (!drawLivesRow(shellCtx, rowX, y + 36, lives, iconSize, 4)) {
+        shellCtx.fillStyle = '#ef4444';
+        shellCtx.font = `600 15px ${FONTS.mono}`;
+        shellCtx.textAlign = align;
+        shellCtx.fillText(value, align === 'left' ? x + 12 : align === 'right' ? x + w - 12 : x + w / 2, y + 24);
+      }
+      return;
+    }
+
+    shellCtx.fillStyle = THEME.hudText;
+    shellCtx.font = `600 15px ${FONTS.mono}`;
+    shellCtx.textAlign = align;
+    shellCtx.textBaseline = 'top';
+    const valueX = align === 'left' ? x + 12 : align === 'right' ? x + w - 12 : x + w / 2;
+    shellCtx.fillText(value, valueX, y + 24);
+  }
+
+  function drawModernBackground(
+    shellCtx: CanvasRenderingContext2D,
+    shellW: number,
+    shellH: number,
+  ): void {
+    const bg = shellCtx.createLinearGradient(0, 0, 0, shellH);
+    bg.addColorStop(0, '#0b0d16');
+    bg.addColorStop(0.55, '#090a12');
+    bg.addColorStop(1, '#05060b');
+    shellCtx.fillStyle = bg;
+    shellCtx.fillRect(0, 0, shellW, shellH);
+
+    shellCtx.save();
+    shellCtx.globalAlpha = 0.22;
+    shellCtx.strokeStyle = '#1f2a44';
+    shellCtx.lineWidth = 1;
+    const step = 48;
+    for (let x = (shellW % step) - step; x <= shellW; x += step) {
+      shellCtx.beginPath();
+      shellCtx.moveTo(x, 0);
+      shellCtx.lineTo(x, shellH);
+      shellCtx.stroke();
+    }
+    for (let y = (shellH % step) - step; y <= shellH; y += step) {
+      shellCtx.beginPath();
+      shellCtx.moveTo(0, y);
+      shellCtx.lineTo(shellW, y);
+      shellCtx.stroke();
+    }
+    shellCtx.globalAlpha = 0.08;
+    shellCtx.fillStyle = '#ffffff';
+    for (let y = 0; y < shellH; y += 4) {
+      shellCtx.fillRect(0, y, shellW, 1);
+    }
+    shellCtx.restore();
+
+    const vignette = shellCtx.createLinearGradient(0, 0, shellW, 0);
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0.42)');
+    vignette.addColorStop(0.18, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(0.82, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.42)');
+    shellCtx.fillStyle = vignette;
+    shellCtx.fillRect(0, 0, shellW, shellH);
+  }
+
   function drawFullscreenShell(
     shellCtx: CanvasRenderingContext2D,
     shell: GameCanvasFullscreenOptions,
@@ -319,201 +733,190 @@ export function createGameCanvas(
     retryRect = null;
     devAutoRect = null;
 
-    const bg = shellCtx.createRadialGradient(
-      shellW * 0.5,
-      shellH * 0.5,
-      80,
-      shellW * 0.5,
-      shellH * 0.5,
-      Math.max(shellW, shellH) * 0.74,
-    );
-    bg.addColorStop(0, '#171827');
-    bg.addColorStop(0.55, '#0e1020');
-    bg.addColorStop(1, '#070913');
-    shellCtx.fillStyle = bg;
-    shellCtx.fillRect(0, 0, shellW, shellH);
+    drawModernBackground(shellCtx, shellW, shellH);
 
-    shellCtx.save();
-    shellCtx.globalAlpha = 0.18;
-    shellCtx.strokeStyle = '#26324d';
-    shellCtx.lineWidth = 1;
-    const gridStep = 48;
-    for (let x = (shellW % gridStep) - gridStep; x < shellW; x += gridStep) {
-      shellCtx.beginPath();
-      shellCtx.moveTo(x, 0);
-      shellCtx.lineTo(x, shellH);
-      shellCtx.stroke();
-    }
-    for (let y = (shellH % gridStep) - gridStep; y < shellH; y += gridStep) {
-      shellCtx.beginPath();
-      shellCtx.moveTo(0, y);
-      shellCtx.lineTo(shellW, y);
-      shellCtx.stroke();
-    }
-    shellCtx.restore();
-
-    const safe = Math.max(18, Math.min(36, shellW * 0.028));
-    const topReserve = shellW < 700 ? 110 : 88;
-    const bottomReserve = shellW < 700 ? 126 : 104;
-    const availableH = Math.max(260, shellH - topReserve - bottomReserve);
+    const { safe, top: topReserve, bottom: bottomReserve } = getFullscreenBoardReserves(shellW);
+    const topBarH = shellW < 560 ? 68 : 76;
+    const availableH = Math.max(200, shellH - topReserve - bottomReserve);
     boardOffsetX = Math.max(safe, (shellW - innerBoardW) / 2);
     boardOffsetY = topReserve + Math.max(0, (availableH - innerBoardH) / 2);
 
     const stats = shell.getStats?.();
-    const hudW = shellW < 560 ? 178 : 238;
-    const hudH = shellW < 560 ? 78 : 92;
-    fillRounded(safe, safe, hudW, hudH, 14, 'rgba(7, 10, 22, 0.72)');
-    strokeRounded(safe + 0.5, safe + 0.5, hudW - 1, hudH - 1, 14, 'rgba(129, 140, 248, 0.28)', 1.5);
 
-    shellCtx.fillStyle = '#94a3b8';
-    shellCtx.font = '800 11px "Inter", "Segoe UI", system-ui, sans-serif';
-    shellCtx.textAlign = 'left';
-    shellCtx.textBaseline = 'top';
-    shellCtx.fillText('SCORE', safe + 16, safe + 13);
+    // 浮动顶栏
+    const barX = safe;
+    const barY = safe;
+    const barW = shellW - safe * 2;
+    fillRounded(barX, barY, barW, topBarH, 14, THEME.hudPanelBg);
+    strokeRounded(barX + 0.5, barY + 0.5, barW - 1, topBarH - 1, 14, THEME.panelBorder);
 
-    shellCtx.fillStyle = '#f8fafc';
-    shellCtx.font = `900 ${shellW < 560 ? 30 : 38}px "SF Mono", "JetBrains Mono", monospace`;
-    shellCtx.fillText(String(stats?.score ?? 0).padStart(5, '0'), safe + 14, safe + 29);
+    const chipH = topBarH - 16;
+    const chipY = barY + 8;
+    const chipW = shellW < 560 ? 96 : 112;
+
+    drawChip(
+      shellCtx,
+      barX + 12,
+      chipY,
+      chipW,
+      chipH,
+      'SCORE',
+      String(stats?.score ?? 0).padStart(5, '0'),
+      'left',
+    );
 
     if ((stats?.combo ?? 0) > 0) {
-      fillRounded(safe + hudW - 78, safe + 16, 58, 24, 12, 'rgba(251, 191, 36, 0.16)');
-      shellCtx.fillStyle = '#fde68a';
-      shellCtx.font = '800 13px "Inter", "Segoe UI", system-ui, sans-serif';
-      shellCtx.textAlign = 'center';
-      shellCtx.textBaseline = 'middle';
-      shellCtx.fillText(`×${stats?.combo ?? 0}`, safe + hudW - 49, safe + 28);
+      drawChip(
+        shellCtx,
+        barX + 12 + chipW + 8,
+        chipY,
+        72,
+        chipH,
+        'COMBO',
+        `×${stats?.combo ?? 0}`,
+        'left',
+      );
     }
-
-    const statusW = shellW < 560 ? 164 : 230;
-    const statusX = shellW - safe - statusW;
-    fillRounded(statusX, safe, statusW, hudH, 14, 'rgba(7, 10, 22, 0.62)');
-    strokeRounded(statusX + 0.5, safe + 0.5, statusW - 1, hudH - 1, 14, 'rgba(255,255,255,0.08)');
-    shellCtx.fillStyle = '#a5b4fc';
-    shellCtx.font = '800 12px "Inter", "Segoe UI", system-ui, sans-serif';
-    shellCtx.textAlign = 'right';
-    shellCtx.textBaseline = 'top';
-    shellCtx.fillText(stats?.status ?? shell.title, statusX + statusW - 14, safe + 13);
-
-    shellCtx.fillStyle = '#cbd5e1';
-    shellCtx.font = '700 13px "Inter", "Segoe UI", system-ui, sans-serif';
-    const rightLine = stats?.lives ?? '';
-    shellCtx.fillText(rightLine, statusX + statusW - 14, safe + 36);
 
     if (stats?.countdown) {
-      const timerW = Math.max(88, Math.min(140, stats.countdown.length * 16 + 34));
+      const timerW = Math.max(118, Math.min(158, stats.countdown.length * 14 + 56));
       const timerX = (shellW - timerW) / 2;
-      fillRounded(timerX, safe, timerW, 48, 24, 'rgba(251, 191, 36, 0.15)');
-      strokeRounded(timerX + 0.5, safe + 0.5, timerW - 1, 47, 24, 'rgba(251, 191, 36, 0.38)', 1.5);
-      shellCtx.fillStyle = '#fde68a';
-      shellCtx.font = '900 20px "SF Mono", "JetBrains Mono", monospace';
+      fillRounded(timerX, chipY, timerW, chipH, 10, THEME.warningSoft);
+      strokeRounded(timerX + 0.5, chipY + 0.5, timerW - 1, chipH - 1, 10, 'rgba(245, 158, 11, 0.35)');
+      shellCtx.fillStyle = THEME.hudMuted;
+      shellCtx.font = `600 10px ${FONTS.display}`;
       shellCtx.textAlign = 'center';
-      shellCtx.textBaseline = 'middle';
-      shellCtx.fillText(stats.countdown, shellW / 2, safe + 24);
+      shellCtx.textBaseline = 'top';
+      shellCtx.fillText('SCROLL', shellW / 2, chipY + 8);
+      shellCtx.fillStyle = THEME.warning;
+      shellCtx.font = `600 16px ${FONTS.mono}`;
+      shellCtx.fillText(stats.countdown, shellW / 2, chipY + 24);
     }
 
-    const keyW = Math.min(300, Math.max(196, shellW * 0.28));
-    const keyH = 54;
+    const rightChipX = barX + barW - chipW - 12;
+    const livesRaw = stats?.lives;
+    const hasLives = Boolean(livesRaw && livesRaw.includes('♥'));
+    drawChip(
+      shellCtx,
+      rightChipX,
+      chipY,
+      chipW,
+      chipH,
+      hasLives ? 'LIVES' : 'STATUS',
+      livesRaw ?? stats?.status ?? shell.title,
+      'right',
+    );
+
+    // 底栏：Space 键
+    const keyW = Math.min(280, Math.max(180, shellW * 0.34));
+    const keyH = 44;
     const keyX = (shellW - keyW) / 2;
     const keyY = shellH - safe - keyH;
     spaceKeyRect = { x: keyX, y: keyY, w: keyW, h: keyH };
-    const keyFill = stats?.spaceEnabled ? 'rgba(226, 232, 240, 0.13)' : 'rgba(71, 85, 105, 0.08)';
-    fillRounded(keyX, keyY, keyW, keyH, 12, keyFill);
+    const keyEnabled = stats?.spaceEnabled;
+
+    fillRounded(
+      keyX,
+      keyY,
+      keyW,
+      keyH,
+      10,
+      keyEnabled ? THEME.accentSoft : 'rgba(39, 39, 42, 0.6)',
+    );
     strokeRounded(
       keyX + 0.5,
       keyY + 0.5,
       keyW - 1,
       keyH - 1,
-      12,
-      stats?.spaceEnabled ? 'rgba(226, 232, 240, 0.32)' : 'rgba(148, 163, 184, 0.16)',
-      1.5,
+      10,
+      keyEnabled ? THEME.accentMuted : THEME.panelBorder,
     );
-    shellCtx.fillStyle = stats?.spaceEnabled ? '#f8fafc' : '#94a3b8';
-    shellCtx.font = '900 18px "SF Mono", "JetBrains Mono", monospace';
+    shellCtx.fillStyle = keyEnabled ? THEME.hudText : THEME.hudMuted;
+    shellCtx.font = `600 14px ${FONTS.display}`;
     shellCtx.textAlign = 'center';
     shellCtx.textBaseline = 'middle';
-    shellCtx.fillText('SPACE', shellW / 2, keyY + 22);
-    shellCtx.fillStyle = '#94a3b8';
-    shellCtx.font = '700 11px "Inter", "Segoe UI", system-ui, sans-serif';
-    shellCtx.fillText('上移 / 消费底部行', shellW / 2, keyY + 40);
+    shellCtx.fillText('SPACE · 上移', shellW / 2, keyY + keyH / 2);
 
     if (stats?.defused) {
-      shellCtx.fillStyle = '#94a3b8';
-      shellCtx.font = '700 12px "Inter", "Segoe UI", system-ui, sans-serif';
+      shellCtx.fillStyle = THEME.hudMuted;
+      shellCtx.font = `500 11px ${FONTS.mono}`;
       shellCtx.textAlign = 'center';
-      shellCtx.fillText(stats.defused, shellW / 2, keyY - 18);
+      shellCtx.textBaseline = 'bottom';
+      const defusedText = stats.defused;
+      shellCtx.fillText(defusedText, shellW / 2, keyY - 12);
     }
 
     if (stats?.devAutoVisible) {
-      const autoW = 112;
-      const autoH = 44;
+      const autoW = 88;
+      const autoH = 36;
       const autoX = shellW - safe - autoW;
       const autoY = shellH - safe - autoH;
       devAutoRect = { x: autoX, y: autoY, w: autoW, h: autoH };
       const active = Boolean(stats.devAutoActive);
-      fillRounded(
-        autoX,
-        autoY,
-        autoW,
-        autoH,
-        12,
-        active ? 'rgba(79, 70, 229, 0.78)' : 'rgba(15, 23, 42, 0.72)',
-      );
+      fillRounded(autoX, autoY, autoW, autoH, 8, active ? THEME.accent : THEME.hudPillBg);
       strokeRounded(
         autoX + 0.5,
         autoY + 0.5,
         autoW - 1,
         autoH - 1,
-        12,
-        active ? 'rgba(199, 210, 254, 0.58)' : 'rgba(148, 163, 184, 0.24)',
-        1.5,
+        8,
+        active ? THEME.accent : THEME.panelBorder,
       );
-      shellCtx.fillStyle = active ? '#ffffff' : '#cbd5e1';
-      shellCtx.font = '900 14px "SF Mono", "JetBrains Mono", monospace';
+      shellCtx.fillStyle = active ? '#ffffff' : THEME.hudMuted;
+      shellCtx.font = `600 12px ${FONTS.display}`;
       shellCtx.textAlign = 'center';
       shellCtx.textBaseline = 'middle';
-      shellCtx.fillText(active ? 'AUTO ON' : 'AUTO', autoX + autoW / 2, autoY + autoH / 2 + 1);
+      shellCtx.fillText(active ? 'AUTO ON' : 'AUTO', autoX + autoW / 2, autoY + autoH / 2);
     }
   }
 
   function comboColor(combo: number): { fill: string; stroke: string; glow: string; text: string } {
     if (combo >= 50) {
       return {
-        fill: 'rgba(80, 14, 112, 0.86)',
-        stroke: 'rgba(244, 114, 182, 0.95)',
-        glow: 'rgba(217, 70, 239, 0.42)',
-        text: '#fdf4ff',
+        fill: 'rgba(99, 102, 241, 0.92)',
+        stroke: 'rgba(129, 140, 248, 0.6)',
+        glow: 'rgba(99, 102, 241, 0.25)',
+        text: '#ffffff',
       };
     }
     if (combo >= 20) {
       return {
-        fill: 'rgba(124, 45, 18, 0.86)',
-        stroke: 'rgba(251, 146, 60, 0.95)',
-        glow: 'rgba(249, 115, 22, 0.42)',
-        text: '#fff7ed',
+        fill: 'rgba(245, 158, 11, 0.92)',
+        stroke: 'rgba(251, 191, 36, 0.5)',
+        glow: 'rgba(245, 158, 11, 0.2)',
+        text: '#ffffff',
       };
     }
     if (combo >= 10) {
       return {
-        fill: 'rgba(113, 63, 18, 0.86)',
-        stroke: 'rgba(251, 191, 36, 0.95)',
-        glow: 'rgba(251, 191, 36, 0.38)',
-        text: '#fefce8',
+        fill: 'rgba(34, 197, 94, 0.88)',
+        stroke: 'rgba(74, 222, 128, 0.45)',
+        glow: 'rgba(34, 197, 94, 0.18)',
+        text: '#ffffff',
       };
     }
     return {
-      fill: 'rgba(20, 83, 45, 0.86)',
-      stroke: 'rgba(74, 222, 128, 0.9)',
-      glow: 'rgba(34, 197, 94, 0.34)',
-      text: '#f0fdf4',
+      fill: 'rgba(39, 39, 42, 0.92)',
+      stroke: THEME.panelBorder,
+      glow: 'rgba(99, 102, 241, 0.12)',
+      text: THEME.hudText,
     };
   }
 
+  function logIcon(kind: GameCanvasLogLine['kind']): HudIconName {
+    if (kind === 'danger') return 'warning';
+    if (kind === 'ai') return 'wand';
+    if (kind === 'player') return 'flag';
+    if (kind === 'scroll') return 'timer';
+    return 'info';
+  }
+
   function logColor(kind: GameCanvasLogLine['kind']): string {
-    if (kind === 'danger') return '#fca5a5';
-    if (kind === 'ai') return '#a5b4fc';
-    if (kind === 'player') return '#86efac';
-    if (kind === 'scroll') return '#fde68a';
-    return '#cbd5e1';
+    if (kind === 'danger') return THEME.danger;
+    if (kind === 'ai') return THEME.accent;
+    if (kind === 'player') return THEME.success;
+    if (kind === 'scroll') return THEME.warning;
+    return THEME.hudMuted;
   }
 
   function drawFullscreenOverlay(
@@ -525,9 +928,12 @@ export function createGameCanvas(
     const stats = shell.getStats?.();
     const combo = stats?.combo ?? 0;
     if (combo !== lastCombo) {
+      if (combo > lastCombo && combo > 1) spawnComboParticles(combo);
       lastCombo = combo;
       if (combo > 1) comboFxStartedAt = performance.now();
     }
+
+    drawParticles(shellCtx, performance.now());
 
     if (combo > 1 && comboFxStartedAt > 0) {
       const elapsedMs = performance.now() - comboFxStartedAt;
@@ -547,21 +953,32 @@ export function createGameCanvas(
       shellCtx.translate(cx, cy);
       shellCtx.scale(scale, scale);
 
+      drawFxFrame(shellCtx, 'combo-burst', t, 0, 0, badgeW * 1.9, badgeH * 2.7);
+
       const glow = shellCtx.createRadialGradient(0, 0, 10, 0, 0, badgeW * 0.78);
       glow.addColorStop(0, palette.glow);
       glow.addColorStop(1, 'rgba(0,0,0,0)');
       shellCtx.fillStyle = glow;
       shellCtx.fillRect(-badgeW, -badgeH, badgeW * 2, badgeH * 2);
 
-      fillRounded(-badgeW / 2, -badgeH / 2, badgeW, badgeH, 22, palette.fill);
-      strokeRounded(-badgeW / 2 + 0.5, -badgeH / 2 + 0.5, badgeW - 1, badgeH - 1, 22, palette.stroke, 2.5);
+      fillRounded(-badgeW / 2, -badgeH / 2, badgeW, badgeH, 12, palette.fill);
+      strokeRounded(-badgeW / 2 + 0.5, -badgeH / 2 + 0.5, badgeW - 1, badgeH - 1, 12, palette.stroke, 1.5);
       shellCtx.fillStyle = palette.text;
-      shellCtx.font = '900 18px "Inter", "Segoe UI", system-ui, sans-serif';
+      shellCtx.font = `600 13px ${FONTS.display}`;
       shellCtx.textAlign = 'center';
       shellCtx.textBaseline = 'middle';
-      shellCtx.fillText('COMBO', 0, -20);
-      shellCtx.font = `900 ${Math.min(54, 34 + String(combo).length * 5)}px "SF Mono", "JetBrains Mono", monospace`;
-      shellCtx.fillText(`×${combo}`, 0, 18);
+      const comboLabel = 'Combo';
+      const comboLabelW = shellCtx.measureText(comboLabel).width;
+      const comboIconSize = 13;
+      const comboBlockW = comboIconSize + 5 + comboLabelW;
+      drawHudIcon(shellCtx, 'medal', -comboBlockW / 2, -18 - comboIconSize / 2, {
+        size: comboIconSize,
+      });
+      shellCtx.textAlign = 'left';
+      shellCtx.fillText(comboLabel, -comboBlockW / 2 + comboIconSize + 5, -18);
+      shellCtx.textAlign = 'center';
+      shellCtx.font = `600 ${Math.min(48, 30 + String(combo).length * 4)}px ${FONTS.mono}`;
+      shellCtx.fillText(`×${combo}`, 0, 16);
       shellCtx.restore();
 
       if (t < 1) scheduleAnimationFrame();
@@ -588,93 +1005,103 @@ export function createGameCanvas(
       shellCtx.restore();
     }
 
-    if (currentStatus === 'idle') {
-      const w = Math.min(340, shellW - 64);
-      const h = 78;
+    if (currentStatus === 'idle' && (shell.showStartOverlay?.() ?? true)) {
+      const w = Math.min(320, shellW - 64);
+      const h = 88;
       const x = (shellW - w) / 2;
       const y = Math.max(120, boardOffsetY + boardHeight * 0.46 - h / 2);
       startRect = { x, y, w, h };
       shellCtx.save();
-      shellCtx.fillStyle = 'rgba(2, 6, 23, 0.56)';
+      shellCtx.fillStyle = THEME.overlayScrim;
       shellCtx.fillRect(0, 0, shellW, shellH);
-      fillRounded(x, y, w, h, 18, 'rgba(79, 70, 229, 0.88)');
-      strokeRounded(x + 0.5, y + 0.5, w - 1, h - 1, 18, 'rgba(199, 210, 254, 0.72)', 2);
-      shellCtx.fillStyle = '#ffffff';
-      shellCtx.font = '900 28px "Inter", "Segoe UI", system-ui, sans-serif';
+      fillRounded(x, y, w, h, 14, THEME.panelElevated);
+      strokeRounded(x + 0.5, y + 0.5, w - 1, h - 1, 14, THEME.panelBorder);
+      drawHudIcon(shellCtx, 'play', shellW / 2 - 12, y + 10, { size: 24 });
+      shellCtx.fillStyle = THEME.hudText;
+      shellCtx.font = `700 22px ${FONTS.display}`;
       shellCtx.textAlign = 'center';
       shellCtx.textBaseline = 'middle';
-      shellCtx.fillText('START', shellW / 2, y + 34);
-      shellCtx.fillStyle = 'rgba(224, 231, 255, 0.78)';
-      shellCtx.font = '800 12px "Inter", "Segoe UI", system-ui, sans-serif';
-      shellCtx.fillText('ENDLESS RUN', shellW / 2, y + 56);
+      shellCtx.fillText('开始游戏', shellW / 2, y + 38);
+      shellCtx.fillStyle = THEME.hudMuted;
+      shellCtx.font = `500 12px ${FONTS.display}`;
+      shellCtx.fillText('点击后自行选择首格', shellW / 2, y + 58);
       shellCtx.restore();
     }
 
     if (currentStatus === 'lost') {
-      const panelW = Math.min(420, shellW - 48);
-      const panelH = 190;
+      const panelW = Math.min(380, shellW - 48);
+      const panelH = 196;
       const panelX = (shellW - panelW) / 2;
       const panelY = Math.max(96, boardOffsetY + boardHeight * 0.42 - panelH / 2);
-      const retryW = Math.min(260, panelW - 56);
-      const retryH = 58;
+      const retryW = Math.min(220, panelW - 48);
+      const retryH = 48;
       const retryX = panelX + (panelW - retryW) / 2;
-      const retryY = panelY + 106;
+      const retryY = panelY + 118;
       retryRect = { x: retryX, y: retryY, w: retryW, h: retryH };
 
       shellCtx.save();
-      shellCtx.fillStyle = 'rgba(2, 6, 23, 0.66)';
+      shellCtx.fillStyle = THEME.overlayScrim;
       shellCtx.fillRect(0, 0, shellW, shellH);
-      fillRounded(panelX, panelY, panelW, panelH, 20, 'rgba(15, 23, 42, 0.94)');
-      strokeRounded(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1, 20, 'rgba(248, 113, 113, 0.54)', 2);
-      shellCtx.fillStyle = '#fecaca';
-      shellCtx.font = '900 34px "Inter", "Segoe UI", system-ui, sans-serif';
+      fillRounded(panelX, panelY, panelW, panelH, 16, THEME.panelElevated);
+      strokeRounded(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1, 16, THEME.panelBorder);
+      drawHudIcon(shellCtx, 'skull', shellW / 2 - 16, panelY + 16, { size: 32 });
+      shellCtx.fillStyle = THEME.hudText;
+      shellCtx.font = `700 26px ${FONTS.display}`;
       shellCtx.textAlign = 'center';
       shellCtx.textBaseline = 'middle';
-      shellCtx.fillText('GAME OVER', shellW / 2, panelY + 46);
-      shellCtx.fillStyle = '#cbd5e1';
-      shellCtx.font = '800 14px "Inter", "Segoe UI", system-ui, sans-serif';
-      shellCtx.fillText(`SCORE ${String(stats?.score ?? 0).padStart(5, '0')}`, shellW / 2, panelY + 78);
+      shellCtx.fillText('游戏结束', shellW / 2, panelY + 64);
+      shellCtx.fillStyle = THEME.hudMuted;
+      shellCtx.font = `500 14px ${FONTS.mono}`;
+      shellCtx.fillText(`得分 ${String(stats?.score ?? 0).padStart(5, '0')}`, shellW / 2, panelY + 92);
 
-      fillRounded(retryX, retryY, retryW, retryH, 16, 'rgba(239, 68, 68, 0.82)');
-      strokeRounded(retryX + 0.5, retryY + 0.5, retryW - 1, retryH - 1, 16, 'rgba(254, 202, 202, 0.62)', 2);
-      shellCtx.fillStyle = '#fff1f2';
-      shellCtx.font = '900 22px "Inter", "Segoe UI", system-ui, sans-serif';
-      shellCtx.fillText('RETRY', shellW / 2, retryY + retryH / 2 + 1);
+      fillRounded(retryX, retryY, retryW, retryH, 10, THEME.danger);
+      shellCtx.fillStyle = '#ffffff';
+      shellCtx.font = `600 16px ${FONTS.display}`;
+      if (
+        !drawIconTextButton(shellCtx, shellW / 2, retryY + retryH / 2 + 1, 'refresh', '再来一局', {
+          iconSize: 16,
+          font: `600 16px ${FONTS.display}`,
+        })
+      ) {
+        shellCtx.fillText('再来一局', shellW / 2, retryY + retryH / 2 + 1);
+      }
       shellCtx.restore();
     }
 
     if (!shell.isLogOpen?.()) return;
     const logs = shell.getRecentLogs?.() ?? [];
-    const modalW = Math.min(860, shellW - 32);
-    const modalH = Math.min(620, shellH - 64);
+    const modalW = Math.min(720, shellW - 32);
+    const modalH = Math.min(560, shellH - 64);
     const x = (shellW - modalW) / 2;
     const y = (shellH - modalH) / 2;
 
     shellCtx.save();
-    shellCtx.fillStyle = 'rgba(2, 6, 23, 0.68)';
+    shellCtx.fillStyle = THEME.overlayScrim;
     shellCtx.fillRect(0, 0, shellW, shellH);
-    fillRounded(x, y, modalW, modalH, 16, 'rgba(12, 15, 28, 0.94)');
-    strokeRounded(x + 0.5, y + 0.5, modalW - 1, modalH - 1, 16, 'rgba(129, 140, 248, 0.34)', 1.5);
-    shellCtx.fillStyle = '#f8fafc';
-    shellCtx.font = '900 18px "Inter", "Segoe UI", system-ui, sans-serif';
+    fillRounded(x, y, modalW, modalH, 16, THEME.panelElevated);
+    strokeRounded(x + 0.5, y + 0.5, modalW - 1, modalH - 1, 16, THEME.panelBorder);
+    shellCtx.fillStyle = THEME.hudText;
+    shellCtx.font = `700 16px ${FONTS.display}`;
     shellCtx.textAlign = 'left';
     shellCtx.textBaseline = 'top';
-    shellCtx.fillText('对局日志', x + 24, y + 22);
-    shellCtx.fillStyle = '#94a3b8';
-    shellCtx.font = '700 12px "Inter", "Segoe UI", system-ui, sans-serif';
+    drawHudIcon(shellCtx, 'info', x + 24, y + 22, { size: 14 });
+    shellCtx.fillText('对局日志', x + 44, y + 22);
+    shellCtx.fillStyle = THEME.hudMuted;
+    shellCtx.font = `500 11px ${FONTS.display}`;
     shellCtx.textAlign = 'right';
-    shellCtx.fillText('` / ESC 关闭', x + modalW - 24, y + 25);
+    shellCtx.fillText('` / Esc 关闭', x + modalW - 24, y + 25);
 
-    shellCtx.font = '600 13px "SF Mono", "JetBrains Mono", "Fira Code", monospace';
+    shellCtx.font = `500 13px ${FONTS.mono}`;
     shellCtx.textAlign = 'left';
-    const lineH = 23;
+    const lineH = 22;
     const maxLines = Math.max(8, Math.floor((modalH - 82) / lineH));
     let lineY = y + 64;
     for (const line of logs.slice(-maxLines)) {
-      shellCtx.fillStyle = 'rgba(148, 163, 184, 0.72)';
+      shellCtx.fillStyle = THEME.hudMuted;
       shellCtx.fillText(line.time, x + 24, lineY);
+      drawHudIcon(shellCtx, logIcon(line.kind), x + 78, lineY + 1, { size: 12 });
       shellCtx.fillStyle = logColor(line.kind);
-      shellCtx.fillText(line.text, x + 98, lineY, modalW - 122);
+      shellCtx.fillText(line.text, x + 96, lineY, modalW - 120);
       lineY += lineH;
     }
     shellCtx.restore();
@@ -723,7 +1150,12 @@ export function createGameCanvas(
       }
     }
 
-    if (fullscreen && currentStatus === 'idle' && startRect) {
+    if (
+      fullscreen &&
+      currentStatus === 'idle' &&
+      startRect &&
+      (fullscreen.showStartOverlay?.() ?? true)
+    ) {
       const insideStart =
         x >= startRect.x &&
         x <= startRect.x + startRect.w &&
@@ -820,6 +1252,14 @@ export function createGameCanvas(
         syncSquareLayout(nextRows, nextCols);
         currentRows = nextRows;
         currentCols = nextCols;
+      }
+
+      collectCellEffects(currentViews, views);
+      if (status === 'idle' && currentStatus !== 'idle') {
+        cellEffects.length = 0;
+        particles.length = 0;
+        lastCombo = 0;
+        comboFxStartedAt = 0;
       }
 
       currentViews = views;

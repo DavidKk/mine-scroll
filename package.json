@@ -8,7 +8,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "node --experimental-strip-types scripts/run-tests.ts",
-    "simulate:ai": "node --experimental-strip-types scripts/simulate-endless-ai.ts"
+    "simulate:ai": "node --experimental-strip-types scripts/simulate-endless-ai.ts",
+    "assets:tiles": "python3 scripts/optimize-tiles.py",
+    "assets:hud": "python3 scripts/slice-brief-hud.py",
+    "assets:production": "python3 scripts/slice-production-assets.py",
+    "assets:all": "python3 scripts/optimize-tiles.py && python3 scripts/slice-brief-hud.py && python3 scripts/slice-production-assets.py"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

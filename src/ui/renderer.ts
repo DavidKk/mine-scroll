@@ -5,12 +5,15 @@ import {
   HUD_HEIGHT,
   HUD_GAP,
   PANEL_RADIUS,
+  FONTS,
   THEME,
   cellPixelOrigin,
   computeGridMetrics,
   getGridOrigin,
   type GridMetrics,
 } from './theme.ts';
+import { drawImageContained, getGameCutout } from './game-assets.ts';
+import { drawSpriteInCell, getTileSprites } from './tile-sprites.ts';
 
 export interface LayoutMetrics {
   width: number;
@@ -125,10 +128,7 @@ function drawHiddenCell(
   y: number,
   g: GridMetrics,
 ): void {
-  const grad = ctx.createLinearGradient(x, y, x, y + g.cellSize);
-  grad.addColorStop(0, THEME.cellHiddenHighlight);
-  grad.addColorStop(1, THEME.cellHidden);
-  fillRoundRect(ctx, x, y, g.cellSize, g.cellSize, g.cellRadius, grad);
+  fillRoundRect(ctx, x, y, g.cellSize, g.cellSize, g.cellRadius, THEME.cellHidden);
   strokeRoundRect(
     ctx,
     x + 0.5,
@@ -136,8 +136,13 @@ function drawHiddenCell(
     g.cellSize - 1,
     g.cellSize - 1,
     g.cellRadius,
-    THEME.panelBorder,
+    THEME.cellHiddenBorder,
   );
+  // 顶部微高光
+  const hi = ctx.createLinearGradient(x, y, x, y + g.cellSize * 0.45);
+  hi.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+  hi.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  fillRoundRect(ctx, x + 1, y + 1, g.cellSize - 2, g.cellSize * 0.42, g.cellRadius, hi);
 }
 
 function drawRevealedCellBg(
@@ -189,9 +194,10 @@ function drawMine(
   const scale = cellSize / 36;
   const r = 9 * scale;
   if (explosive) {
-    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r + 6 * scale);
-    glow.addColorStop(0, 'rgba(239,68,68,0.45)');
-    glow.addColorStop(1, 'rgba(239,68,68,0)');
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r + 8 * scale);
+    glow.addColorStop(0, 'rgba(255, 34, 102, 0.65)');
+    glow.addColorStop(0.5, 'rgba(255, 0, 170, 0.25)');
+    glow.addColorStop(1, 'rgba(255, 0, 170, 0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(cx, cy, r + 6 * scale, 0, Math.PI * 2);
@@ -284,7 +290,7 @@ function drawHudPill(
   strokeRoundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, h / 2, THEME.hudPillBorder);
 
   ctx.fillStyle = THEME.hudAccent;
-  ctx.font = '600 22px "SF Mono", "JetBrains Mono", "Fira Code", monospace';
+  ctx.font = `700 22px ${FONTS.mono}`;
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
   const tx =
@@ -306,6 +312,18 @@ function drawCellMarksOverlay(
 ): void {
   if (view.revealed || !view.flagged) return;
 
+  const gameFlag = getGameCutout('flag-blue');
+  if (gameFlag) {
+    drawImageContained(ctx, gameFlag, x, y, g.cellSize, g.cellSize, 1.18);
+    return;
+  }
+
+  const sprites = getTileSprites();
+  if (sprites) {
+    drawSpriteInCell(ctx, sprites.flag, x, y, g.cellSize);
+    return;
+  }
+
   const cx = x + g.cellSize / 2;
   const cy = y + g.cellSize / 2;
   drawFlag(ctx, cx, cy, g.cellSize);
@@ -318,6 +336,34 @@ function drawCell(
   view: CellView,
   g: GridMetrics,
 ): void {
+  const sprites = getTileSprites();
+  if (sprites) {
+    if (!view.revealed) {
+      drawSpriteInCell(ctx, sprites.hidden, x, y, g.cellSize);
+      return;
+    }
+
+    if (view.isMine) {
+      drawSpriteInCell(ctx, sprites.revealed, x, y, g.cellSize);
+      const gameMine = getGameCutout('mine-standard');
+      if (gameMine) {
+        drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, 1.1);
+      } else {
+        drawSpriteInCell(ctx, sprites.mine, x, y, g.cellSize);
+      }
+      return;
+    }
+
+    const n = view.adjacentMines ?? 0;
+    if (n > 0 && n <= sprites.numbers.length) {
+      drawSpriteInCell(ctx, sprites.numbers[n - 1]!, x, y, g.cellSize);
+      return;
+    }
+
+    drawSpriteInCell(ctx, sprites.revealed, x, y, g.cellSize);
+    return;
+  }
+
   const cx = x + g.cellSize / 2;
   const cy = y + g.cellSize / 2;
 
@@ -329,16 +375,22 @@ function drawCell(
   drawRevealedCellBg(ctx, x, y, g);
 
   if (view.isMine) {
-    drawMine(ctx, cx, cy, g.cellSize, true);
+    const gameMine = getGameCutout('mine-standard');
+    if (gameMine) {
+      drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, 1.1);
+    } else {
+      drawMine(ctx, cx, cy, g.cellSize, true);
+    }
     return;
   }
 
   if (view.adjacentMines && view.adjacentMines > 0) {
-    ctx.fillStyle = THEME.numbers[view.adjacentMines] ?? THEME.hudText;
-    const fontSize = Math.max(12, Math.round(g.cellSize * 0.47));
-    ctx.font = `700 ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
+    const color = THEME.numbers[view.adjacentMines] ?? THEME.hudText;
+    const fontSize = Math.max(12, Math.round(g.cellSize * 0.48));
+    ctx.font = `600 ${fontSize}px ${FONTS.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
     ctx.fillText(String(view.adjacentMines), cx, cy + 0.5);
   }
 }
@@ -387,7 +439,7 @@ function drawScrollPressureBar(
 
   ctx.save();
 
-  fillRoundRect(ctx, barX, barY, barW, barH, 2, 'rgba(15, 15, 22, 0.9)');
+  fillRoundRect(ctx, barX, barY, barW, barH, 3, 'rgba(39, 39, 42, 0.95)');
   const fillW = Math.max(barH, barW * pressure.progress);
   fillRoundRect(
     ctx,
@@ -395,16 +447,16 @@ function drawScrollPressureBar(
     barY,
     fillW,
     barH,
-    2,
-    pressure.urgent ? 'rgba(239, 68, 68, 0.95)' : 'rgba(251, 191, 36, 0.85)',
+    3,
+    pressure.urgent ? THEME.danger : THEME.warning,
   );
 
   const batchNote = pressure.batchRows && pressure.batchRows > 1 ? ` ×${pressure.batchRows}` : '';
   const label = pressure.urgent
-    ? `准备上移${batchNote} · ${pressure.seconds}s`
-    : `上移倒数${batchNote} · ${pressure.seconds}s`;
-  const fontSize = pressure.urgent ? 13 : 12;
-  ctx.font = `600 ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
+    ? `上移${batchNote} · ${pressure.seconds}s`
+    : `倒数${batchNote} · ${pressure.seconds}s`;
+  const fontSize = pressure.urgent ? 12 : 11;
+  ctx.font = `600 ${fontSize}px ${FONTS.display}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = pressure.urgent ? '#fca5a5' : '#fcd34d';
@@ -437,7 +489,7 @@ function drawScrollDangerBand(
     bandW,
     rowH + 4,
     grid.cellRadius + 2,
-    pressure.urgent ? `rgba(239, 68, 68, ${bandAlpha})` : `rgba(251, 191, 36, ${bandAlpha})`,
+    pressure.urgent ? `rgba(239, 68, 68, ${bandAlpha})` : `rgba(245, 158, 11, ${bandAlpha})`,
   );
 
   if (pressure.urgent) {
@@ -448,7 +500,7 @@ function drawScrollDangerBand(
       bandW,
       rowH + 4,
       grid.cellRadius + 2,
-      'rgba(252, 165, 165, 0.7)',
+      'rgba(239, 68, 68, 0.5)',
       1.5,
     );
   }
@@ -467,14 +519,14 @@ function drawAiHint(
   const isGuess = hint.confidence === 'guess';
   const color =
     hint.kind === 'flag'
-      ? 'rgba(244, 63, 94, 0.55)'
+      ? 'rgba(239, 68, 68, 0.28)'
       : hint.kind === 'unflag'
-        ? 'rgba(251, 146, 60, 0.55)'
+        ? 'rgba(251, 146, 60, 0.28)'
         : hint.kind === 'chord'
-        ? 'rgba(129, 140, 248, 0.55)'
-        : isGuess
-          ? 'rgba(251, 191, 36, 0.5)'
-          : 'rgba(52, 211, 153, 0.55)';
+          ? 'rgba(99, 102, 241, 0.28)'
+          : isGuess
+            ? 'rgba(245, 158, 11, 0.28)'
+            : 'rgba(34, 197, 94, 0.28)';
 
   ctx.save();
   fillRoundRect(ctx, x - 2, y - 2, grid.cellSize + 4, grid.cellSize + 4, grid.cellRadius + 2, color);
@@ -485,7 +537,7 @@ function drawAiHint(
     grid.cellSize + 4,
     grid.cellSize + 4,
     grid.cellRadius + 2,
-    isGuess ? 'rgba(251, 191, 36, 0.95)' : 'rgba(255, 255, 255, 0.85)',
+    isGuess ? THEME.warning : THEME.accent,
     2,
   );
   ctx.restore();
@@ -602,8 +654,19 @@ export function renderBoardOnlyFrame(
   const { width, height, gridOriginX, gridOriginY, gridWidth, gridHeight, grid } = layout;
 
   ctx.clearRect(0, 0, width, height);
-  fillRoundRect(ctx, 0, 0, gridWidth, gridHeight, 14, THEME.panelBg);
-  strokeRoundRect(ctx, 0.5, 0.5, gridWidth - 1, gridHeight - 1, 14, THEME.panelBorder);
+
+  fillRoundRect(ctx, 0, 0, gridWidth, gridHeight, PANEL_RADIUS, THEME.panelBg);
+  strokeRoundRect(ctx, 0.5, 0.5, gridWidth - 1, gridHeight - 1, PANEL_RADIUS, THEME.boardFrameBorder);
+  strokeRoundRect(
+    ctx,
+    3,
+    3,
+    gridWidth - 6,
+    gridHeight - 6,
+    PANEL_RADIUS - 2,
+    THEME.boardFrameGlow,
+    1,
+  );
 
   for (const view of state.views) {
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);

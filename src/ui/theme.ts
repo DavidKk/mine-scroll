@@ -1,9 +1,15 @@
 export const CELL_GAP = 3;
 export const DEFAULT_CELL_SIZE = 36;
-export const PANEL_RADIUS = 14;
-export const GRID_PADDING = 14;
+export const PANEL_RADIUS = 12;
+export const GRID_PADDING = 12;
 export const HUD_HEIGHT = 58;
 export const HUD_GAP = 10;
+
+/** 现代 UI 字体（index.html 加载 DM Sans + IBM Plex Mono） */
+export const FONTS = {
+  display: '"DM Sans", "Segoe UI", system-ui, sans-serif',
+  mono: '"IBM Plex Mono", "SF Mono", monospace',
+} as const;
 
 export interface GridMetrics {
   cellSize: number;
@@ -13,45 +19,64 @@ export interface GridMetrics {
 }
 
 export const THEME = {
-  canvasBg: '#16161f',
-  panelBg: '#1c1c28',
-  panelBorder: 'rgba(255,255,255,0.06)',
+  canvasBg: '#09090b',
+  panelBg: '#18181b',
+  panelElevated: '#1f1f23',
+  panelBorder: 'rgba(255, 255, 255, 0.08)',
 
-  cellHidden: '#2a2a3d',
-  cellHiddenHighlight: '#35354a',
-  cellRevealed: '#222230',
-  cellRevealedBorder: 'rgba(255,255,255,0.04)',
+  cellHidden: '#27272a',
+  cellHiddenHighlight: '#323238',
+  cellHiddenBorder: 'rgba(255, 255, 255, 0.07)',
+  cellRevealed: '#141416',
+  cellRevealedBorder: 'rgba(255, 255, 255, 0.05)',
 
-  shadow: 'rgba(0,0,0,0.35)',
-  glow: 'rgba(99,102,241,0.15)',
+  accent: '#6366f1',
+  accentSoft: 'rgba(99, 102, 241, 0.14)',
+  accentMuted: 'rgba(99, 102, 241, 0.45)',
+  success: '#22c55e',
+  successSoft: 'rgba(34, 197, 94, 0.14)',
+  warning: '#f59e0b',
+  warningSoft: 'rgba(245, 158, 11, 0.14)',
+  danger: '#ef4444',
+  dangerSoft: 'rgba(239, 68, 68, 0.14)',
 
-  flagPole: '#94a3b8',
-  flagCloth: '#f43f5e',
+  shadow: 'rgba(0, 0, 0, 0.4)',
 
-  mineBody: '#1e1e2e',
+  flagPole: '#a1a1aa',
+  flagCloth: '#ef4444',
+
+  mineBody: '#27272a',
   mineCore: '#ef4444',
   mineSpark: '#fca5a5',
 
-  hudPillBg: '#0f0f16',
-  hudPillBorder: 'rgba(255,255,255,0.08)',
-  hudText: '#e2e8f0',
-  hudAccent: '#818cf8',
+  hudPanelBg: 'rgba(24, 24, 27, 0.82)',
+  hudPillBg: 'rgba(39, 39, 42, 0.9)',
+  hudPillBorder: 'rgba(255, 255, 255, 0.08)',
+  hudText: '#fafafa',
+  hudMuted: '#71717a',
+  hudAccent: '#6366f1',
+  hudWarn: '#f59e0b',
 
-  resetBg: '#2d2d42',
-  resetBgHover: '#3d3d58',
-  resetIcon: '#e2e8f0',
-  resetWon: '#34d399',
-  resetLost: '#f87171',
+  resetBg: '#27272a',
+  resetBgHover: '#3f3f46',
+  resetIcon: '#a1a1aa',
+  resetWon: '#22c55e',
+  resetLost: '#ef4444',
+
+  boardFrameBorder: 'rgba(255, 255, 255, 0.1)',
+  boardFrameGlow: 'rgba(99, 102, 241, 0.06)',
+
+  overlayScrim: 'rgba(9, 9, 11, 0.72)',
 
   numbers: [
     '',
     '#60a5fa',
     '#4ade80',
-    '#fb7185',
-    '#c084fc',
-    '#fbbf24',
-    '#2dd4bf',
     '#f472b6',
+    '#fbbf24',
+    '#fb923c',
+    '#a78bfa',
+    '#f87171',
     '#94a3b8',
   ] as const,
 } as const;
@@ -68,7 +93,7 @@ export function computeGridMetrics(
       cellSize: fixedCellSize,
       cellGap: CELL_GAP,
       cellStep: fixedCellSize + CELL_GAP,
-      cellRadius: Math.max(4, Math.round(fixedCellSize * 0.19)),
+      cellRadius: Math.max(4, Math.round(fixedCellSize * 0.14)),
     };
   }
 
@@ -84,7 +109,7 @@ export function computeGridMetrics(
     cellSize,
     cellGap: CELL_GAP,
     cellStep: cellSize + CELL_GAP,
-    cellRadius: Math.max(4, Math.round(cellSize * 0.19)),
+    cellRadius: Math.max(4, Math.round(cellSize * 0.14)),
   };
 }
 
@@ -113,4 +138,23 @@ export function cellPixelOrigin(
     x: gridOriginX + col * grid.cellStep,
     y: gridOriginY + row * grid.cellStep,
   };
+}
+
+/** 无尽竖长盘：按视口宽高拟合格子尺寸（优先填满可用高度） */
+export function computeViewportCellSize(
+  cols: number,
+  rows: number,
+  viewportW: number,
+  viewportH: number,
+  reserves: { safe: number; top: number; bottom: number },
+  limits: { min?: number; max?: number } = {},
+): number {
+  const min = limits.min ?? 18;
+  const max = limits.max ?? DEFAULT_CELL_SIZE;
+  const pad = GRID_PADDING * 2;
+  const availW = Math.max(120, viewportW - reserves.safe * 2 - pad);
+  const availH = Math.max(160, viewportH - reserves.top - reserves.bottom - pad);
+  const fromW = Math.floor((availW + CELL_GAP) / cols - CELL_GAP);
+  const fromH = Math.floor((availH + CELL_GAP) / rows - CELL_GAP);
+  return Math.max(min, Math.min(max, fromW, fromH));
 }
