@@ -14,21 +14,6 @@ export interface ModeEntry {
 
 export const MODE_ENTRIES: ModeEntry[] = [
   {
-    id: 'classic',
-    name: '经典扫雷',
-    tag: '方形',
-    category: 'classic',
-    description: '完整经典规则：配置难度、Chord、首击安全。',
-  },
-  {
-    id: 'hex',
-    name: '六边形扫雷',
-    tag: '六边形',
-    category: 'variant',
-    description: '正六边形盘，每格 6 邻；经典规则，91 格 / 10 雷。',
-    hideSettings: true,
-  },
-  {
     id: 'endless',
     name: '无尽模式',
     tag: '卷轴',

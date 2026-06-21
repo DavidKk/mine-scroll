@@ -49,6 +49,28 @@ export function getLayoutMetrics(
   };
 }
 
+export function getBoardOnlyLayoutMetrics(
+  rows: number,
+  cols: number,
+  maxGrid?: { width: number; height: number },
+  fixedCellSize?: number,
+): LayoutMetrics {
+  const grid = computeGridMetrics(rows, cols, maxGrid, fixedCellSize);
+  const gridWidth = cols * grid.cellStep - grid.cellGap + GRID_PADDING * 2;
+  const gridHeight = rows * grid.cellStep - grid.cellGap + GRID_PADDING * 2;
+
+  return {
+    width: gridWidth,
+    height: gridHeight,
+    gridOriginX: GRID_PADDING,
+    gridOriginY: GRID_PADDING,
+    gridWidth,
+    gridHeight,
+    resetButton: { x: -9999, y: -9999, size: 0 },
+    grid,
+  };
+}
+
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -552,6 +574,36 @@ export function renderFrame(
   if (state.scrollPressure && state.status === 'playing') {
     drawScrollPressureBar(ctx, layout, state.scrollPressure);
   }
+
+  for (const view of state.views) {
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    drawCell(ctx, x, y, view, grid);
+  }
+
+  for (const view of state.views) {
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    drawCellMarksOverlay(ctx, x, y, view, grid);
+  }
+
+  if (state.scrollPressure && state.status === 'playing') {
+    drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
+  }
+
+  if (state.aiHint && state.status !== 'lost') {
+    drawAiHint(ctx, layout, state.aiHint);
+  }
+}
+
+export function renderBoardOnlyFrame(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  state: RenderState,
+): void {
+  const { width, height, gridOriginX, gridOriginY, gridWidth, gridHeight, grid } = layout;
+
+  ctx.clearRect(0, 0, width, height);
+  fillRoundRect(ctx, 0, 0, gridWidth, gridHeight, 14, THEME.panelBg);
+  strokeRoundRect(ctx, 0.5, 0.5, gridWidth - 1, gridHeight - 1, 14, THEME.panelBorder);
 
   for (const view of state.views) {
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);

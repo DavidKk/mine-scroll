@@ -1,16 +1,13 @@
-import { loadGameConfig, saveGameConfig } from '../config/game-config.ts';
+import { loadGameConfig } from '../config/game-config.ts';
 import { aiPersistCellKey, isAiPersistBlocked } from '../core/ai/ai-blocked.ts';
 import {
   applyAiMove,
-  canExchangeHeal,
   chordAt,
   createSession,
-  exchangeMinesForLife,
   getAiAnalysis,
   getFlagCount,
   getHudDefusedDisplay,
   getHudLeftDisplay,
-  getSessionHudExtra,
   MINES_PER_LIFE,
   revealAt,
   toAiHintDisplay,
@@ -21,7 +18,6 @@ import {
   ENDLESS_VISIBLE_ROWS,
   endlessScreenRowToLocal,
   endlessScrollTick,
-  formatEndlessScrollBadge,
   getEndlessScrollProfile,
   getEndlessScrollPressure,
 } from '../core/modes/endless.ts';
@@ -32,7 +28,7 @@ import { getEndlessAiStepMs } from '../core/ai/solver.ts';
 import { createGameCanvas, type GameCanvasController } from '../ui/game-canvas.ts';
 import { createGameLog, type GameLogController } from '../ui/game-log.ts';
 import { DEFAULT_CELL_SIZE } from '../ui/theme.ts';
-import { createSettingsPanel, type SettingsPanelController } from '../ui/settings-panel.ts';
+import type { GameCanvasHudStats, GameCanvasLogLine } from '../ui/game-canvas.ts';
 
 export interface GameSessionCallbacks {
   onBack(): void;
@@ -41,7 +37,7 @@ export interface GameSessionCallbacks {
 export function mountGameSession(
   root: HTMLElement,
   modeId: GameModeId,
-  callbacks: GameSessionCallbacks,
+  _callbacks: GameSessionCallbacks,
 ): () => void {
   const modeMeta = getModeEntry(modeId);
   const isEndless = modeId === 'endless';
@@ -59,98 +55,49 @@ export function mountGameSession(
   let aiWaitLogged = false;
   let aiOscillationCell: string | null = null;
   let aiOscillationCount = 0;
+  const recentLogLines: GameCanvasLogLine[] = [];
+  let logOpen = false;
 
   root.className = 'app';
   root.replaceChildren();
 
-  const topBar = document.createElement('div');
-  topBar.className = 'app__top';
-
-  const backBtn = document.createElement('button');
-  backBtn.type = 'button';
-  backBtn.className = 'app__back';
-  backBtn.textContent = '← 模式选择';
-  backBtn.addEventListener('click', () => {
-    cleanup();
-    callbacks.onBack();
-  });
-
-  const title = document.createElement('h1');
-  title.className = 'app__title';
-  title.textContent = modeMeta.name;
-
-  const badge = document.createElement('p');
-  badge.className = 'app__badge';
-
-  const aiBar = document.createElement('div');
-  aiBar.className = 'app__ai-bar';
-
-  const hintBtn = document.createElement('button');
-  hintBtn.type = 'button';
-  hintBtn.className = 'app__ai-btn';
-  hintBtn.textContent = '提示';
-  hintBtn.title = '显示 AI 建议（快捷键 A）';
-
-  const stepBtn = document.createElement('button');
-  stepBtn.type = 'button';
-  stepBtn.className = 'app__ai-btn app__ai-btn--primary';
-  stepBtn.textContent = '走一步';
-  stepBtn.title = 'AI 执行一步';
-
-  const autoBtn = document.createElement('button');
-  autoBtn.type = 'button';
-  autoBtn.className = 'app__ai-btn';
-  autoBtn.textContent = '自动';
-  autoBtn.title = 'AI 连续自动下棋';
-
-  const scrollBtn = document.createElement('button');
-  scrollBtn.type = 'button';
-  scrollBtn.className = 'app__ai-btn app__ai-btn--scroll';
-  scrollBtn.textContent = '空格上移';
-  scrollBtn.title = '按空格或点击按钮：立即消费底部行数（跟当前批量档 ×N）并重置倒数';
-  scrollBtn.hidden = !isEndless;
-
-  const healBtn = document.createElement('button');
-  healBtn.type = 'button';
-  healBtn.className = 'app__ai-btn app__ai-btn--heal';
-  healBtn.textContent = '自动回血';
-  healBtn.title = `每 ${MINES_PER_LIFE} 个消雷自动恢复 1 命；满命时不储存整组回血`;
-  healBtn.hidden = true;
-
-  const aiStatus = document.createElement('span');
-  aiStatus.className = 'app__ai-status';
-
-  aiBar.append(hintBtn, stepBtn, autoBtn, scrollBtn, healBtn, aiStatus);
-
-  topBar.append(backBtn, title, badge);
-
-  const settingsContainer = document.createElement('div');
-
   const canvasContainer = document.createElement('div');
-  canvasContainer.className = isEndless ? 'app__canvas app__canvas--endless' : 'app__canvas';
+  canvasContainer.className = 'app__canvas app__canvas--endless';
 
   const logContainer = document.createElement('div');
   logContainer.className = 'app__log';
 
-  root.append(topBar, aiBar, settingsContainer, canvasContainer, logContainer);
+  logContainer.hidden = true;
+  root.append(canvasContainer, logContainer);
 
-  const gameLog: GameLogController = createGameLog(logContainer);
+  let view!: GameCanvasController;
+  const domGameLog: GameLogController = createGameLog(logContainer);
+  const gameLog: GameLogController = {
+    append(text, kind = 'system') {
+      recentLogLines.push({
+        time: new Date().toLocaleTimeString('zh-CN', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }),
+        text,
+        kind,
+      });
+      while (recentLogLines.length > 80) {
+        recentLogLines.shift();
+      }
+      domGameLog.append(text, kind);
+      view?.repaint();
+    },
+    clear() {
+      recentLogLines.length = 0;
+      domGameLog.clear();
+      view?.repaint();
+    },
+  };
 
-  let view: GameCanvasController = mountCanvas();
-  let settings: SettingsPanelController | null = null;
-
-  if (!modeMeta.hideSettings) {
-    settings = createSettingsPanel(settingsContainer, difficulty, {
-      onApply(next) {
-        difficulty = next;
-        saveGameConfig(difficulty);
-        settings?.setDifficulty(difficulty);
-        restartGame();
-      },
-    });
-  } else {
-    settingsContainer.hidden = true;
-  }
+  view = mountCanvas();
 
   function formatCell(row: number, col: number): string {
     return `(${row},${col})`;
@@ -351,7 +298,6 @@ export function mountGameSession(
       window.clearTimeout(aiAutoId);
       aiAutoId = null;
     }
-    autoBtn.classList.remove('app__ai-btn--active');
   }
 
   function getScrollElapsedMs(): number {
@@ -410,7 +356,6 @@ export function mountGameSession(
             ? '已胜利'
             : '无可用步';
     }
-    aiStatus.textContent = aiStatusText;
   }
 
   function afterSessionChange(wasIdle = false): void {
@@ -546,28 +491,22 @@ export function mountGameSession(
     return true;
   }
 
-  hintBtn.addEventListener('click', () => {
-    refreshAiHint();
-    render();
-  });
-
-  stepBtn.addEventListener('click', () => {
-    stopAiAuto();
-    runAiStep();
-  });
-
-  autoBtn.addEventListener('click', () => {
+  function toggleAiAuto(): void {
     if (aiAutoActive) {
       stopAiAuto();
       gameLog.append('AI 自动停止', 'ai');
+      render();
       return;
     }
     aiAutoActive = true;
-    autoBtn.classList.add('app__ai-btn--active');
     aiWaitLogged = false;
     gameLog.append('AI 自动开始', 'ai');
+    if (session.state.status === 'idle') {
+      startArcadeRun();
+    }
     scheduleAiStep();
-  });
+    render();
+  }
 
   function onKeyDown(event: KeyboardEvent): void {
     if (
@@ -578,8 +517,22 @@ export function mountGameSession(
       return;
     }
 
+    if (event.code === 'Backquote' || event.key === '`') {
+      event.preventDefault();
+      logOpen = !logOpen;
+      render();
+      return;
+    }
+
+    if (event.key === 'Escape' && logOpen) {
+      event.preventDefault();
+      logOpen = false;
+      render();
+      return;
+    }
+
     if (isEndless && (event.code === 'Space' || event.key === ' ') && !event.repeat) {
-      if (event.target instanceof HTMLButtonElement) return;
+      if (logOpen || event.target instanceof HTMLButtonElement) return;
       event.preventDefault();
       performScrollTick(true);
       return;
@@ -588,7 +541,7 @@ export function mountGameSession(
     if (event.key.toLowerCase() !== 'a') return;
     event.preventDefault();
     if (event.shiftKey) {
-      autoBtn.click();
+      toggleAiAuto();
     } else if (event.metaKey || event.ctrlKey) {
       stopAiAuto();
       runAiStep();
@@ -670,27 +623,6 @@ export function mountGameSession(
     }, profile.intervalMs);
   }
 
-  scrollBtn.addEventListener('click', () => {
-    if (session.state.status !== 'playing') return;
-    performScrollTick(true);
-  });
-
-  healBtn.addEventListener('click', () => {
-    if (!canExchangeHeal(session)) return;
-    const beforeLives = session.lives;
-    const next = exchangeMinesForLife(session);
-    session = next;
-    gameLog.append(
-      `回血 · −${MINES_PER_LIFE} 消雷 · 剩余 ${next.lives ?? 0} 命 · 消雷 ${next.minesDefused ?? 0}`,
-      'system',
-    );
-    if (beforeLives !== next.lives) {
-      gameLog.append(`+1 命 · 当前 ${next.lives ?? 0} 命`, 'system');
-    }
-    refreshAiHint();
-    render();
-  });
-
   function startScrollTimer(): void {
     if (!isEndless || scrollTimeoutId !== null) return;
     scheduleNextScroll();
@@ -721,10 +653,65 @@ export function mountGameSession(
     return isEndless ? endlessScreenRowToLocal(session, screenRow) : screenRow;
   }
 
+  function startArcadeRun(): void {
+    if (session.state.status !== 'idle') return;
+    const col = Math.floor(session.state.board.cols / 2);
+    const row = Math.min(2, ENDLESS_VISIBLE_ROWS - 1);
+    const beforeLives = session.lives;
+    gameLog.append('开始', 'system');
+    const next = revealAt(session, toBoardRow(row), col);
+    applySession(next, beforeLives, { trigger: `START 开格 ${formatCell(row, col)}` });
+    if (next.state.status === 'playing') {
+      markGameClockStarted();
+      startScrollTimer();
+      refreshAiHint();
+    }
+    render();
+  }
+
+  function getCanvasHudStats(): GameCanvasHudStats {
+    const lives = session.lives ?? 0;
+    const maxLives = 5;
+    const depth = session.scrollRowCount ?? 0;
+    const defused = session.minesDefused ?? 0;
+    return {
+      score: session.score ?? 0,
+      combo: session.defuseCombo ?? 0,
+      lives: `${'♥'.repeat(lives)}${'♡'.repeat(Math.max(0, maxLives - lives))}`,
+      defused: `消雷 ${defused}/${MINES_PER_LIFE}`,
+      depth,
+      status:
+        session.state.status === 'idle'
+          ? 'READY'
+          : session.state.status === 'lost'
+            ? 'FAILED'
+            : session.state.status === 'won'
+              ? 'CLEAR'
+              : `DEPTH ↑${depth}`,
+      countdown: getScrollCountdownDisplay(),
+      spaceEnabled: isEndless && session.state.status === 'playing',
+      devAutoVisible: import.meta.env.DEV,
+      devAutoActive: aiAutoActive,
+    };
+  }
+
   function mountCanvas(): GameCanvasController {
     canvasContainer.replaceChildren();
     const { cols, mineCount, hexRadius } = session.state.board;
     const gridRows = isEndless ? ENDLESS_VISIBLE_ROWS : session.state.board.rows;
+    const fullscreenShell = {
+      title: modeMeta.name,
+      getAiStatus: () => aiStatusText,
+      getStats: () => getCanvasHudStats(),
+      getRecentLogs: () => recentLogLines,
+      isLogOpen: () => logOpen,
+      onStart: () => startArcadeRun(),
+      onRestart: () => restartGame(),
+      onSpace: () => {
+        if (session.state.status === 'playing') performScrollTick(true);
+      },
+      onDevAuto: () => toggleAiAuto(),
+    };
     return createGameCanvas(
       canvasContainer,
       gridRows,
@@ -777,15 +764,18 @@ export function mountGameSession(
         },
       },
       modeId === 'hex'
-        ? { hexRadius: hexRadius ?? session.state.board.hexRadius }
+        ? { hexRadius: hexRadius ?? session.state.board.hexRadius, fullscreen: fullscreenShell }
         : isEndless
           ? {
               fixedCellSize: DEFAULT_CELL_SIZE,
               fixedGridRows: ENDLESS_VISIBLE_ROWS,
               getHudRightDisplay: () => getScrollCountdownDisplay(),
               getScrollPressure: () => getScrollPressureState(),
+              fullscreen: fullscreenShell,
             }
-          : {},
+          : {
+              fullscreen: fullscreenShell,
+            },
     );
   }
 
@@ -809,19 +799,6 @@ export function mountGameSession(
   }
 
   function render(): void {
-    const hudExtra = getSessionHudExtra(session);
-    if (isEndless && session.state.status === 'playing' && scrollGameStartedAt > 0) {
-      badge.textContent = `${hudExtra} · ${formatEndlessScrollBadge(getEndlessScrollProfile(getScrollElapsedMs()))}`;
-    } else {
-      badge.textContent = hudExtra;
-    }
-    if (isEndless) {
-      scrollBtn.disabled = session.state.status !== 'playing';
-      healBtn.disabled = !canExchangeHeal(session);
-      const banked = session.minesDefused ?? 0;
-      healBtn.textContent =
-        banked >= MINES_PER_LIFE ? `回血(${MINES_PER_LIFE})` : `回血(${banked}/${MINES_PER_LIFE})`;
-    }
     const flagCount = getFlagCount(session.state);
     const { cols } = session.state.board;
     view.render(toCellViews(session), session.state.status, flagCount, {
