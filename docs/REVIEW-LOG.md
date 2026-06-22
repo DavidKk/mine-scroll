@@ -351,3 +351,32 @@
 **结论：** ⏸ 可试接入；接入前建议做轻量精修（缩放归一），非必须整张重生成
 
 ---
+
+### [Endless UX] HUD / Feedback / Responsive 调优 — 2026-06-22
+
+**产出：** `src/ui/game-canvas.ts`、`src/ui/game-stage-layout.ts`、`src/ui/renderer.ts`、`src/app/responsive-matrix.ts`、`src/app/ui-lab.ts`
+
+**做法摘要：** 顶部 HUD 改为 score 文本、score 旁紧凑 combo、heart-only lives、紧凑 countdown badge；Auto 改成 dev-only 小 `AI` tag。Combo/score/break 反馈改为短文本、低透明 FX、boardTop 附近显示，并新增 `?ui=responsive` 矩阵页覆盖关键尺寸和事件状态。
+
+**Review 检查项：**
+- [x] 不改变 core 规则与无尽模式机制
+- [x] Space 仍是底部唯一主操作，Auto 不再抢视觉层级
+- [x] 无持久大 combo chip，当前 combo 仍可见
+- [x] revealed empty cell 改为扁平/内陷，hidden cell 保持可点击感
+- [x] `360x640`、`390x844`、`768x1024`、`1280x900`、`1920x1080` 已有响应式矩阵检查入口
+
+**优化项：**
+- 将 cutout/FX/HUD 反馈关键参数集中到 `GAME_ASSET_TUNING`
+- UI Lab tile 预览补齐 hidden / revealed empty / revealed number / flagged / mine
+- `?ui=responsive` 增加 stage、board、Space、HUD anchor 辅助线和人工 Review checklist
+- 用户反馈后将 Space 从大底部面板收为中等主按钮，保持主操作层级但降低压迫感
+- 二次截图 Review 后继续调大棋盘基准格宽，并将 Start/Game Over 面板宽度改为跟棋盘联动；Space 进一步收为小主按钮
+- 开发环境下 `AI` 与 `SPACE` 改为同尺寸并排按钮；正式环境仍隐藏 `AI`，`SPACE` 单独居中
+- 后续 Review 改为全屏宽 HUD、`AI` 固定右下角开发入口，不为 `AI` 预留底部按钮区；无尽可见行数 `20 -> 22`，棋盘在可用区域内略向下放置
+- 初始 combo 为 `0` 时不渲染顶部 combo，避免默认显示 `x0` / `x1` 造成误读；仅连击真正大于 1 时展示
+- 棋盘下方加入低亮蓝紫底部能量轨/扫描线；滚动压力升高时转 amber/red，作为氛围反馈，不新增功能按钮
+- `AI` dev 入口缩成右下角小 chip，并按棋盘右边界避让，避免覆盖棋盘格
+
+**结论：** ✅ 进入用户视觉 Review；无需新增图片生成
+
+---

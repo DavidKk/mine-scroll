@@ -26,15 +26,18 @@ Sliced runtime assets:
 - Manifest: `public/assets/game/manifest.json`
 - Cutouts: `public/assets/game/cutouts/*.png`
 - FX frames: `public/assets/game/fx/<effect-name>/frame-XX.png`
+- UI panels: `public/assets/game/ui/*.png`
 - Cutout preview: `public/assets/game/preview-cutouts.png`
 - FX preview: `public/assets/game/preview-fx.png`
+- UI panel preview: `public/assets/game/preview-ui-panels.png`
 
 Sliced designer copies:
 
 - Manifest: `docs/design-assets/sliced/manifest.json`
 - Cutouts: `docs/design-assets/sliced/cutouts/*.png`
 - FX frames: `docs/design-assets/sliced/fx/<effect-name>/frame-XX.png`
-- Previews: `docs/design-assets/sliced/preview-cutouts.png`, `docs/design-assets/sliced/preview-fx.png`
+- UI panels: `docs/design-assets/sliced/ui/*.png`
+- Previews: `docs/design-assets/sliced/preview-cutouts.png`, `docs/design-assets/sliced/preview-fx.png`, `docs/design-assets/sliced/preview-ui-panels.png`
 
 ## Production Sheet Targets
 
@@ -79,18 +82,18 @@ UI panels:
 - [x] Create `scripts/slice-production-assets.py`.
 - [x] Slice cutouts to `public/assets/game/cutouts/`.
 - [x] Slice FX rows to `public/assets/game/fx/<effect-name>/frame-XX.png`.
-- [ ] Slice panel references to `public/assets/game/ui/`.
+- [x] Slice panel references to `public/assets/game/ui/`.
 - [x] Generate an asset manifest JSON.
 - [x] Add UI Lab section for sliced assets.
 - [x] Validate every output exists and has expected dimensions.
 
 ## Integration Plan
 
-- [ ] Keep tiles, numbers, AI hints, HUD panels, and scroll overlays as Canvas-first.
+- [x] Keep tiles, numbers, AI hints, HUD panels, and scroll overlays as Canvas-first.
 - [x] Add runtime asset loader for `public/assets/game/manifest.json`.
 - [x] Use cutouts for high-detail mines, flags, and hearts when available.
 - [x] Use FX sprites for safe reveal, flag pop, mine explosion, and combo burst overlays.
 - [x] Add runtime fallback to procedural Canvas if a sprite is missing.
 - [ ] Evaluate whether status icons should replace current Canvas/HUD labels.
 - [ ] Evaluate whether FX sprites should replace or only augment procedural Canvas effects.
-- [ ] Keep tiles, numbers, AI hints, HUD panels, and scroll overlays as Canvas-first.
+- [x] Keep tiles, numbers, AI hints, HUD panels, and scroll overlays as Canvas-first.

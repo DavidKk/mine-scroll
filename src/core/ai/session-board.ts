@@ -1,5 +1,5 @@
 import { getNeighbors, isCellActive } from '../board.ts';
-import { ENDLESS_VISIBLE_ROWS } from '../modes/endless.ts';
+import { ENDLESS_VISIBLE_ROWS } from '../modes/endless/index.ts';
 import type { Board, ModeSession } from '../types.ts';
 
 export interface SolverCell {

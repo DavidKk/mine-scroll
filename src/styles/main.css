@@ -112,6 +112,79 @@ body::-webkit-scrollbar {
   line-height: 1.4;
 }
 
+.responsive-matrix {
+  width: min(1800px, 100%);
+  margin: 0 auto;
+  padding: 28px;
+  line-height: 1.4;
+}
+
+.responsive-matrix__header,
+.responsive-matrix__checklist,
+.responsive-card {
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  background: rgba(5, 8, 16, 0.86);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 20px 60px rgba(0, 0, 0, 0.34);
+}
+
+.responsive-matrix__header,
+.responsive-matrix__checklist {
+  padding: 22px;
+  border-radius: 16px;
+}
+
+.responsive-matrix__header h1,
+.responsive-matrix__checklist h2 {
+  margin: 0;
+  color: #eff6ff;
+  text-transform: uppercase;
+}
+
+.responsive-matrix__header p {
+  margin: 8px 0 0;
+  color: #94a3b8;
+}
+
+.responsive-matrix__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.responsive-card {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.responsive-card canvas {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #05060b;
+}
+
+.responsive-card p {
+  margin: 0;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(96, 165, 250, 0.16);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.responsive-matrix__checklist {
+  margin-top: 18px;
+}
+
+.responsive-matrix__checklist ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: #cbd5e1;
+}
+
 .ui-lab__header,
 .ui-lab__target,
 .ui-lab-card {

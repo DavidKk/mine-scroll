@@ -60,6 +60,11 @@ const ASSET_SHEETS = [
     note: 'Middle-frame preview from 8 additive FX animations, each sliced into 8 frames.',
     src: '/assets/game/preview-fx.png',
   },
+  {
+    title: 'Sliced UI Panel Preview',
+    note: 'Cropped SPACE/AUTO/START/RETRY/Game Over/Log/HUD panel references from public/assets/game/ui.',
+    src: '/assets/game/preview-ui-panels.png',
+  },
 ] as const;
 
 interface LabCanvas {
@@ -221,26 +226,38 @@ function drawPreviewFrame(ctx: CanvasRenderingContext2D, w: number, h: number): 
 }
 
 function drawTilePreview(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void {
-  const size = 64;
-  const x = w / 2 - size / 2;
+  const size = Math.min(52, Math.max(34, w / 7));
+  const gap = 10;
+  const totalW = size * 5 + gap * 4;
+  const x = w / 2 - totalW / 2;
   const y = h / 2 - size / 2;
   const pop = t < 0.5 ? 1 + Math.sin(t * Math.PI * 2) * 0.08 : 1;
   ctx.save();
-  ctx.translate(w / 2, h / 2);
+  drawTile(ctx, x, y, size, false);
+
+  drawTile(ctx, x + (size + gap), y, size, true);
+  fillRound(ctx, x + (size + gap) + 4, y + 4, size - 8, size - 8, 6, 'rgba(0,0,0,0.16)');
+
+  drawTile(ctx, x + (size + gap) * 2, y, size, true);
+  ctx.fillStyle = '#60a5fa';
+  ctx.font = `800 ${Math.round(size * 0.5)}px ${FONTS.mono}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('2', x + (size + gap) * 2 + size / 2, y + size / 2 + 1);
+
+  drawTile(ctx, x + (size + gap) * 3, y, size, false);
+  ctx.save();
+  ctx.translate(x + (size + gap) * 3 + size / 2, y + size / 2);
   ctx.scale(pop, pop);
-  ctx.translate(-w / 2, -h / 2);
-  drawTile(ctx, x, y, size, t > 0.38);
-  if (t > 0.38) {
-    ctx.fillStyle = '#60a5fa';
-    ctx.font = `800 34px ${FONTS.mono}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('2', w / 2, h / 2 + 2);
-  }
+  drawFlag(ctx, 0, 0, size / 70);
+  ctx.restore();
+
+  drawTile(ctx, x + (size + gap) * 4, y, size, true);
+  drawMine(ctx, x + (size + gap) * 4 + size / 2, y + size / 2, size / 68, false);
   ctx.restore();
 
   const alpha = Math.max(0, 1 - t);
-  strokeRound(ctx, x - t * 18, y - t * 18, size + t * 36, size + t * 36, 12, `rgba(96,165,250,${alpha})`, 2);
+  strokeRound(ctx, x + size + gap - t * 10, y - t * 10, size + t * 20, size + t * 20, 10, `rgba(96,165,250,${alpha})`, 2);
 }
 
 function drawFlagPreview(ctx: CanvasRenderingContext2D, w: number, h: number, t: number): void {
@@ -428,7 +445,13 @@ export function mountUiLab(root: HTMLElement): () => void {
   const todoLink = document.createElement('a');
   todoLink.href = '/docs/UI-ASSET-TODO.md';
   todoLink.textContent = 'TODO Doc';
-  links.append(gameLink, todoLink);
+  const productionTodoLink = document.createElement('a');
+  productionTodoLink.href = '/docs/UI-PRODUCTION-ASSET-TODO.md';
+  productionTodoLink.textContent = 'Production TODO';
+  const responsiveLink = document.createElement('a');
+  responsiveLink.href = '/?ui=responsive';
+  responsiveLink.textContent = 'Responsive Matrix';
+  links.append(gameLink, todoLink, productionTodoLink, responsiveLink);
   header.append(title, subtitle, links);
 
   const target = document.createElement('section');

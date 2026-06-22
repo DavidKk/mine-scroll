@@ -17,6 +17,7 @@ DOC_OUT_DIR = ROOT / 'docs/design-assets/sliced'
 
 CORE_SRC = PRODUCTION_DIR / 'core-cutouts-production-v1.png'
 FX_SRC = PRODUCTION_DIR / 'fx-additive-sprites-production-v1.png'
+UI_SRC = PRODUCTION_DIR / 'ui-panels-production-v1.png'
 
 CORE_NAMES = [
     'mine-standard',
@@ -48,6 +49,36 @@ FX_ROWS = [
     'score-pop',
 ]
 
+UI_PANELS = [
+    ('space-active', (45, 55, 293, 111)),
+    ('space-disabled', (383, 56, 276, 109)),
+    ('auto-off', (712, 56, 113, 117)),
+    ('auto-on', (861, 56, 116, 117)),
+    ('start-panel', (45, 208, 364, 246)),
+    ('ready-panel', (435, 210, 298, 244)),
+    ('retry-button', (763, 369, 218, 84)),
+    ('game-over-panel', (45, 492, 430, 269)),
+    ('log-panel', (506, 486, 474, 280)),
+    ('score-chip', (45, 798, 309, 132)),
+    ('depth-chip', (372, 798, 251, 132)),
+    ('lives-chip', (637, 798, 344, 132)),
+    ('countdown-yellow', (47, 962, 143, 144)),
+    ('countdown-orange', (220, 962, 143, 144)),
+    ('countdown-red', (388, 962, 143, 144)),
+    ('defused-chip', (562, 966, 150, 151)),
+    ('heal-chip', (736, 966, 111, 151)),
+    ('break-chip', (867, 966, 114, 151)),
+    ('full-life-panel', (45, 1141, 379, 137)),
+    ('row-one-chip', (470, 1121, 141, 170)),
+    ('row-two-chip', (654, 1121, 141, 170)),
+    ('row-five-chip', (837, 1121, 143, 170)),
+    ('safe-number-badge', (45, 1328, 151, 150)),
+    ('flag-badge', (237, 1328, 151, 150)),
+    ('target-yellow-badge', (433, 1328, 151, 150)),
+    ('target-purple-badge', (633, 1328, 151, 150)),
+    ('warning-badge', (834, 1328, 151, 150)),
+]
+
 CORE_TARGET = 256
 CHROMA = np.array([255, 0, 255], dtype=np.int16)
 
@@ -56,8 +87,10 @@ def ensure_dirs() -> None:
     for path in [
         OUT_DIR / 'cutouts',
         OUT_DIR / 'fx',
+        OUT_DIR / 'ui',
         DOC_OUT_DIR / 'cutouts',
         DOC_OUT_DIR / 'fx',
+        DOC_OUT_DIR / 'ui',
         PUBLIC_PRODUCTION_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)
@@ -180,6 +213,59 @@ def slice_fx_sprites(manifest: dict[str, object]) -> None:
     }
 
 
+def slice_ui_panels(manifest: dict[str, object]) -> None:
+    if not UI_SRC.exists():
+        raise SystemExit(f'missing UI panel sheet: {UI_SRC}')
+
+    img = Image.open(UI_SRC).convert('RGBA')
+    entries: dict[str, object] = {}
+    for name, (x, y, w, h) in UI_PANELS:
+        crop = img.crop((x, y, x + w, y + h))
+        public_path = OUT_DIR / 'ui' / f'{name}.png'
+        doc_path = DOC_OUT_DIR / 'ui' / f'{name}.png'
+        save_pair(crop, public_path, doc_path)
+        entries[name] = {
+            'src': '/' + public_path.relative_to(ROOT / 'public').as_posix(),
+            'width': w,
+            'height': h,
+            'sourceRect': {'x': x, 'y': y, 'w': w, 'h': h},
+        }
+        print('wrote', public_path.relative_to(ROOT))
+
+    manifest['uiPanels'] = {
+        'source': str(UI_SRC.relative_to(ROOT)),
+        'items': entries,
+    }
+
+
+def make_panel_preview(manifest: dict[str, object]) -> tuple[Path, Path]:
+    panel_items = manifest['uiPanels']['items']  # type: ignore[index]
+    panel_names = list(panel_items.keys())  # type: ignore[union-attr]
+    cell_w = 300
+    cell_h = 160
+    cols = 3
+    rows = (len(panel_names) + cols - 1) // cols
+    preview = Image.new('RGBA', (cols * cell_w, rows * cell_h), (8, 10, 18, 255))
+
+    for index, name in enumerate(panel_names):
+        item = panel_items[name]  # type: ignore[index]
+        rel = item['src'].lstrip('/')  # type: ignore[index]
+        img = Image.open(ROOT / 'public' / rel).convert('RGBA')
+        max_w = cell_w - 22
+        max_h = cell_h - 32
+        scale = min(max_w / img.width, max_h / img.height, 1)
+        fitted = img.resize((max(1, int(img.width * scale)), max(1, int(img.height * scale))), Image.Resampling.LANCZOS)
+        x = (index % cols) * cell_w + (cell_w - fitted.width) // 2
+        y = (index // cols) * cell_h + (cell_h - fitted.height) // 2
+        preview.alpha_composite(fitted, (x, y))
+
+    public_panel_preview = OUT_DIR / 'preview-ui-panels.png'
+    doc_panel_preview = DOC_OUT_DIR / 'preview-ui-panels.png'
+    save_pair(preview, public_panel_preview, doc_panel_preview)
+    print('wrote', public_panel_preview.relative_to(ROOT))
+    return public_panel_preview, doc_panel_preview
+
+
 def make_previews(manifest: dict[str, object]) -> None:
     cutout_items = manifest['cutouts']['items']  # type: ignore[index]
     cutout_names = sorted(cutout_items)
@@ -216,9 +302,12 @@ def make_previews(manifest: dict[str, object]) -> None:
     save_pair(fx_preview, public_fx_preview, doc_fx_preview)
     print('wrote', public_fx_preview.relative_to(ROOT))
 
+    public_panel_preview, _ = make_panel_preview(manifest)
+
     manifest['previews'] = {
         'cutouts': '/' + public_cutout_preview.relative_to(ROOT / 'public').as_posix(),
         'fx': '/' + public_fx_preview.relative_to(ROOT / 'public').as_posix(),
+        'uiPanels': '/' + public_panel_preview.relative_to(ROOT / 'public').as_posix(),
     }
 
 
@@ -227,6 +316,7 @@ def main() -> None:
     manifest: dict[str, object] = {'version': 1}
     slice_core_cutouts(manifest)
     slice_fx_sprites(manifest)
+    slice_ui_panels(manifest)
     make_previews(manifest)
 
     manifest_path = OUT_DIR / 'manifest.json'

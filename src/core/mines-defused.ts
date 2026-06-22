@@ -146,14 +146,6 @@ export function exchangeMinesForLife(session: ModeSession): ModeSession {
   };
 }
 
-/** 顶栏消雷显示：总数 + 距下次回血进度 */
-export function formatMinesDefusedHud(total: number): string | undefined {
-  if (total <= 0) return undefined;
-  const toward = total % MINES_PER_LIFE;
-  const progress = toward === 0 ? MINES_PER_LIFE : toward;
-  return `☑${total}(${progress}/${MINES_PER_LIFE})`;
-}
-
 export function recordMineHitScrollExempt(
   session: ModeSession,
   board: Board,

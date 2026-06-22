@@ -62,17 +62,17 @@ Best implemented as procedural Canvas first:
 
 Frame sprites are only needed if procedural Canvas cannot give enough impact:
 
-- [ ] Mine explosion sprite sheet, 8-12 frames.
-- [ ] High-combo burst sprite sheet, 8-12 frames.
-- [ ] Level-up lightning sprite sheet, 6-8 frames.
-- [ ] Heart refill sprite sheet, 6-8 frames.
+- [x] Mine explosion sprite sheet, 8-12 frames.
+- [x] High-combo burst sprite sheet, 8-12 frames.
+- [x] Level-up lightning sprite sheet, 6-8 frames.
+- [x] Heart refill sprite sheet, 6-8 frames.
 
 ## Implementation Plan
 
-- [ ] Build a dev-only UI Lab page at `?ui=lab`.
-- [ ] Show the target reference image inside the UI Lab.
-- [ ] Add live Canvas previews for tile, click, flag, explosion, combo, scroll warning, life/heal, game-over modal.
-- [ ] Use UI Lab as the approval surface before changing the main game UI.
-- [ ] Keep static generated reference images in `docs/design-assets/reference`.
-- [ ] Keep runtime preview/static assets in `public/assets`.
-- [ ] Prefer Canvas vector/procedural rendering for production UI unless a sprite sheet is clearly better.
+- [x] Build a dev-only UI Lab page at `?ui=lab`.
+- [x] Show the target reference image inside the UI Lab.
+- [x] Add live Canvas previews for tile, click, flag, explosion, combo, scroll warning, life/heal, game-over modal.
+- [x] Use UI Lab as the approval surface before changing the main game UI.
+- [x] Keep static generated reference images in `docs/design-assets/reference`.
+- [x] Keep runtime preview/static assets in `public/assets`.
+- [x] Prefer Canvas vector/procedural rendering for production UI unless a sprite sheet is clearly better.

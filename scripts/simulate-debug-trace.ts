@@ -5,7 +5,7 @@ import {
   endlessScrollTick,
   getEndlessScrollProfile,
   getEndlessScrollIntervalMsFromElapsed,
-} from '../src/core/modes/endless.ts';
+} from '../src/core/modes/endless/index.ts';
 
 const SIM_TICK_MS = 50;
 const MAX_ELAPSED = 120_000;

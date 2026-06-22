@@ -27,8 +27,8 @@ export const THEME = {
   cellHidden: '#27272a',
   cellHiddenHighlight: '#323238',
   cellHiddenBorder: 'rgba(255, 255, 255, 0.07)',
-  cellRevealed: '#141416',
-  cellRevealedBorder: 'rgba(255, 255, 255, 0.05)',
+  cellRevealed: '#0f1117',
+  cellRevealedBorder: 'rgba(255, 255, 255, 0.035)',
 
   accent: '#6366f1',
   accentSoft: 'rgba(99, 102, 241, 0.14)',
@@ -140,17 +140,26 @@ export function cellPixelOrigin(
   };
 }
 
-/** 无尽竖长盘：按视口宽高拟合格子尺寸（优先填满可用高度） */
+/** 按视口与预留区拟合格子尺寸（mobile：contain；desktop 请用 computeEndlessBoardCellSize） */
 export function computeViewportCellSize(
   cols: number,
   rows: number,
   viewportW: number,
   viewportH: number,
   reserves: { safe: number; top: number; bottom: number },
-  limits: { min?: number; max?: number } = {},
+  limits: { min?: number; max?: number; fillHeight?: boolean } = {},
 ): number {
   const min = limits.min ?? 18;
-  const max = limits.max ?? DEFAULT_CELL_SIZE;
+  const requestedMax = limits.max ?? DEFAULT_CELL_SIZE;
+  const aestheticMax =
+    viewportW < 520
+      ? 23
+      : viewportW < 760
+        ? 25
+        : viewportW < 1100
+          ? 28
+          : 30;
+  const max = limits.fillHeight ? requestedMax : Math.min(requestedMax, aestheticMax);
   const pad = GRID_PADDING * 2;
   const availW = Math.max(120, viewportW - reserves.safe * 2 - pad);
   const availH = Math.max(160, viewportH - reserves.top - reserves.bottom - pad);

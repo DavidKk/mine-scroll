@@ -10,7 +10,7 @@ import {
   ENDLESS_SCROLL_MS_MIN,
   getEndlessScrollIntervalMsFromElapsed,
   getEndlessScrollProfile,
-} from '../src/core/modes/endless.ts';
+} from '../src/core/modes/endless/index.ts';
 import type { ModeSession } from '../src/core/types.ts';
 
 const SIM_TICK_MS = 50;

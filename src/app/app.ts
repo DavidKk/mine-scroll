@@ -1,4 +1,5 @@
-import { mountGameSession } from './game-session.ts';
+import { mountGameSession } from './game-session/index.ts';
+import { mountResponsiveMatrix } from './responsive-matrix.ts';
 import { mountUiLab } from './ui-lab.ts';
 
 export function mountApp(root: HTMLElement): void {
@@ -8,8 +9,10 @@ export function mountApp(root: HTMLElement): void {
     mountUiLab(root);
     return;
   }
+  if (import.meta.env.DEV && params.get('ui') === 'responsive') {
+    mountResponsiveMatrix(root);
+    return;
+  }
 
-  mountGameSession(root, 'endless', {
-    onBack: () => undefined,
-  });
+  mountGameSession(root);
 }

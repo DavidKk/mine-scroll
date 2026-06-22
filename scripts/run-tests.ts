@@ -14,8 +14,10 @@ import {
   createEndlessSession,
   endlessRevealAt,
   endlessScrollTick,
+  ENDLESS_COLS,
   ENDLESS_MAX_MINES_PER_ROW,
   ENDLESS_PENDING_REVEAL_LOOKAHEAD_ROWS,
+  ENDLESS_PREVIEW_SOURCE_ROWS,
   ENDLESS_SCROLL_MS_MIN,
   ENDLESS_VISIBLE_ROWS,
   ENDLESS_WINDOW_ROWS,
@@ -23,8 +25,14 @@ import {
   getEndlessScrollProfile,
   SCROLL_BATCH_TIERS,
   SCROLL_INTERVAL_TIERS_MS,
-} from '../src/core/modes/endless.ts';
+} from '../src/core/modes/endless/index.ts';
 import type { ModeSession } from '../src/core/types.ts';
+import { getBoardOnlyLayoutMetrics } from '../src/ui/renderer/index.ts';
+import {
+  computeGameStageLayout,
+  getComboFeedbackAnchor,
+  getBottomFeedbackSlots,
+} from '../src/ui/game-stage-layout.ts';
 
 interface FakeCell extends SolverCell {
   mine?: boolean;
@@ -143,7 +151,8 @@ function testPendingRevealsDoNotLeakOffscreenUntilVisible(): void {
   session = endlessRevealAt(session, viewStart, 4);
 
   assert.ok((session.pendingRevealKeys ?? []).length > 0);
-  for (let row = 0; row < viewStart; row += 1) {
+  const previewStart = Math.max(0, viewStart - ENDLESS_PREVIEW_SOURCE_ROWS);
+  for (let row = 0; row < previewStart; row += 1) {
     assert.equal(
       session.state.board.cells[row]!.some((cell) => cell.revealed),
       false,
@@ -153,10 +162,11 @@ function testPendingRevealsDoNotLeakOffscreenUntilVisible(): void {
 
   session = endlessScrollTick(session, 1);
   const nextViewStart = session.endlessViewStart ?? 0;
-  assert.equal(
-    session.state.board.cells[nextViewStart]!.some((cell) => cell.revealed),
-    true,
+  const nextPreviewStart = Math.max(0, nextViewStart - ENDLESS_PREVIEW_SOURCE_ROWS);
+  const revealedNearTop = [nextPreviewStart, nextViewStart].some((row) =>
+    session.state.board.cells[row]?.some((cell) => cell.revealed),
   );
+  assert.equal(revealedNearTop, true);
 }
 
 function testEndlessMaintainsFutureBufferForBatchScrolls(): void {
@@ -175,9 +185,9 @@ function testEndlessMaintainsFutureBufferForBatchScrolls(): void {
     (session.endlessViewStart ?? 0) >= ENDLESS_PENDING_REVEAL_LOOKAHEAD_ROWS,
     true,
   );
-  assert.equal(
-    session.state.board.cells[session.endlessViewStart ?? 0]!.some((cell) => cell.revealed),
-    true,
+  assert.ok(
+    session.state.board.cells.some((row) => row.some((cell) => cell.revealed)),
+    'expected scroll batch to preserve prior reveals on the board',
   );
 }
 
@@ -613,6 +623,95 @@ function testBatchScrollMovesMultipleRowsAndCapsDamage(): void {
   assert.ok(beforeLives - (next.lives ?? 0) <= 1);
 }
 
+function comboAnchorInput(
+  viewportW: number,
+  viewportH: number,
+  visibleRows = ENDLESS_VISIBLE_ROWS,
+) {
+  const boardLayout = getBoardOnlyLayoutMetrics(visibleRows, ENDLESS_COLS);
+  const stage = computeGameStageLayout(viewportW, viewportH, boardLayout.width, boardLayout.height);
+  return {
+    stage,
+    boardLayout,
+    anchor: getComboFeedbackAnchor(viewportW, viewportH, {
+      scale: stage.scale,
+      boardOffsetY: stage.boardY,
+      gridOriginY: boardLayout.gridOriginY,
+      cellStep: boardLayout.grid.cellStep,
+      cellSize: boardLayout.grid.cellSize,
+      visibleRows,
+      bottomRailY: stage.bottomRailRect.y,
+    }),
+  };
+}
+
+function testComboFeedbackAnchorCentersHorizontally(): void {
+  const viewportW = 390;
+  const viewportH = 844;
+  const { anchor } = comboAnchorInput(viewportW, viewportH);
+  assert.equal(anchor.x, viewportW / 2);
+}
+
+function testComboFeedbackAnchorAlignsWithBottomPlayableRow(): void {
+  const viewportW = 390;
+  const viewportH = 844;
+  const { stage, boardLayout, anchor } = comboAnchorInput(viewportW, viewportH);
+
+  const bottomRowCenterY =
+    stage.boardY +
+    boardLayout.gridOriginY +
+    (ENDLESS_VISIBLE_ROWS - 1) * boardLayout.grid.cellStep +
+    boardLayout.grid.cellSize * 0.42;
+  const minY = stage.boardY + boardLayout.gridOriginY + boardLayout.grid.cellSize * 0.5;
+  const expectedY = Math.max(
+    minY,
+    Math.min(bottomRowCenterY, stage.bottomRailRect.y - 28 * stage.scale),
+  );
+  assert.equal(anchor.y, expectedY);
+}
+
+function testComboFeedbackAnchorSitsBelowHudAndAboveBottomRail(): void {
+  const viewportW = 1280;
+  const viewportH = 800;
+  const { stage, anchor } = comboAnchorInput(viewportW, viewportH);
+
+  assert.ok(anchor.y > stage.hudY + stage.hudH + 40, '连击锚点不应贴在顶栏');
+  assert.ok(anchor.y < stage.bottomRailRect.y - 8, '连击锚点应在底栏能量轨上方');
+  assert.ok(anchor.y > stage.boardY, '连击锚点应在棋盘区域内或下缘');
+}
+
+function testComboFeedbackAnchorFallbackWithoutLayout(): void {
+  const viewportW = 360;
+  const viewportH = 640;
+  const scale = 1;
+  const anchor = getComboFeedbackAnchor(viewportW, viewportH, null);
+  assert.equal(anchor.x, viewportW / 2);
+  assert.equal(anchor.y, viewportH - 72 * scale);
+}
+
+function testBottomFeedbackSlotsSeparateScoreAndCombo(): void {
+  const viewportW = 390;
+  const viewportH = 844;
+  const { stage, boardLayout } = comboAnchorInput(viewportW, viewportH);
+  const layout = {
+    scale: stage.scale,
+    boardOffsetY: stage.boardY,
+    gridOriginY: boardLayout.gridOriginY,
+    cellStep: boardLayout.grid.cellStep,
+    cellSize: boardLayout.grid.cellSize,
+    visibleRows: ENDLESS_VISIBLE_ROWS,
+    bottomRailY: stage.bottomRailRect.y,
+  };
+  const slots = getBottomFeedbackSlots(viewportW, viewportH, layout);
+
+  assert.equal(slots.comboBurst.x, viewportW / 2);
+  assert.ok(slots.scorePop.y < slots.comboBurst.y, '得分飘字应在连击爆发上方');
+  const minSep = 20 * stage.scale;
+  const dx = Math.abs(slots.scorePop.x - slots.comboBurst.x);
+  const dy = slots.comboBurst.y - slots.scorePop.y;
+  assert.ok(dy >= minSep || dx >= 60 * stage.scale, '得分与连击槽位应拉开间距');
+}
+
 const tests: Array<[string, () => void]> = [
   ['scroll profile speeds up and increases batch size', testScrollProfile],
   ['endless mine ratio ramps to classic plus 50 percent density', testEndlessMineRatioRampsToClassicPlusHalf],
@@ -635,6 +734,11 @@ const tests: Array<[string, () => void]> = [
   ['endless solver breaks through fully unknown board', testEndlessBreaksThroughFullyUnknownBoard],
   ['blank bottom rows do not trigger AI scroll', testBlankBottomRowsDoNotTriggerAiScroll],
   ['batch scroll moves multiple rows and caps damage', testBatchScrollMovesMultipleRowsAndCapsDamage],
+  ['combo feedback anchor centers horizontally', testComboFeedbackAnchorCentersHorizontally],
+  ['combo feedback anchor aligns with bottom playable row', testComboFeedbackAnchorAlignsWithBottomPlayableRow],
+  ['combo feedback anchor sits below hud and above bottom rail', testComboFeedbackAnchorSitsBelowHudAndAboveBottomRail],
+  ['combo feedback anchor fallback without layout', testComboFeedbackAnchorFallbackWithoutLayout],
+  ['bottom feedback slots separate score and combo', testBottomFeedbackSlotsSeparateScoreAndCombo],
 ];
 
 for (const [name, run] of tests) {

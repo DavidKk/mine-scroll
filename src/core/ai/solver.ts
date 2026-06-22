@@ -9,7 +9,7 @@ import {
   ENDLESS_SCROLL_MS_MIN,
   getEndlessScrollIntervalMsFromElapsed,
   getEndlessScrollProfile,
-} from '../modes/endless.ts';
+} from '../modes/endless/index.ts';
 import type { ModeSession } from '../types.ts';
 
 export function getEndlessAiStepMs(session: ModeSession, elapsedMs = 0): number {

@@ -3,7 +3,7 @@ import {
   getMinesDefused,
   MINES_PER_LIFE,
 } from '../mines-defused.ts';
-import { ENDLESS_LIVES } from '../modes/endless.ts';
+import { ENDLESS_LIVES } from '../modes/endless/index.ts';
 import type { ModeSession } from '../types.ts';
 import type { AiMove } from './types.ts';
 

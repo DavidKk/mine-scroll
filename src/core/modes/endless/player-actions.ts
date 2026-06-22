@@ -1,0 +1,184 @@
+import { cloneBoard } from '../../board.ts';
+import type { GameStatus, LifeLossCell, LifeLossReport, ModeSession } from '../../types.ts';
+import { isCellBlocked } from '../../types.ts';
+import {
+  clearDefuseStreakOnMistake,
+  recordMineHitScrollExempt,
+} from '../../mines-defused.ts';
+import {
+  applyMinesFromSeed,
+  buildFirstClickSafeZone,
+  getLocalNeighbors,
+  inLocalBounds,
+  visibleViewStart,
+} from './grid.ts';
+import {
+  actionableBounds,
+  applyLifeLoss,
+  countNewlyRevealed,
+  finalizeBoard,
+  inRevealBounds,
+  revealSingle,
+  toScreenRow,
+} from './reveal-pipeline.ts';
+import { isEndlessActionableLocalRow } from './views.ts';
+
+export function endlessRevealAt(session: ModeSession, row: number, col: number): ModeSession {
+  const { state } = session;
+  if (!inLocalBounds(state.board, row, col)) return session;
+  if (!isEndlessActionableLocalRow(session, row)) return session;
+  const cell = state.board.cells[row]?.[col];
+  if (!cell) return session;
+  if (state.status === 'lost') return session;
+  if (isCellBlocked(cell) || cell.revealed) return session;
+
+  const before = state.board;
+  const board = cloneBoard(state.board);
+  let status: GameStatus = state.status;
+  const isFirstClick = !board.minesPlaced;
+
+  if (isFirstClick) {
+    applyMinesFromSeed(board, buildFirstClickSafeZone(board, row, col));
+    status = 'playing';
+  } else if (status === 'idle') {
+    status = 'playing';
+  }
+
+  const bounds = actionableBounds(board);
+  const outcome = revealSingle(board, row, col, bounds);
+  if (isFirstClick && outcome === 'mine') {
+    throw new Error('First click must not hit a mine');
+  }
+
+  if (outcome === 'mine') {
+    const revealedDelta = countNewlyRevealed(before, board);
+    const viewStart = session.endlessViewStart ?? visibleViewStart(before);
+    const screenRow = toScreenRow(row, viewStart);
+    const lifeLoss: LifeLossReport = {
+      cause: 'mine-reveal',
+      damage: 1,
+      cells: [{ localRow: row, col, screenRow, kind: 'mine-hit' }],
+      boardChange: `(${screenRow},${col}) 由隐藏变为翻开（雷）`,
+      reason: '开格踩雷 · 该格为雷且未插旗',
+    };
+    const afterBreak = clearDefuseStreakOnMistake(
+      recordMineHitScrollExempt(session, board, [{ row, col }]),
+    );
+    const afterHit = applyLifeLoss(
+      afterBreak,
+      board,
+      1,
+      status,
+      lifeLoss,
+    );
+    return {
+      ...afterHit,
+      revealedCount: (session.revealedCount ?? 0) + revealedDelta,
+    };
+  }
+
+  const revealedDelta = countNewlyRevealed(before, board);
+
+  const finalized = finalizeBoard(session, board, status);
+  return {
+    ...finalized.session,
+    revealedCount: (session.revealedCount ?? 0) + revealedDelta + finalized.autoRevealed,
+  };
+}
+
+export function endlessChordAt(session: ModeSession, row: number, col: number): ModeSession {
+  const { state } = session;
+  if (state.status !== 'playing' || !state.board.minesPlaced) return session;
+  if (!isEndlessActionableLocalRow(session, row)) return session;
+
+  const cell = state.board.cells[row]?.[col];
+  if (!cell?.revealed || cell.isMine || cell.adjacentMines === 0) return session;
+
+  const neighbors = getLocalNeighbors(state.board, row, col);
+  const flaggedCount = neighbors.filter(
+    ({ row: nr, col: nc }) => state.board.cells[nr]![nc]!.mark === 'flag',
+  ).length;
+
+  if (flaggedCount !== cell.adjacentMines) return session;
+
+  const before = state.board;
+  const board = cloneBoard(state.board);
+  const viewStart = session.endlessViewStart ?? visibleViewStart(before);
+  const bounds = actionableBounds(board);
+  let mineHits = 0;
+  const mineCells: LifeLossCell[] = [];
+
+  for (const { row: nr, col: nc } of neighbors) {
+    if (!inRevealBounds(nr, bounds)) continue;
+    const neighbor = board.cells[nr]![nc]!;
+    if (neighbor.mark !== 'none' || neighbor.revealed) continue;
+    if (revealSingle(board, nr, nc, bounds) === 'mine') {
+      mineHits += 1;
+      mineCells.push({
+        localRow: nr,
+        col: nc,
+        screenRow: toScreenRow(nr, viewStart),
+        kind: 'mine-hit',
+      });
+    }
+  }
+
+  const revealedDelta = countNewlyRevealed(before, board);
+
+  if (mineHits > 0) {
+    const chordScreen = toScreenRow(row, viewStart);
+    const opened = mineCells
+      .map((c) => `(${c.screenRow},${c.col})`)
+      .join(' ');
+    const lifeLoss: LifeLossReport = {
+      cause: 'chord-mine',
+      damage: mineHits,
+      cells: mineCells,
+      boardChange: `Chord (${chordScreen},${col}) 展开 · 翻开雷：${opened}`,
+      reason:
+        mineHits === 1
+          ? `Chord 踩雷 1 颗 · 邻格插旗数已达数字但含未标记雷`
+          : `Chord 踩雷 ${mineHits} 颗 · 邻格含 ${mineHits} 颗未标记雷`,
+    };
+    const afterBreak = clearDefuseStreakOnMistake(
+      recordMineHitScrollExempt(
+        session,
+        board,
+        mineCells.map((c) => ({ row: c.localRow, col: c.col })),
+      ),
+    );
+    const afterHit = applyLifeLoss(
+      afterBreak,
+      board,
+      mineHits,
+      'playing',
+      lifeLoss,
+    );
+    return {
+      ...afterHit,
+      revealedCount: (session.revealedCount ?? 0) + revealedDelta,
+    };
+  }
+
+  const finalized = finalizeBoard(session, board, 'playing');
+  return {
+    ...finalized.session,
+    revealedCount: (session.revealedCount ?? 0) + revealedDelta + finalized.autoRevealed,
+  };
+}
+
+export function endlessToggleMarkAt(session: ModeSession, row: number, col: number): ModeSession {
+  const { state } = session;
+  if (state.status !== 'playing' && state.status !== 'idle') return session;
+  if (!inLocalBounds(state.board, row, col)) return session;
+  if (!isEndlessActionableLocalRow(session, row)) return session;
+
+  const cell = state.board.cells[row]?.[col];
+  if (!cell || cell.revealed) return session;
+
+  const board = cloneBoard(state.board);
+  const current = board.cells[row]![col]!;
+  current.mark = current.mark === 'flag' ? 'none' : 'flag';
+
+  return finalizeBoard(session, board).session;
+}
