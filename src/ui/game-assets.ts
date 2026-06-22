@@ -1,20 +1,8 @@
 export const GAME_CUTOUT_NAMES = [
   'mine-standard',
-  'mine-exploded',
-  'mine-cracked',
-  'mine-hit-flash',
   'flag-blue',
-  'flag-danger-red',
-  'flag-wrong-correction',
-  'flag-pole',
   'heart-full',
   'heart-empty',
-  'heart-lost',
-  'heart-refill',
-  'warning-triangle',
-  'danger-exclamation',
-  'shield-safe-zone',
-  'chord-crosshair',
 ] as const;
 
 export type GameCutoutName = (typeof GAME_CUTOUT_NAMES)[number];
@@ -25,41 +13,12 @@ export const GAME_FX_NAMES = [
   'safe-reveal',
   'flag-pop',
   'wrong-flag-break',
-  'heart-refill',
-  'level-up',
   'score-pop',
 ] as const;
 
 export type GameFxName = (typeof GAME_FX_NAMES)[number];
 
-export const GAME_UI_PANEL_NAMES = [
-  'space-active',
-  'space-disabled',
-  'auto-off',
-  'auto-on',
-  'start-panel',
-  'ready-panel',
-  'retry-button',
-  'game-over-panel',
-  'log-panel',
-  'score-chip',
-  'depth-chip',
-  'lives-chip',
-  'countdown-yellow',
-  'countdown-orange',
-  'countdown-red',
-  'heal-chip',
-  'break-chip',
-  'full-life-panel',
-  'row-one-chip',
-  'row-two-chip',
-  'row-five-chip',
-  'safe-number-badge',
-  'flag-badge',
-  'target-yellow-badge',
-  'target-purple-badge',
-  'warning-badge',
-] as const;
+export const GAME_UI_PANEL_NAMES = ['start-panel', 'game-over-panel'] as const;
 
 export type GameUiPanelName = (typeof GAME_UI_PANEL_NAMES)[number];
 

@@ -416,6 +416,7 @@ Acceptance:
 5. P4 board contrast.
 6. P5 responsive matrix.
 7. P6 validation pass.
+8. P7 ambient life (see `docs/ENDLESS-AMBIENT-LIFE-PLAN.md`).
 
 Reason:
 
@@ -424,3 +425,4 @@ Reason:
 - P3 improves moment-to-moment game feel.
 - P4 improves puzzle readability.
 - P5 makes the review process sustainable.
+- P7 adds continuous breathing on board/HUD elements without changing rules.

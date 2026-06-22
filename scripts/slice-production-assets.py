@@ -11,9 +11,15 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTION_DIR = ROOT / 'docs/design-assets/production'
-PUBLIC_PRODUCTION_DIR = ROOT / 'public/assets/production'
 OUT_DIR = ROOT / 'public/assets/game'
 DOC_OUT_DIR = ROOT / 'docs/design-assets/sliced'
+
+# Subset shipped in production build — keep in sync with src/ui/game-assets.ts
+RUNTIME_CUTOUTS = frozenset({'mine-standard', 'flag-blue', 'heart-full', 'heart-empty'})
+RUNTIME_FX = frozenset(
+    {'mine-explosion', 'combo-burst', 'safe-reveal', 'flag-pop', 'wrong-flag-break', 'score-pop'}
+)
+RUNTIME_UI = frozenset({'start-panel', 'game-over-panel'})
 
 CORE_SRC = PRODUCTION_DIR / 'core-cutouts-production-v1.png'
 FX_SRC = PRODUCTION_DIR / 'fx-additive-sprites-production-v1.png'
@@ -91,7 +97,6 @@ def ensure_dirs() -> None:
         DOC_OUT_DIR / 'cutouts',
         DOC_OUT_DIR / 'fx',
         DOC_OUT_DIR / 'ui',
-        PUBLIC_PRODUCTION_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)
 
@@ -136,19 +141,28 @@ def normalize_cutout(img: Image.Image, target: int = CORE_TARGET) -> Image.Image
     return canvas
 
 
-def save_pair(img: Image.Image, public_path: Path, doc_path: Path) -> None:
-    public_path.parent.mkdir(parents=True, exist_ok=True)
+def save_outputs(img: Image.Image, public_path: Path | None, doc_path: Path) -> None:
     doc_path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(public_path, optimize=True)
     img.save(doc_path, optimize=True)
+    if public_path is not None:
+        public_path.parent.mkdir(parents=True, exist_ok=True)
+        img.save(public_path, optimize=True)
 
 
-def slice_core_cutouts(manifest: dict[str, object]) -> None:
+def public_url(path: Path) -> str:
+    return '/' + path.relative_to(ROOT / 'public').as_posix()
+
+
+def design_url(path: Path) -> str:
+    rel = path.relative_to(DOC_OUT_DIR)
+    return f'/design-assets/sliced/{rel.as_posix()}'
+
+
+def slice_core_cutouts(manifest: dict[str, object], runtime_manifest: dict[str, object]) -> None:
     if not CORE_SRC.exists():
         raise SystemExit(f'missing core cutout sheet: {CORE_SRC}')
 
     img = Image.open(CORE_SRC).convert('RGBA')
-    # Source is 1254x1254, so crop to a clean 4x4 integer grid.
     grid_size = min(img.width, img.height)
     cell = grid_size // 4
     clean_size = cell * 4
@@ -157,24 +171,30 @@ def slice_core_cutouts(manifest: dict[str, object]) -> None:
     img = img.crop((left, top, left + clean_size, top + clean_size))
 
     entries: dict[str, str] = {}
+    runtime_entries: dict[str, str] = {}
     for index, name in enumerate(CORE_NAMES):
         row, col = divmod(index, 4)
         crop = img.crop((col * cell, row * cell, (col + 1) * cell, (row + 1) * cell))
         cutout = normalize_cutout(remove_chroma(crop))
-        public_path = OUT_DIR / 'cutouts' / f'{name}.png'
         doc_path = DOC_OUT_DIR / 'cutouts' / f'{name}.png'
-        save_pair(cutout, public_path, doc_path)
-        entries[name] = '/' + public_path.relative_to(ROOT / 'public').as_posix()
-        print('wrote', public_path.relative_to(ROOT))
+        public_path = OUT_DIR / 'cutouts' / f'{name}.png' if name in RUNTIME_CUTOUTS else None
+        save_outputs(cutout, public_path, doc_path)
+        entries[name] = design_url(doc_path)
+        if public_path is not None:
+            runtime_entries[name] = public_url(public_path)
+            print('wrote runtime', public_path.relative_to(ROOT))
+        print('wrote', doc_path.relative_to(ROOT))
 
-    manifest['cutouts'] = {
+    meta = {
         'source': str(CORE_SRC.relative_to(ROOT)),
         'grid': {'rows': 4, 'cols': 4, 'sourceCell': cell, 'outputSize': CORE_TARGET},
         'items': entries,
     }
+    manifest['cutouts'] = meta
+    runtime_manifest['cutouts'] = {**meta, 'items': runtime_entries}
 
 
-def slice_fx_sprites(manifest: dict[str, object]) -> None:
+def slice_fx_sprites(manifest: dict[str, object], runtime_manifest: dict[str, object]) -> None:
     if not FX_SRC.exists():
         raise SystemExit(f'missing FX sprite sheet: {FX_SRC}')
 
@@ -187,58 +207,75 @@ def slice_fx_sprites(manifest: dict[str, object]) -> None:
     frame_w = img.width // cols
     frame_h = img.height // rows
     effects: dict[str, object] = {}
+    runtime_effects: dict[str, object] = {}
     for row, effect in enumerate(FX_ROWS):
         frames: list[str] = []
+        runtime_frames: list[str] = []
         for col in range(cols):
             frame = img.crop((col * frame_w, row * frame_h, (col + 1) * frame_w, (row + 1) * frame_h))
             name = f'frame-{col + 1:02d}.png'
-            public_path = OUT_DIR / 'fx' / effect / name
             doc_path = DOC_OUT_DIR / 'fx' / effect / name
-            save_pair(frame, public_path, doc_path)
-            frames.append('/' + public_path.relative_to(ROOT / 'public').as_posix())
-            print('wrote', public_path.relative_to(ROOT))
+            public_path = OUT_DIR / 'fx' / effect / name if effect in RUNTIME_FX else None
+            save_outputs(frame, public_path, doc_path)
+            frames.append(design_url(doc_path))
+            if public_path is not None:
+                runtime_frames.append(public_url(public_path))
+                print('wrote runtime', public_path.relative_to(ROOT))
+            print('wrote', doc_path.relative_to(ROOT))
 
-        effects[effect] = {
+        effect_meta = {
             'frameWidth': frame_w,
             'frameHeight': frame_h,
             'frameCount': cols,
             'blendMode': 'lighter',
             'frames': frames,
         }
+        effects[effect] = effect_meta
+        if effect in RUNTIME_FX:
+            runtime_effects[effect] = {**effect_meta, 'frames': runtime_frames}
 
-    manifest['fx'] = {
+    fx_meta = {
         'source': str(FX_SRC.relative_to(ROOT)),
         'grid': {'rows': rows, 'cols': cols, 'frameWidth': frame_w, 'frameHeight': frame_h},
         'effects': effects,
     }
+    manifest['fx'] = fx_meta
+    runtime_manifest['fx'] = {**fx_meta, 'effects': runtime_effects}
 
 
-def slice_ui_panels(manifest: dict[str, object]) -> None:
+def slice_ui_panels(manifest: dict[str, object], runtime_manifest: dict[str, object]) -> None:
     if not UI_SRC.exists():
         raise SystemExit(f'missing UI panel sheet: {UI_SRC}')
 
     img = Image.open(UI_SRC).convert('RGBA')
     entries: dict[str, object] = {}
+    runtime_entries: dict[str, object] = {}
     for name, (x, y, w, h) in UI_PANELS:
         crop = img.crop((x, y, x + w, y + h))
-        public_path = OUT_DIR / 'ui' / f'{name}.png'
         doc_path = DOC_OUT_DIR / 'ui' / f'{name}.png'
-        save_pair(crop, public_path, doc_path)
-        entries[name] = {
-            'src': '/' + public_path.relative_to(ROOT / 'public').as_posix(),
+        public_path = OUT_DIR / 'ui' / f'{name}.png' if name in RUNTIME_UI else None
+        save_outputs(crop, public_path, doc_path)
+        item = {
+            'src': design_url(doc_path),
             'width': w,
             'height': h,
             'sourceRect': {'x': x, 'y': y, 'w': w, 'h': h},
         }
-        print('wrote', public_path.relative_to(ROOT))
+        entries[name] = item
+        if public_path is not None:
+            runtime_entries[name] = {**item, 'src': public_url(public_path)}
+            print('wrote runtime', public_path.relative_to(ROOT))
+        print('wrote', doc_path.relative_to(ROOT))
 
-    manifest['uiPanels'] = {
+    ui_meta = {
         'source': str(UI_SRC.relative_to(ROOT)),
         'items': entries,
     }
+    manifest['uiPanels'] = ui_meta
+    runtime_manifest['uiPanels'] = {**ui_meta, 'items': runtime_entries}
 
 
-def make_panel_preview(manifest: dict[str, object]) -> tuple[Path, Path]:
+def make_panel_preview(manifest: dict[str, object]) -> Path:
     panel_items = manifest['uiPanels']['items']  # type: ignore[index]
     panel_names = list(panel_items.keys())  # type: ignore[union-attr]
     cell_w = 300
@@ -249,8 +286,9 @@ def make_panel_preview(manifest: dict[str, object]) -> tuple[Path, Path]:
 
     for index, name in enumerate(panel_names):
         item = panel_items[name]  # type: ignore[index]
-        rel = item['src'].lstrip('/')  # type: ignore[index]
-        img = Image.open(ROOT / 'public' / rel).convert('RGBA')
+        src = item['src']  # type: ignore[index]
+        rel = src.removeprefix('/design-assets/sliced/')
+        img = Image.open(DOC_OUT_DIR / rel).convert('RGBA')
         max_w = cell_w - 22
         max_h = cell_h - 32
         scale = min(max_w / img.width, max_h / img.height, 1)
@@ -259,11 +297,10 @@ def make_panel_preview(manifest: dict[str, object]) -> tuple[Path, Path]:
         y = (index // cols) * cell_h + (cell_h - fitted.height) // 2
         preview.alpha_composite(fitted, (x, y))
 
-    public_panel_preview = OUT_DIR / 'preview-ui-panels.png'
     doc_panel_preview = DOC_OUT_DIR / 'preview-ui-panels.png'
-    save_pair(preview, public_panel_preview, doc_panel_preview)
-    print('wrote', public_panel_preview.relative_to(ROOT))
-    return public_panel_preview, doc_panel_preview
+    preview.save(doc_panel_preview, optimize=True)
+    print('wrote', doc_panel_preview.relative_to(ROOT))
+    return doc_panel_preview
 
 
 def make_previews(manifest: dict[str, object]) -> None:
@@ -274,15 +311,15 @@ def make_previews(manifest: dict[str, object]) -> None:
     rows = (len(cutout_names) + cols - 1) // cols
     cutout_preview = Image.new('RGBA', (cols * thumb, rows * thumb), (8, 10, 18, 255))
     for index, name in enumerate(cutout_names):
-        rel = cutout_items[name].lstrip('/')  # type: ignore[index]
-        img = Image.open(ROOT / 'public' / rel).convert('RGBA')
+        src = cutout_items[name]  # type: ignore[index]
+        rel = src.removeprefix('/design-assets/sliced/')
+        img = Image.open(DOC_OUT_DIR / rel).convert('RGBA')
         img = img.resize((thumb, thumb), Image.Resampling.LANCZOS)
         cutout_preview.alpha_composite(img, ((index % cols) * thumb, (index // cols) * thumb))
 
-    public_cutout_preview = OUT_DIR / 'preview-cutouts.png'
     doc_cutout_preview = DOC_OUT_DIR / 'preview-cutouts.png'
-    save_pair(cutout_preview, public_cutout_preview, doc_cutout_preview)
-    print('wrote', public_cutout_preview.relative_to(ROOT))
+    cutout_preview.save(doc_cutout_preview, optimize=True)
+    print('wrote', doc_cutout_preview.relative_to(ROOT))
 
     effects = manifest['fx']['effects']  # type: ignore[index]
     effect_names = list(effects.keys())
@@ -294,38 +331,38 @@ def make_previews(manifest: dict[str, object]) -> None:
     for index, name in enumerate(effect_names):
         frames = effects[name]['frames']  # type: ignore[index]
         frame = frames[min(4, len(frames) - 1)]
-        img = Image.open(ROOT / 'public' / frame.lstrip('/')).convert('RGBA')
+        rel = frame.removeprefix('/design-assets/sliced/')
+        img = Image.open(DOC_OUT_DIR / rel).convert('RGBA')
         fx_preview.alpha_composite(img, ((index % fx_cols) * frame_w, (index // fx_cols) * frame_h))
 
-    public_fx_preview = OUT_DIR / 'preview-fx.png'
     doc_fx_preview = DOC_OUT_DIR / 'preview-fx.png'
-    save_pair(fx_preview, public_fx_preview, doc_fx_preview)
-    print('wrote', public_fx_preview.relative_to(ROOT))
+    fx_preview.save(doc_fx_preview, optimize=True)
+    print('wrote', doc_fx_preview.relative_to(ROOT))
 
-    public_panel_preview, _ = make_panel_preview(manifest)
+    doc_panel_preview = make_panel_preview(manifest)
 
     manifest['previews'] = {
-        'cutouts': '/' + public_cutout_preview.relative_to(ROOT / 'public').as_posix(),
-        'fx': '/' + public_fx_preview.relative_to(ROOT / 'public').as_posix(),
-        'uiPanels': '/' + public_panel_preview.relative_to(ROOT / 'public').as_posix(),
+        'cutouts': design_url(doc_cutout_preview),
+        'fx': design_url(doc_fx_preview),
+        'uiPanels': design_url(doc_panel_preview),
     }
 
 
 def main() -> None:
     ensure_dirs()
     manifest: dict[str, object] = {'version': 1}
-    slice_core_cutouts(manifest)
-    slice_fx_sprites(manifest)
-    slice_ui_panels(manifest)
+    runtime_manifest: dict[str, object] = {'version': 1}
+    slice_core_cutouts(manifest, runtime_manifest)
+    slice_fx_sprites(manifest, runtime_manifest)
+    slice_ui_panels(manifest, runtime_manifest)
     make_previews(manifest)
 
-    manifest_path = OUT_DIR / 'manifest.json'
-    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    (DOC_OUT_DIR / 'manifest.json').write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + '\n',
-        encoding='utf-8',
-    )
-    print('wrote', manifest_path.relative_to(ROOT))
+    runtime_path = OUT_DIR / 'manifest.json'
+    runtime_path.write_text(json.dumps(runtime_manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    doc_manifest_path = DOC_OUT_DIR / 'manifest.json'
+    doc_manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    print('wrote', runtime_path.relative_to(ROOT))
+    print('wrote', doc_manifest_path.relative_to(ROOT))
 
 
 if __name__ == '__main__':

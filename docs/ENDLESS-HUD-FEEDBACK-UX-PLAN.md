@@ -61,7 +61,8 @@ Use three separate layers:
 
 4. Contextual action hints
    - Space is not a permanent bottom button.
-   - Show `SPACE` or `PRESS SPACE` only when the bottom rows are clear and the action is useful.
+   - **Recommended layout** ([`ENDLESS-FULLSCREEN-LAYOUT.md`](./ENDLESS-FULLSCREEN-LAYOUT.md) §8.1): energy rail / scroll pressure **flush to viewport bottom**; `SPACE` hint **directly above** the rail (bottom shell), not floating on the board danger row.
+   - Show `SPACE` or `PRESS SPACE` only when manual scroll is useful (bottom rows clear enough).
    - First-time onboarding can briefly show a Space hint, then fade it away.
    - If Space becomes available while pressure is high, the hint can become brighter.
    - Disabled Space should not be shown.
@@ -310,3 +311,4 @@ Only generate new image assets after screenshot review if the Canvas version fee
 - Do not add sound yet.
 - Do not add new generated image assets unless the Canvas version is clearly insufficient.
 - Prefer Canvas-drawn pressure bars, boundary lines, and Space keycap hints before generating new bitmap assets.
+- **Continuous idle life** on numbers/flags/mines is out of scope here; see [`ENDLESS-AMBIENT-LIFE-PLAN.md`](./ENDLESS-AMBIENT-LIFE-PLAN.md).

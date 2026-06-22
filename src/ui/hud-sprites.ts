@@ -5,30 +5,13 @@ const ICON_BASE = `${HUD_BASE}/icons`;
 
 export const HUD_ICON_NAMES = [
   'play',
-  'pause',
-  'settings',
-  'home',
-  'volume-on',
-  'volume-off',
   'info',
-  'help',
-  'trophy',
-  'medal',
-  'target',
-  'stats',
   'refresh',
-  'undo',
   'flag',
   'wand',
   'timer',
-  'shield',
-  'heart',
-  'plus',
   'warning',
   'skull',
-  'icon-extra-1',
-  'icon-extra-2',
-  'scroll-up',
 ] as const;
 
 export type HudIconName = (typeof HUD_ICON_NAMES)[number];

@@ -18,52 +18,52 @@ const PREVIEWS: PreviewSpec[] = [
   { kind: 'gameover', title: 'Game Over', note: 'modal slam-in + retry button' },
 ];
 
-const TARGET_IMAGE = '/assets/reference/endless-arcade-visual-target-v1.png';
+const TARGET_IMAGE = '/design-assets/reference/endless-arcade-visual-target-v1.png';
 const ASSET_SHEETS = [
   {
     title: 'Static States',
     note: 'AI hint, hover/pressed, batch scroll overlays, break/heal/start/log/button states.',
-    src: '/assets/generated/endless-static-states-v1.png',
+    src: '/design-assets/generated/endless-static-states-v1.png',
   },
   {
     title: 'FX Sprite Concept',
     note: 'Mine explosion, combo burst, safe reveal, flag pop, wrong flag, heart refill, level up, score pop.',
-    src: '/assets/generated/endless-fx-sprite-concept-v1.png',
+    src: '/design-assets/generated/endless-fx-sprite-concept-v1.png',
   },
   {
     title: 'HUD & Popups',
     note: 'HUD panels, countdown rings, bottom controls, start/game-over/log/defuse/combo-break components.',
-    src: '/assets/generated/endless-hud-popups-v1.png',
+    src: '/design-assets/generated/endless-hud-popups-v1.png',
   },
   {
     title: 'Production Cutouts',
     note: 'Core cutout sheet: mines, flags, hearts, warning/status icons. Needs grid normalization before slicing.',
-    src: '/assets/production/core-cutouts-production-v1.png',
+    src: '/design-assets/production/core-cutouts-production-v1.png',
   },
   {
     title: 'Production FX',
     note: '8x8 additive sprite sheet. 1536x1024, clean 192x128 frames.',
-    src: '/assets/production/fx-additive-sprites-production-v1.png',
+    src: '/design-assets/production/fx-additive-sprites-production-v1.png',
   },
   {
     title: 'Production UI Panels',
     note: 'Crop candidates and Canvas reference for SPACE/AUTO/START/RETRY/Game Over/Log/HUD components.',
-    src: '/assets/production/ui-panels-production-v1.png',
+    src: '/design-assets/production/ui-panels-production-v1.png',
   },
   {
     title: 'Sliced Cutouts Preview',
-    note: 'Generated from public/assets/game/cutouts, normalized 256x256 transparent PNG assets.',
-    src: '/assets/game/preview-cutouts.png',
+    note: 'Full cutout set from docs/design-assets/sliced/cutouts (256x256 transparent PNG).',
+    src: '/design-assets/sliced/preview-cutouts.png',
   },
   {
     title: 'Sliced FX Preview',
     note: 'Middle-frame preview from 8 additive FX animations, each sliced into 8 frames.',
-    src: '/assets/game/preview-fx.png',
+    src: '/design-assets/sliced/preview-fx.png',
   },
   {
     title: 'Sliced UI Panel Preview',
-    note: 'Cropped SPACE/AUTO/START/RETRY/Game Over/Log/HUD panel references from public/assets/game/ui.',
-    src: '/assets/game/preview-ui-panels.png',
+    note: 'All UI panel crops from docs/design-assets/sliced/ui.',
+    src: '/design-assets/sliced/preview-ui-panels.png',
   },
 ] as const;
 
