@@ -1,7 +1,7 @@
 import type { CellView, GameStatus } from '../../core/types.ts';
 import { FONTS, THEME, type GridMetrics } from '../theme.ts';
-import { GAME_ASSET_TUNING, drawImageContained, getGameCutout } from '../game-assets.ts';
-import { drawSpriteInCell, getTileSprites } from '../tile-sprites.ts';
+import { GAME_ASSET_TUNING, drawImageVisibleContained, getGameCutout } from '../game-assets.ts';
+import { getTileSprites } from '../tile-sprites.ts';
 import { fillRoundRect, strokeRoundRect } from './primitives.ts';
 
 function drawHiddenCell(
@@ -198,13 +198,13 @@ export function drawCellMarksOverlay(
 
   const gameFlag = getGameCutout('flag-blue');
   if (gameFlag) {
-    drawImageContained(ctx, gameFlag, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
+    drawImageVisibleContained(ctx, gameFlag, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
     return;
   }
 
   const sprites = getTileSprites();
   if (sprites) {
-    drawImageContained(ctx, sprites.flag, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
+    drawImageVisibleContained(ctx, sprites.flag, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
     return;
   }
 
@@ -223,24 +223,30 @@ export function drawCell(
   const sprites = getTileSprites();
   if (sprites) {
     if (!view.revealed) {
-      drawSpriteInCell(ctx, sprites.hidden, x, y, g.cellSize);
+      drawImageVisibleContained(ctx, sprites.hidden, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.tiles.cellScale);
       return;
     }
 
     if (view.isMine) {
-      drawSpriteInCell(ctx, sprites.revealed, x, y, g.cellSize);
+      drawImageVisibleContained(ctx, sprites.revealed, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.tiles.cellScale);
       const gameMine = getGameCutout('mine-standard');
       if (gameMine) {
-        drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
+        drawImageVisibleContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
       } else {
-        drawSpriteInCell(ctx, sprites.mine, x, y, g.cellSize);
+        drawImageVisibleContained(ctx, sprites.mine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
       }
       return;
     }
 
     const n = view.adjacentMines ?? 0;
+    if (n > 0 && n <= sprites.digits.length) {
+      drawImageVisibleContained(ctx, sprites.revealed, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.tiles.cellScale);
+      drawImageVisibleContained(ctx, sprites.digits[n - 1]!, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.tiles.digitScale);
+      return;
+    }
+
     if (n > 0 && n <= sprites.numbers.length) {
-      drawSpriteInCell(ctx, sprites.numbers[n - 1]!, x, y, g.cellSize);
+      drawImageVisibleContained(ctx, sprites.numbers[n - 1]!, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.tiles.cellScale);
       return;
     }
 
@@ -261,7 +267,7 @@ export function drawCell(
   if (view.isMine) {
     const gameMine = getGameCutout('mine-standard');
     if (gameMine) {
-      drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
+      drawImageVisibleContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
     } else {
       drawMine(ctx, cx, cy, g.cellSize, true);
     }

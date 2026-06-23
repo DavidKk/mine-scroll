@@ -6,6 +6,7 @@ export interface TileSprites {
   mine: HTMLImageElement;
   flag: HTMLImageElement;
   numbers: HTMLImageElement[];
+  digits: HTMLImageElement[];
 }
 
 let loadPromise: Promise<TileSprites | null> | null = null;
@@ -16,6 +17,15 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load tile sprite: ${src}`));
+    img.src = src;
+  });
+}
+
+function loadOptionalImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
     img.src = src;
   });
 }
@@ -33,7 +43,11 @@ export function loadTileSprites(): Promise<TileSprites | null> {
         loadImage(`${TILE_BASE}/flag.png`),
         ...Array.from({ length: 8 }, (_, i) => loadImage(`${TILE_BASE}/num-${i + 1}.png`)),
       ]);
-      cached = { hidden, revealed, mine, flag, numbers };
+      const maybeDigits = await Promise.all(
+        Array.from({ length: 8 }, (_, i) => loadOptionalImage(`${TILE_BASE}/digit-${i + 1}.png`)),
+      );
+      const digits = maybeDigits.filter((img): img is HTMLImageElement => Boolean(img));
+      cached = { hidden, revealed, mine, flag, numbers, digits: digits.length === 8 ? digits : [] };
       return cached;
     } catch {
       return null;

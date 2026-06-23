@@ -21,9 +21,18 @@ RUNTIME_FX = frozenset(
 )
 RUNTIME_UI = frozenset({'start-panel', 'game-over-panel'})
 
-CORE_SRC = PRODUCTION_DIR / 'core-cutouts-production-v1.png'
-FX_SRC = PRODUCTION_DIR / 'fx-additive-sprites-production-v1.png'
-UI_SRC = PRODUCTION_DIR / 'ui-panels-production-v1.png'
+CORE_SOURCES = [
+    PRODUCTION_DIR / 'core-cutouts-production-v2.png',
+    PRODUCTION_DIR / 'core-cutouts-production-v1.png',
+]
+FX_SOURCES = [
+    PRODUCTION_DIR / 'fx-additive-sprites-production-v2.png',
+    PRODUCTION_DIR / 'fx-additive-sprites-production-v1.png',
+]
+UI_SOURCES = [
+    PRODUCTION_DIR / 'ui-panels-production-v2.png',
+    PRODUCTION_DIR / 'ui-panels-production-v1.png',
+]
 
 CORE_NAMES = [
     'mine-standard',
@@ -56,37 +65,44 @@ FX_ROWS = [
 ]
 
 UI_PANELS = [
-    ('space-active', (45, 55, 293, 111)),
-    ('space-disabled', (383, 56, 276, 109)),
-    ('auto-off', (712, 56, 113, 117)),
-    ('auto-on', (861, 56, 116, 117)),
-    ('start-panel', (45, 208, 364, 246)),
-    ('ready-panel', (435, 210, 298, 244)),
-    ('retry-button', (763, 369, 218, 84)),
-    ('game-over-panel', (45, 492, 430, 269)),
-    ('log-panel', (506, 486, 474, 280)),
-    ('score-chip', (45, 798, 309, 132)),
-    ('depth-chip', (372, 798, 251, 132)),
-    ('lives-chip', (637, 798, 344, 132)),
-    ('countdown-yellow', (47, 962, 143, 144)),
-    ('countdown-orange', (220, 962, 143, 144)),
-    ('countdown-red', (388, 962, 143, 144)),
-    ('defused-chip', (562, 966, 150, 151)),
-    ('heal-chip', (736, 966, 111, 151)),
-    ('break-chip', (867, 966, 114, 151)),
-    ('full-life-panel', (45, 1141, 379, 137)),
-    ('row-one-chip', (470, 1121, 141, 170)),
-    ('row-two-chip', (654, 1121, 141, 170)),
-    ('row-five-chip', (837, 1121, 143, 170)),
-    ('safe-number-badge', (45, 1328, 151, 150)),
-    ('flag-badge', (237, 1328, 151, 150)),
-    ('target-yellow-badge', (433, 1328, 151, 150)),
-    ('target-purple-badge', (633, 1328, 151, 150)),
-    ('warning-badge', (834, 1328, 151, 150)),
+    ('space-active', (12, 100, 328, 123)),
+    ('space-disabled', (338, 100, 282, 123)),
+    ('auto-off', (636, 104, 164, 116)),
+    ('auto-on', (828, 104, 168, 116)),
+    ('start-panel', (8, 252, 360, 348)),
+    ('ready-panel', (370, 252, 254, 348)),
+    ('retry-button', (672, 256, 296, 110)),
+    ('game-over-panel', (622, 372, 396, 242)),
+    ('log-panel', (8, 614, 432, 222)),
+    ('score-chip', (444, 650, 178, 146)),
+    ('depth-chip', (626, 650, 188, 146)),
+    ('lives-chip', (814, 650, 188, 146)),
+    ('countdown-yellow', (36, 838, 204, 214)),
+    ('countdown-orange', (274, 838, 207, 214)),
+    ('countdown-red', (516, 838, 207, 214)),
+    ('defused-chip', (761, 839, 205, 212)),
+    ('heal-chip', (10, 1070, 156, 146)),
+    ('break-chip', (180, 1070, 154, 146)),
+    ('full-life-panel', (342, 1070, 318, 146)),
+    ('row-one-chip', (664, 1070, 112, 160)),
+    ('row-two-chip', (775, 1070, 114, 160)),
+    ('row-five-chip', (890, 1070, 116, 160)),
+    ('safe-number-badge', (44, 1259, 166, 210)),
+    ('flag-badge', (236, 1259, 166, 210)),
+    ('target-yellow-badge', (426, 1259, 166, 210)),
+    ('target-purple-badge', (611, 1259, 166, 210)),
+    ('warning-badge', (804, 1260, 176, 210)),
 ]
 
 CORE_TARGET = 256
 CHROMA = np.array([255, 0, 255], dtype=np.int16)
+
+
+def first_existing(paths: list[Path]) -> Path:
+    for path in paths:
+        if path.exists():
+            return path
+    return paths[0]
 
 
 def ensure_dirs() -> None:
@@ -159,10 +175,11 @@ def design_url(path: Path) -> str:
 
 
 def slice_core_cutouts(manifest: dict[str, object], runtime_manifest: dict[str, object]) -> None:
-    if not CORE_SRC.exists():
-        raise SystemExit(f'missing core cutout sheet: {CORE_SRC}')
+    core_src = first_existing(CORE_SOURCES)
+    if not core_src.exists():
+        raise SystemExit(f'missing core cutout sheet: {core_src}')
 
-    img = Image.open(CORE_SRC).convert('RGBA')
+    img = Image.open(core_src).convert('RGBA')
     grid_size = min(img.width, img.height)
     cell = grid_size // 4
     clean_size = cell * 4
@@ -186,7 +203,7 @@ def slice_core_cutouts(manifest: dict[str, object], runtime_manifest: dict[str, 
         print('wrote', doc_path.relative_to(ROOT))
 
     meta = {
-        'source': str(CORE_SRC.relative_to(ROOT)),
+        'source': str(core_src.relative_to(ROOT)),
         'grid': {'rows': 4, 'cols': 4, 'sourceCell': cell, 'outputSize': CORE_TARGET},
         'items': entries,
     }
@@ -195,10 +212,11 @@ def slice_core_cutouts(manifest: dict[str, object], runtime_manifest: dict[str, 
 
 
 def slice_fx_sprites(manifest: dict[str, object], runtime_manifest: dict[str, object]) -> None:
-    if not FX_SRC.exists():
-        raise SystemExit(f'missing FX sprite sheet: {FX_SRC}')
+    fx_src = first_existing(FX_SOURCES)
+    if not fx_src.exists():
+        raise SystemExit(f'missing FX sprite sheet: {fx_src}')
 
-    img = Image.open(FX_SRC).convert('RGBA')
+    img = Image.open(fx_src).convert('RGBA')
     cols = 8
     rows = 8
     if img.width % cols != 0 or img.height % rows != 0:
@@ -235,7 +253,7 @@ def slice_fx_sprites(manifest: dict[str, object], runtime_manifest: dict[str, ob
             runtime_effects[effect] = {**effect_meta, 'frames': runtime_frames}
 
     fx_meta = {
-        'source': str(FX_SRC.relative_to(ROOT)),
+        'source': str(fx_src.relative_to(ROOT)),
         'grid': {'rows': rows, 'cols': cols, 'frameWidth': frame_w, 'frameHeight': frame_h},
         'effects': effects,
     }
@@ -244,10 +262,11 @@ def slice_fx_sprites(manifest: dict[str, object], runtime_manifest: dict[str, ob
 
 
 def slice_ui_panels(manifest: dict[str, object], runtime_manifest: dict[str, object]) -> None:
-    if not UI_SRC.exists():
-        raise SystemExit(f'missing UI panel sheet: {UI_SRC}')
+    ui_src = first_existing(UI_SOURCES)
+    if not ui_src.exists():
+        raise SystemExit(f'missing UI panel sheet: {ui_src}')
 
-    img = Image.open(UI_SRC).convert('RGBA')
+    img = Image.open(ui_src).convert('RGBA')
     entries: dict[str, object] = {}
     runtime_entries: dict[str, object] = {}
     for name, (x, y, w, h) in UI_PANELS:
@@ -268,7 +287,7 @@ def slice_ui_panels(manifest: dict[str, object], runtime_manifest: dict[str, obj
         print('wrote', doc_path.relative_to(ROOT))
 
     ui_meta = {
-        'source': str(UI_SRC.relative_to(ROOT)),
+        'source': str(ui_src.relative_to(ROOT)),
         'items': entries,
     }
     manifest['uiPanels'] = ui_meta

@@ -1,8 +1,16 @@
 export const GAME_CUTOUT_NAMES = [
   'mine-standard',
+  'mine-cracked',
   'flag-blue',
+  'flag-pole',
+  'flag-cloth',
   'heart-full',
   'heart-empty',
+  'chord-crosshair',
+  'scan-strip',
+  'spark-blue',
+  'spark-red',
+  'spark-amber',
 ] as const;
 
 export type GameCutoutName = (typeof GAME_CUTOUT_NAMES)[number];
@@ -24,9 +32,13 @@ export type GameUiPanelName = (typeof GAME_UI_PANEL_NAMES)[number];
 
 export const GAME_ASSET_TUNING = {
   cutouts: {
-    flagScale: 1,
-    mineScale: 1.04,
+    flagScale: 0.56,
+    mineScale: 0.68,
     heartScale: 1.18,
+  },
+  tiles: {
+    cellScale: 1,
+    digitScale: 0.58,
   },
   fx: {
     safeReveal: {
@@ -225,4 +237,98 @@ export function drawImageContained(
   const dw = sourceW * fit;
   const dh = sourceH * fit;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+interface SourceRect {
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
+}
+
+const visibleRectCache = new WeakMap<object, SourceRect | null>();
+
+function getImageSize(img: CanvasImageSource): { width: number; height: number } | null {
+  const width = 'naturalWidth' in img ? img.naturalWidth : 'width' in img ? Number(img.width) : 0;
+  const height = 'naturalHeight' in img ? img.naturalHeight : 'height' in img ? Number(img.height) : 0;
+  return width > 0 && height > 0 ? { width, height } : null;
+}
+
+function getVisibleSourceRect(img: CanvasImageSource): SourceRect | null {
+  const key = img as object;
+  if (visibleRectCache.has(key)) return visibleRectCache.get(key) ?? null;
+
+  const size = getImageSize(img);
+  if (!size) {
+    visibleRectCache.set(key, null);
+    return null;
+  }
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = size.width;
+    canvas.height = size.height;
+    const measureCtx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!measureCtx) {
+      visibleRectCache.set(key, null);
+      return null;
+    }
+    measureCtx.clearRect(0, 0, size.width, size.height);
+    measureCtx.drawImage(img, 0, 0, size.width, size.height);
+    const data = measureCtx.getImageData(0, 0, size.width, size.height).data;
+    let minX = size.width;
+    let minY = size.height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < size.height; y += 1) {
+      for (let x = 0; x < size.width; x += 1) {
+        const alpha = data[(y * size.width + x) * 4 + 3] ?? 0;
+        if (alpha <= 16) continue;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    const rect =
+      maxX >= minX && maxY >= minY
+        ? { sx: minX, sy: minY, sw: maxX - minX + 1, sh: maxY - minY + 1 }
+        : null;
+    visibleRectCache.set(key, rect);
+    return rect;
+  } catch {
+    visibleRectCache.set(key, null);
+    return null;
+  }
+}
+
+export function drawImageVisibleContained(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  scale = 1,
+): void {
+  const rect = getVisibleSourceRect(img);
+  if (!rect) {
+    drawImageContained(ctx, img, x, y, w, h, scale);
+    return;
+  }
+
+  const fit = Math.min(w / rect.sw, h / rect.sh) * scale;
+  const dw = rect.sw * fit;
+  const dh = rect.sh * fit;
+  ctx.drawImage(
+    img,
+    rect.sx,
+    rect.sy,
+    rect.sw,
+    rect.sh,
+    x + (w - dw) / 2,
+    y + (h - dh) / 2,
+    dw,
+    dh,
+  );
 }

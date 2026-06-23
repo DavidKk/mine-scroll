@@ -1,34 +1,34 @@
 {
   "version": 1,
   "cutouts": {
-    "source": "docs/design-assets/production/core-cutouts-production-v1.png",
+    "source": "docs/design-assets/production/core-cutouts-production-v2.png",
     "grid": {
       "rows": 4,
       "cols": 4,
-      "sourceCell": 313,
+      "sourceCell": 256,
       "outputSize": 256
     },
     "items": {
-      "mine-standard": "/assets/game/cutouts/mine-standard.png",
-      "mine-exploded": "/assets/game/cutouts/mine-exploded.png",
-      "mine-cracked": "/assets/game/cutouts/mine-cracked.png",
-      "mine-hit-flash": "/assets/game/cutouts/mine-hit-flash.png",
-      "flag-blue": "/assets/game/cutouts/flag-blue.png",
-      "flag-danger-red": "/assets/game/cutouts/flag-danger-red.png",
-      "flag-wrong-correction": "/assets/game/cutouts/flag-wrong-correction.png",
-      "flag-pole": "/assets/game/cutouts/flag-pole.png",
-      "heart-full": "/assets/game/cutouts/heart-full.png",
-      "heart-empty": "/assets/game/cutouts/heart-empty.png",
-      "heart-lost": "/assets/game/cutouts/heart-lost.png",
-      "heart-refill": "/assets/game/cutouts/heart-refill.png",
-      "warning-triangle": "/assets/game/cutouts/warning-triangle.png",
-      "danger-exclamation": "/assets/game/cutouts/danger-exclamation.png",
-      "shield-safe-zone": "/assets/game/cutouts/shield-safe-zone.png",
-      "chord-crosshair": "/assets/game/cutouts/chord-crosshair.png"
+      "mine-standard": "/design-assets/sliced/cutouts/mine-standard.png",
+      "mine-exploded": "/design-assets/sliced/cutouts/mine-exploded.png",
+      "mine-cracked": "/design-assets/sliced/cutouts/mine-cracked.png",
+      "mine-hit-flash": "/design-assets/sliced/cutouts/mine-hit-flash.png",
+      "flag-blue": "/design-assets/sliced/cutouts/flag-blue.png",
+      "flag-danger-red": "/design-assets/sliced/cutouts/flag-danger-red.png",
+      "flag-wrong-correction": "/design-assets/sliced/cutouts/flag-wrong-correction.png",
+      "flag-pole": "/design-assets/sliced/cutouts/flag-pole.png",
+      "heart-full": "/design-assets/sliced/cutouts/heart-full.png",
+      "heart-empty": "/design-assets/sliced/cutouts/heart-empty.png",
+      "heart-lost": "/design-assets/sliced/cutouts/heart-lost.png",
+      "heart-refill": "/design-assets/sliced/cutouts/heart-refill.png",
+      "warning-triangle": "/design-assets/sliced/cutouts/warning-triangle.png",
+      "danger-exclamation": "/design-assets/sliced/cutouts/danger-exclamation.png",
+      "shield-safe-zone": "/design-assets/sliced/cutouts/shield-safe-zone.png",
+      "chord-crosshair": "/design-assets/sliced/cutouts/chord-crosshair.png"
     }
   },
   "fx": {
-    "source": "docs/design-assets/production/fx-additive-sprites-production-v1.png",
+    "source": "docs/design-assets/production/fx-additive-sprites-production-v2.png",
     "grid": {
       "rows": 8,
       "cols": 8,
@@ -42,14 +42,14 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/mine-explosion/frame-01.png",
-          "/assets/game/fx/mine-explosion/frame-02.png",
-          "/assets/game/fx/mine-explosion/frame-03.png",
-          "/assets/game/fx/mine-explosion/frame-04.png",
-          "/assets/game/fx/mine-explosion/frame-05.png",
-          "/assets/game/fx/mine-explosion/frame-06.png",
-          "/assets/game/fx/mine-explosion/frame-07.png",
-          "/assets/game/fx/mine-explosion/frame-08.png"
+          "/design-assets/sliced/fx/mine-explosion/frame-01.png",
+          "/design-assets/sliced/fx/mine-explosion/frame-02.png",
+          "/design-assets/sliced/fx/mine-explosion/frame-03.png",
+          "/design-assets/sliced/fx/mine-explosion/frame-04.png",
+          "/design-assets/sliced/fx/mine-explosion/frame-05.png",
+          "/design-assets/sliced/fx/mine-explosion/frame-06.png",
+          "/design-assets/sliced/fx/mine-explosion/frame-07.png",
+          "/design-assets/sliced/fx/mine-explosion/frame-08.png"
         ]
       },
       "combo-burst": {
@@ -58,14 +58,14 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/combo-burst/frame-01.png",
-          "/assets/game/fx/combo-burst/frame-02.png",
-          "/assets/game/fx/combo-burst/frame-03.png",
-          "/assets/game/fx/combo-burst/frame-04.png",
-          "/assets/game/fx/combo-burst/frame-05.png",
-          "/assets/game/fx/combo-burst/frame-06.png",
-          "/assets/game/fx/combo-burst/frame-07.png",
-          "/assets/game/fx/combo-burst/frame-08.png"
+          "/design-assets/sliced/fx/combo-burst/frame-01.png",
+          "/design-assets/sliced/fx/combo-burst/frame-02.png",
+          "/design-assets/sliced/fx/combo-burst/frame-03.png",
+          "/design-assets/sliced/fx/combo-burst/frame-04.png",
+          "/design-assets/sliced/fx/combo-burst/frame-05.png",
+          "/design-assets/sliced/fx/combo-burst/frame-06.png",
+          "/design-assets/sliced/fx/combo-burst/frame-07.png",
+          "/design-assets/sliced/fx/combo-burst/frame-08.png"
         ]
       },
       "safe-reveal": {
@@ -74,14 +74,14 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/safe-reveal/frame-01.png",
-          "/assets/game/fx/safe-reveal/frame-02.png",
-          "/assets/game/fx/safe-reveal/frame-03.png",
-          "/assets/game/fx/safe-reveal/frame-04.png",
-          "/assets/game/fx/safe-reveal/frame-05.png",
-          "/assets/game/fx/safe-reveal/frame-06.png",
-          "/assets/game/fx/safe-reveal/frame-07.png",
-          "/assets/game/fx/safe-reveal/frame-08.png"
+          "/design-assets/sliced/fx/safe-reveal/frame-01.png",
+          "/design-assets/sliced/fx/safe-reveal/frame-02.png",
+          "/design-assets/sliced/fx/safe-reveal/frame-03.png",
+          "/design-assets/sliced/fx/safe-reveal/frame-04.png",
+          "/design-assets/sliced/fx/safe-reveal/frame-05.png",
+          "/design-assets/sliced/fx/safe-reveal/frame-06.png",
+          "/design-assets/sliced/fx/safe-reveal/frame-07.png",
+          "/design-assets/sliced/fx/safe-reveal/frame-08.png"
         ]
       },
       "flag-pop": {
@@ -90,14 +90,14 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/flag-pop/frame-01.png",
-          "/assets/game/fx/flag-pop/frame-02.png",
-          "/assets/game/fx/flag-pop/frame-03.png",
-          "/assets/game/fx/flag-pop/frame-04.png",
-          "/assets/game/fx/flag-pop/frame-05.png",
-          "/assets/game/fx/flag-pop/frame-06.png",
-          "/assets/game/fx/flag-pop/frame-07.png",
-          "/assets/game/fx/flag-pop/frame-08.png"
+          "/design-assets/sliced/fx/flag-pop/frame-01.png",
+          "/design-assets/sliced/fx/flag-pop/frame-02.png",
+          "/design-assets/sliced/fx/flag-pop/frame-03.png",
+          "/design-assets/sliced/fx/flag-pop/frame-04.png",
+          "/design-assets/sliced/fx/flag-pop/frame-05.png",
+          "/design-assets/sliced/fx/flag-pop/frame-06.png",
+          "/design-assets/sliced/fx/flag-pop/frame-07.png",
+          "/design-assets/sliced/fx/flag-pop/frame-08.png"
         ]
       },
       "wrong-flag-break": {
@@ -106,14 +106,14 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/wrong-flag-break/frame-01.png",
-          "/assets/game/fx/wrong-flag-break/frame-02.png",
-          "/assets/game/fx/wrong-flag-break/frame-03.png",
-          "/assets/game/fx/wrong-flag-break/frame-04.png",
-          "/assets/game/fx/wrong-flag-break/frame-05.png",
-          "/assets/game/fx/wrong-flag-break/frame-06.png",
-          "/assets/game/fx/wrong-flag-break/frame-07.png",
-          "/assets/game/fx/wrong-flag-break/frame-08.png"
+          "/design-assets/sliced/fx/wrong-flag-break/frame-01.png",
+          "/design-assets/sliced/fx/wrong-flag-break/frame-02.png",
+          "/design-assets/sliced/fx/wrong-flag-break/frame-03.png",
+          "/design-assets/sliced/fx/wrong-flag-break/frame-04.png",
+          "/design-assets/sliced/fx/wrong-flag-break/frame-05.png",
+          "/design-assets/sliced/fx/wrong-flag-break/frame-06.png",
+          "/design-assets/sliced/fx/wrong-flag-break/frame-07.png",
+          "/design-assets/sliced/fx/wrong-flag-break/frame-08.png"
         ]
       },
       "heart-refill": {
@@ -122,14 +122,14 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/heart-refill/frame-01.png",
-          "/assets/game/fx/heart-refill/frame-02.png",
-          "/assets/game/fx/heart-refill/frame-03.png",
-          "/assets/game/fx/heart-refill/frame-04.png",
-          "/assets/game/fx/heart-refill/frame-05.png",
-          "/assets/game/fx/heart-refill/frame-06.png",
-          "/assets/game/fx/heart-refill/frame-07.png",
-          "/assets/game/fx/heart-refill/frame-08.png"
+          "/design-assets/sliced/fx/heart-refill/frame-01.png",
+          "/design-assets/sliced/fx/heart-refill/frame-02.png",
+          "/design-assets/sliced/fx/heart-refill/frame-03.png",
+          "/design-assets/sliced/fx/heart-refill/frame-04.png",
+          "/design-assets/sliced/fx/heart-refill/frame-05.png",
+          "/design-assets/sliced/fx/heart-refill/frame-06.png",
+          "/design-assets/sliced/fx/heart-refill/frame-07.png",
+          "/design-assets/sliced/fx/heart-refill/frame-08.png"
         ]
       },
       "level-up": {
@@ -138,14 +138,14 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/level-up/frame-01.png",
-          "/assets/game/fx/level-up/frame-02.png",
-          "/assets/game/fx/level-up/frame-03.png",
-          "/assets/game/fx/level-up/frame-04.png",
-          "/assets/game/fx/level-up/frame-05.png",
-          "/assets/game/fx/level-up/frame-06.png",
-          "/assets/game/fx/level-up/frame-07.png",
-          "/assets/game/fx/level-up/frame-08.png"
+          "/design-assets/sliced/fx/level-up/frame-01.png",
+          "/design-assets/sliced/fx/level-up/frame-02.png",
+          "/design-assets/sliced/fx/level-up/frame-03.png",
+          "/design-assets/sliced/fx/level-up/frame-04.png",
+          "/design-assets/sliced/fx/level-up/frame-05.png",
+          "/design-assets/sliced/fx/level-up/frame-06.png",
+          "/design-assets/sliced/fx/level-up/frame-07.png",
+          "/design-assets/sliced/fx/level-up/frame-08.png"
         ]
       },
       "score-pop": {
@@ -154,323 +154,323 @@
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/score-pop/frame-01.png",
-          "/assets/game/fx/score-pop/frame-02.png",
-          "/assets/game/fx/score-pop/frame-03.png",
-          "/assets/game/fx/score-pop/frame-04.png",
-          "/assets/game/fx/score-pop/frame-05.png",
-          "/assets/game/fx/score-pop/frame-06.png",
-          "/assets/game/fx/score-pop/frame-07.png",
-          "/assets/game/fx/score-pop/frame-08.png"
+          "/design-assets/sliced/fx/score-pop/frame-01.png",
+          "/design-assets/sliced/fx/score-pop/frame-02.png",
+          "/design-assets/sliced/fx/score-pop/frame-03.png",
+          "/design-assets/sliced/fx/score-pop/frame-04.png",
+          "/design-assets/sliced/fx/score-pop/frame-05.png",
+          "/design-assets/sliced/fx/score-pop/frame-06.png",
+          "/design-assets/sliced/fx/score-pop/frame-07.png",
+          "/design-assets/sliced/fx/score-pop/frame-08.png"
         ]
       }
     }
   },
   "uiPanels": {
-    "source": "docs/design-assets/production/ui-panels-production-v1.png",
+    "source": "docs/design-assets/production/ui-panels-production-v2.png",
     "items": {
       "space-active": {
-        "src": "/assets/game/ui/space-active.png",
-        "width": 293,
-        "height": 111,
+        "src": "/design-assets/sliced/ui/space-active.png",
+        "width": 328,
+        "height": 123,
         "sourceRect": {
-          "x": 45,
-          "y": 55,
-          "w": 293,
-          "h": 111
+          "x": 12,
+          "y": 100,
+          "w": 328,
+          "h": 123
         }
       },
       "space-disabled": {
-        "src": "/assets/game/ui/space-disabled.png",
-        "width": 276,
-        "height": 109,
+        "src": "/design-assets/sliced/ui/space-disabled.png",
+        "width": 282,
+        "height": 123,
         "sourceRect": {
-          "x": 383,
-          "y": 56,
-          "w": 276,
-          "h": 109
+          "x": 338,
+          "y": 100,
+          "w": 282,
+          "h": 123
         }
       },
       "auto-off": {
-        "src": "/assets/game/ui/auto-off.png",
-        "width": 113,
-        "height": 117,
+        "src": "/design-assets/sliced/ui/auto-off.png",
+        "width": 164,
+        "height": 116,
         "sourceRect": {
-          "x": 712,
-          "y": 56,
-          "w": 113,
-          "h": 117
+          "x": 636,
+          "y": 104,
+          "w": 164,
+          "h": 116
         }
       },
       "auto-on": {
-        "src": "/assets/game/ui/auto-on.png",
-        "width": 116,
-        "height": 117,
+        "src": "/design-assets/sliced/ui/auto-on.png",
+        "width": 168,
+        "height": 116,
         "sourceRect": {
-          "x": 861,
-          "y": 56,
-          "w": 116,
-          "h": 117
+          "x": 828,
+          "y": 104,
+          "w": 168,
+          "h": 116
         }
       },
       "start-panel": {
-        "src": "/assets/game/ui/start-panel.png",
-        "width": 364,
-        "height": 246,
+        "src": "/design-assets/sliced/ui/start-panel.png",
+        "width": 360,
+        "height": 348,
         "sourceRect": {
-          "x": 45,
-          "y": 208,
-          "w": 364,
-          "h": 246
+          "x": 8,
+          "y": 252,
+          "w": 360,
+          "h": 348
         }
       },
       "ready-panel": {
-        "src": "/assets/game/ui/ready-panel.png",
-        "width": 298,
-        "height": 244,
+        "src": "/design-assets/sliced/ui/ready-panel.png",
+        "width": 254,
+        "height": 348,
         "sourceRect": {
-          "x": 435,
-          "y": 210,
-          "w": 298,
-          "h": 244
+          "x": 370,
+          "y": 252,
+          "w": 254,
+          "h": 348
         }
       },
       "retry-button": {
-        "src": "/assets/game/ui/retry-button.png",
-        "width": 218,
-        "height": 84,
+        "src": "/design-assets/sliced/ui/retry-button.png",
+        "width": 296,
+        "height": 110,
         "sourceRect": {
-          "x": 763,
-          "y": 369,
-          "w": 218,
-          "h": 84
+          "x": 672,
+          "y": 256,
+          "w": 296,
+          "h": 110
         }
       },
       "game-over-panel": {
-        "src": "/assets/game/ui/game-over-panel.png",
-        "width": 430,
-        "height": 269,
+        "src": "/design-assets/sliced/ui/game-over-panel.png",
+        "width": 396,
+        "height": 242,
         "sourceRect": {
-          "x": 45,
-          "y": 492,
-          "w": 430,
-          "h": 269
+          "x": 622,
+          "y": 372,
+          "w": 396,
+          "h": 242
         }
       },
       "log-panel": {
-        "src": "/assets/game/ui/log-panel.png",
-        "width": 474,
-        "height": 280,
+        "src": "/design-assets/sliced/ui/log-panel.png",
+        "width": 432,
+        "height": 222,
         "sourceRect": {
-          "x": 506,
-          "y": 486,
-          "w": 474,
-          "h": 280
+          "x": 8,
+          "y": 614,
+          "w": 432,
+          "h": 222
         }
       },
       "score-chip": {
-        "src": "/assets/game/ui/score-chip.png",
-        "width": 309,
-        "height": 132,
+        "src": "/design-assets/sliced/ui/score-chip.png",
+        "width": 178,
+        "height": 146,
         "sourceRect": {
-          "x": 45,
-          "y": 798,
-          "w": 309,
-          "h": 132
+          "x": 444,
+          "y": 650,
+          "w": 178,
+          "h": 146
         }
       },
       "depth-chip": {
-        "src": "/assets/game/ui/depth-chip.png",
-        "width": 251,
-        "height": 132,
+        "src": "/design-assets/sliced/ui/depth-chip.png",
+        "width": 188,
+        "height": 146,
         "sourceRect": {
-          "x": 372,
-          "y": 798,
-          "w": 251,
-          "h": 132
+          "x": 626,
+          "y": 650,
+          "w": 188,
+          "h": 146
         }
       },
       "lives-chip": {
-        "src": "/assets/game/ui/lives-chip.png",
-        "width": 344,
-        "height": 132,
+        "src": "/design-assets/sliced/ui/lives-chip.png",
+        "width": 188,
+        "height": 146,
         "sourceRect": {
-          "x": 637,
-          "y": 798,
-          "w": 344,
-          "h": 132
+          "x": 814,
+          "y": 650,
+          "w": 188,
+          "h": 146
         }
       },
       "countdown-yellow": {
-        "src": "/assets/game/ui/countdown-yellow.png",
-        "width": 143,
-        "height": 144,
+        "src": "/design-assets/sliced/ui/countdown-yellow.png",
+        "width": 204,
+        "height": 214,
         "sourceRect": {
-          "x": 47,
-          "y": 962,
-          "w": 143,
-          "h": 144
+          "x": 36,
+          "y": 838,
+          "w": 204,
+          "h": 214
         }
       },
       "countdown-orange": {
-        "src": "/assets/game/ui/countdown-orange.png",
-        "width": 143,
-        "height": 144,
+        "src": "/design-assets/sliced/ui/countdown-orange.png",
+        "width": 207,
+        "height": 214,
         "sourceRect": {
-          "x": 220,
-          "y": 962,
-          "w": 143,
-          "h": 144
+          "x": 274,
+          "y": 838,
+          "w": 207,
+          "h": 214
         }
       },
       "countdown-red": {
-        "src": "/assets/game/ui/countdown-red.png",
-        "width": 143,
-        "height": 144,
+        "src": "/design-assets/sliced/ui/countdown-red.png",
+        "width": 207,
+        "height": 214,
         "sourceRect": {
-          "x": 388,
-          "y": 962,
-          "w": 143,
-          "h": 144
+          "x": 516,
+          "y": 838,
+          "w": 207,
+          "h": 214
         }
       },
       "defused-chip": {
-        "src": "/assets/game/ui/defused-chip.png",
-        "width": 150,
-        "height": 151,
+        "src": "/design-assets/sliced/ui/defused-chip.png",
+        "width": 205,
+        "height": 212,
         "sourceRect": {
-          "x": 562,
-          "y": 966,
-          "w": 150,
-          "h": 151
+          "x": 761,
+          "y": 839,
+          "w": 205,
+          "h": 212
         }
       },
       "heal-chip": {
-        "src": "/assets/game/ui/heal-chip.png",
-        "width": 111,
-        "height": 151,
+        "src": "/design-assets/sliced/ui/heal-chip.png",
+        "width": 156,
+        "height": 146,
         "sourceRect": {
-          "x": 736,
-          "y": 966,
-          "w": 111,
-          "h": 151
+          "x": 10,
+          "y": 1070,
+          "w": 156,
+          "h": 146
         }
       },
       "break-chip": {
-        "src": "/assets/game/ui/break-chip.png",
-        "width": 114,
-        "height": 151,
+        "src": "/design-assets/sliced/ui/break-chip.png",
+        "width": 154,
+        "height": 146,
         "sourceRect": {
-          "x": 867,
-          "y": 966,
-          "w": 114,
-          "h": 151
+          "x": 180,
+          "y": 1070,
+          "w": 154,
+          "h": 146
         }
       },
       "full-life-panel": {
-        "src": "/assets/game/ui/full-life-panel.png",
-        "width": 379,
-        "height": 137,
+        "src": "/design-assets/sliced/ui/full-life-panel.png",
+        "width": 318,
+        "height": 146,
         "sourceRect": {
-          "x": 45,
-          "y": 1141,
-          "w": 379,
-          "h": 137
+          "x": 342,
+          "y": 1070,
+          "w": 318,
+          "h": 146
         }
       },
       "row-one-chip": {
-        "src": "/assets/game/ui/row-one-chip.png",
-        "width": 141,
-        "height": 170,
+        "src": "/design-assets/sliced/ui/row-one-chip.png",
+        "width": 112,
+        "height": 160,
         "sourceRect": {
-          "x": 470,
-          "y": 1121,
-          "w": 141,
-          "h": 170
+          "x": 664,
+          "y": 1070,
+          "w": 112,
+          "h": 160
         }
       },
       "row-two-chip": {
-        "src": "/assets/game/ui/row-two-chip.png",
-        "width": 141,
-        "height": 170,
+        "src": "/design-assets/sliced/ui/row-two-chip.png",
+        "width": 114,
+        "height": 160,
         "sourceRect": {
-          "x": 654,
-          "y": 1121,
-          "w": 141,
-          "h": 170
+          "x": 775,
+          "y": 1070,
+          "w": 114,
+          "h": 160
         }
       },
       "row-five-chip": {
-        "src": "/assets/game/ui/row-five-chip.png",
-        "width": 143,
-        "height": 170,
+        "src": "/design-assets/sliced/ui/row-five-chip.png",
+        "width": 116,
+        "height": 160,
         "sourceRect": {
-          "x": 837,
-          "y": 1121,
-          "w": 143,
-          "h": 170
+          "x": 890,
+          "y": 1070,
+          "w": 116,
+          "h": 160
         }
       },
       "safe-number-badge": {
-        "src": "/assets/game/ui/safe-number-badge.png",
-        "width": 151,
-        "height": 150,
+        "src": "/design-assets/sliced/ui/safe-number-badge.png",
+        "width": 166,
+        "height": 210,
         "sourceRect": {
-          "x": 45,
-          "y": 1328,
-          "w": 151,
-          "h": 150
+          "x": 44,
+          "y": 1259,
+          "w": 166,
+          "h": 210
         }
       },
       "flag-badge": {
-        "src": "/assets/game/ui/flag-badge.png",
-        "width": 151,
-        "height": 150,
+        "src": "/design-assets/sliced/ui/flag-badge.png",
+        "width": 166,
+        "height": 210,
         "sourceRect": {
-          "x": 237,
-          "y": 1328,
-          "w": 151,
-          "h": 150
+          "x": 236,
+          "y": 1259,
+          "w": 166,
+          "h": 210
         }
       },
       "target-yellow-badge": {
-        "src": "/assets/game/ui/target-yellow-badge.png",
-        "width": 151,
-        "height": 150,
+        "src": "/design-assets/sliced/ui/target-yellow-badge.png",
+        "width": 166,
+        "height": 210,
         "sourceRect": {
-          "x": 433,
-          "y": 1328,
-          "w": 151,
-          "h": 150
+          "x": 426,
+          "y": 1259,
+          "w": 166,
+          "h": 210
         }
       },
       "target-purple-badge": {
-        "src": "/assets/game/ui/target-purple-badge.png",
-        "width": 151,
-        "height": 150,
+        "src": "/design-assets/sliced/ui/target-purple-badge.png",
+        "width": 166,
+        "height": 210,
         "sourceRect": {
-          "x": 633,
-          "y": 1328,
-          "w": 151,
-          "h": 150
+          "x": 611,
+          "y": 1259,
+          "w": 166,
+          "h": 210
         }
       },
       "warning-badge": {
-        "src": "/assets/game/ui/warning-badge.png",
-        "width": 151,
-        "height": 150,
+        "src": "/design-assets/sliced/ui/warning-badge.png",
+        "width": 176,
+        "height": 210,
         "sourceRect": {
-          "x": 834,
-          "y": 1328,
-          "w": 151,
-          "h": 150
+          "x": 804,
+          "y": 1260,
+          "w": 176,
+          "h": 210
         }
       }
     }
   },
   "previews": {
-    "cutouts": "/assets/game/preview-cutouts.png",
-    "fx": "/assets/game/preview-fx.png",
-    "uiPanels": "/assets/game/preview-ui-panels.png"
+    "cutouts": "/design-assets/sliced/preview-cutouts.png",
+    "fx": "/design-assets/sliced/preview-fx.png",
+    "uiPanels": "/design-assets/sliced/preview-ui-panels.png"
   }
 }

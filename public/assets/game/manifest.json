@@ -1,11 +1,11 @@
 {
   "version": 1,
   "cutouts": {
-    "source": "docs/design-assets/production/core-cutouts-production-v1.png",
+    "source": "docs/design-assets/production/core-cutouts-production-v2.png",
     "grid": {
       "rows": 4,
       "cols": 4,
-      "sourceCell": 313,
+      "sourceCell": 256,
       "outputSize": 256
     },
     "items": {
@@ -16,7 +16,7 @@
     }
   },
   "fx": {
-    "source": "docs/design-assets/production/fx-additive-sprites-production-v1.png",
+    "source": "docs/design-assets/production/fx-additive-sprites-production-v2.png",
     "grid": {
       "rows": 8,
       "cols": 8,
@@ -123,28 +123,28 @@
     }
   },
   "uiPanels": {
-    "source": "docs/design-assets/production/ui-panels-production-v1.png",
+    "source": "docs/design-assets/production/ui-panels-production-v2.png",
     "items": {
       "start-panel": {
         "src": "/assets/game/ui/start-panel.png",
-        "width": 364,
-        "height": 246,
+        "width": 360,
+        "height": 348,
         "sourceRect": {
-          "x": 45,
-          "y": 208,
-          "w": 364,
-          "h": 246
+          "x": 8,
+          "y": 252,
+          "w": 360,
+          "h": 348
         }
       },
       "game-over-panel": {
         "src": "/assets/game/ui/game-over-panel.png",
-        "width": 430,
-        "height": 269,
+        "width": 396,
+        "height": 242,
         "sourceRect": {
-          "x": 45,
-          "y": 492,
-          "w": 430,
-          "h": 269
+          "x": 622,
+          "y": 372,
+          "w": 396,
+          "h": 242
         }
       }
     }
