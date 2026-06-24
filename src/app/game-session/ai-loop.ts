@@ -2,7 +2,7 @@ import { applyAiMove, getAiAnalysis, MINES_PER_LIFE, toAiHintDisplay } from '../
 import { aiPersistCellKey, isAiPersistBlocked } from '../../core/ai/ai-blocked.ts';
 import { getEndlessAiStepMs } from '../../core/ai/solver.ts';
 import type { ModeSession } from '../../core/types.ts';
-import { playFlagToggleAudio, playRevealAudio, type GameAudioController } from '../../ui/game-audio.ts';
+import { hadMineLifeLoss, playFlagToggleAudio, playRevealAudio, type GameAudioController } from '../../ui/game-audio.ts';
 import type { CanvasLogController, GameSessionRuntime, SessionApplyContext } from './types.ts';
 import { formatCell, logAiMove } from './logging.ts';
 import type { ScrollController } from './scroll.ts';
@@ -158,7 +158,11 @@ export function createAiController(deps: AiControllerDeps): AiController {
         next = { ...next, aiContradictedFlags: [...contradicted] };
       }
       if (next !== runtime.session) {
-        if (move.kind === 'reveal' || move.kind === 'chord') {
+        if (move.kind === 'chord') {
+          if (!hadMineLifeLoss(beforeLives, next)) {
+            gameAudio.play('chordAction');
+          }
+        } else if (move.kind === 'reveal' && !hadMineLifeLoss(beforeLives, next)) {
           playRevealAudio(gameAudio, beforeBoard, next.state.board);
         } else if (move.kind === 'flag') {
           playFlagToggleAudio(gameAudio, true);

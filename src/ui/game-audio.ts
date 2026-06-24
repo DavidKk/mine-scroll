@@ -1,12 +1,19 @@
 import type { Board } from '../core/board.ts';
 import { countNewlyRevealed } from '../core/modes/endless/reveal-pipeline.ts';
+import type { ModeSession } from '../core/types.ts';
 
 export const GAME_AUDIO_ASSETS = {
   cellReveal: '/assets/game/audio/sfx-cell-reveal-01.wav',
   cellFlood: '/assets/game/audio/sfx-cell-flood-reveal.wav',
   flagPlace: '/assets/game/audio/sfx-flag-place.wav',
   flagRemove: '/assets/game/audio/sfx-flag-remove.wav',
+  chordAction: '/assets/game/audio/sfx-chord-action.wav',
+  mineHit: '/assets/game/audio/sfx-mine-hit.wav',
+  lifeWarning: '/assets/game/audio/sfx-life-warning.wav',
+  scrollUp: '/assets/game/audio/sfx-scroll-up.wav',
+  healReward: '/assets/game/audio/sfx-heal-reward.wav',
   uiHover: '/assets/game/audio/ui-hover.wav',
+  uiClick: '/assets/game/audio/ui-click.wav',
 } as const;
 
 export type GameAudioId = keyof typeof GAME_AUDIO_ASSETS;
@@ -34,6 +41,50 @@ export function playRevealAudio(
 
 export function playFlagToggleAudio(audio: GameAudioController, placing: boolean): void {
   audio.play(placing ? 'flagPlace' : 'flagRemove');
+}
+
+export function hadMineLifeLoss(beforeLives: number | undefined, next: ModeSession): boolean {
+  if (beforeLives === undefined || (next.lives ?? beforeLives) >= beforeLives) return false;
+  const cause = next.lastLifeLoss?.cause;
+  return cause === 'mine-reveal' || cause === 'chord-mine';
+}
+
+export function playLifeLossAudio(
+  audio: GameAudioController,
+  beforeLives: number | undefined,
+  next: ModeSession,
+): void {
+  if (beforeLives === undefined || (next.lives ?? beforeLives) >= beforeLives) return;
+  const cause = next.lastLifeLoss?.cause;
+  if (cause === 'mine-reveal' || cause === 'chord-mine') {
+    audio.play('mineHit');
+    return;
+  }
+  if (cause === 'scroll-bottom') {
+    audio.play('lifeWarning');
+  }
+}
+
+export function playHealRewardAudio(
+  audio: GameAudioController,
+  beforeLives: number | undefined,
+  prev: ModeSession,
+  next: ModeSession,
+): void {
+  if (beforeLives === undefined) return;
+  const afterLives = next.lives ?? beforeLives;
+  if (afterLives <= beforeLives) return;
+
+  if ((next.lastAutoHeal?.livesGained ?? 0) > 0) {
+    audio.play('healReward');
+    return;
+  }
+
+  const beforeMines = prev.minesDefused ?? 0;
+  const afterMines = next.minesDefused ?? 0;
+  if (afterMines < beforeMines) {
+    audio.play('healReward');
+  }
 }
 
 export function createGameAudio(): GameAudioController {

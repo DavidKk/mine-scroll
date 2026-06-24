@@ -1,3 +1,4 @@
+import { ENDLESS_COLS, ENDLESS_VISIBLE_ROWS } from '../core/modes/endless/constants.ts';
 import { CELL_GAP, FONTS, GRID_PADDING } from '../ui/theme.ts';
 import { computeEndlessBoardCellSize, computeGameStageLayout } from '../ui/game-stage-layout.ts';
 
@@ -38,8 +39,8 @@ const STATES: StateSpec[] = [
   { key: 'gameover', title: 'Game Over', gameOver: true },
 ];
 
-const BOARD_COLS = 9;
-const BOARD_ROWS = 21;
+const BOARD_COLS = ENDLESS_COLS;
+const BOARD_ROWS = ENDLESS_VISIBLE_ROWS;
 
 function getBoardSize(viewport: ViewportSpec): { w: number; h: number } {
   const cell = computeEndlessBoardCellSize(BOARD_COLS, BOARD_ROWS, viewport.w, viewport.h, {

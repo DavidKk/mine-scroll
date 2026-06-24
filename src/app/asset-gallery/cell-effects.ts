@@ -8,10 +8,11 @@ import {
   getGameFxFrames,
 } from '../../ui/game-assets.ts';
 import { drawSpriteInCell, getTileSprites, type TileSprites } from '../../ui/tile-sprites.ts';
+import { createFpsControl, createPanelHead, paintCheckerBg } from './editor-shell.ts';
 
 type CellMode = 'hidden' | 'hover' | 'open' | 'breath';
 type MineMode = 'armed' | 'flash' | 'blast' | 'exploded';
-type EffectId = 'cells' | 'digits' | 'flag' | 'mine';
+export type EffectPanelId = 'cells' | 'digits' | 'flag' | 'mine';
 
 interface CellEffectDrawOpts {
   scale?: number;
@@ -23,11 +24,14 @@ interface CellEffectDrawOpts {
 }
 
 interface EffectCardSpec {
-  id: EffectId;
+  id: EffectPanelId;
   title: string;
   description: string;
-  frameTitle: string;
-  liveTitle: string;
+  cycleMs: number;
+  frameCount: number;
+  defaultFps: number;
+  loop: boolean;
+  interactive?: boolean;
 }
 
 interface LivePreview {
@@ -41,6 +45,7 @@ const DIGIT_PARTICLE_MS = 1800;
 const MINE_EXPLOSION_MS = 720;
 /** Match in-game revealed mine scale so armed / blast / exploded stay the same size. */
 const MINE_CUTOUT_SCALE = GAME_ASSET_TUNING.cutouts.mineScale;
+const PREVIEW_PX = 200;
 
 function mineBlastPopScale(progress: number): number {
   if (progress <= 0 || progress >= 1) return 1;
@@ -51,30 +56,40 @@ const EFFECT_SPECS: EffectCardSpec[] = [
   {
     id: 'cells',
     title: 'Cell states',
-    description: 'Hidden, revealed, hover transitions, and idle breath drawn in Canvas to match in-game feel.',
-    frameTitle: 'State / transition keyframes',
-    liveTitle: 'Live preview (hover + click to toggle open)',
+    description: 'Procedural hover, breath, and reveal overlays rendered on the board cell sprites.',
+    cycleMs: BREATH_CYCLE_MS,
+    frameCount: 4,
+    defaultFps: 8,
+    loop: true,
+    interactive: true,
   },
   {
     id: 'digits',
     title: 'Digit particles',
-    description: 'Digits keep original slices; procedural particles and pulse glow wrap the number.',
-    frameTitle: 'Particle cycle keyframes',
-    liveTitle: 'Live preview (digits 1–8 loop)',
+    description: 'Orbit particles around clue digits. Loops seamlessly at phase 0/1.',
+    cycleMs: DIGIT_PARTICLE_MS,
+    frameCount: 8,
+    defaultFps: 12,
+    loop: true,
   },
   {
     id: 'flag',
     title: 'Flag wave',
-    description: 'Vertical slice wave on the flag cloth plus flag-pop sparks for an arcade flutter.',
-    frameTitle: 'Wave keyframes',
-    liveTitle: 'Live preview (looping wave)',
+    description: 'Cloth wave deformation on the flag cutout with additive spark trail.',
+    cycleMs: FLAG_WAVE_MS,
+    frameCount: 8,
+    defaultFps: 10,
+    loop: true,
   },
   {
     id: 'mine',
     title: 'Mine explosion',
-    description: 'Click plays a one-shot blast, then smoke and a cracked mine remain — no looping shock ring.',
-    frameTitle: 'Explosion keyframes',
-    liveTitle: 'Live preview (click to detonate)',
+    description: 'One-shot blast sequence with smoke and settled cracked mine. Click preview to replay.',
+    cycleMs: MINE_EXPLOSION_MS,
+    frameCount: 8,
+    defaultFps: 12,
+    loop: false,
+    interactive: true,
   },
 ];
 
@@ -103,33 +118,7 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 function paintStageBg(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  ctx.fillStyle = '#05060b';
-  ctx.fillRect(0, 0, w, h);
-
-  const glow = ctx.createRadialGradient(w * 0.5, h * 0.44, 0, w * 0.5, h * 0.48, Math.max(w, h) * 0.65);
-  glow.addColorStop(0, 'rgba(30, 64, 175, 0.36)');
-  glow.addColorStop(0.48, 'rgba(15, 23, 42, 0.18)');
-  glow.addColorStop(1, 'rgba(5, 6, 11, 0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.save();
-  ctx.globalAlpha = 0.18;
-  ctx.strokeStyle = '#1e3a8a';
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= w; x += 24) {
-    ctx.beginPath();
-    ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, h);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= h; y += 24) {
-    ctx.beginPath();
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(w, y + 0.5);
-    ctx.stroke();
-  }
-  ctx.restore();
+  paintCheckerBg(ctx, w, h);
 }
 
 function roundedRectPath(
@@ -150,17 +139,54 @@ function roundedRectPath(
   ctx.closePath();
 }
 
-function fitCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): { w: number; h: number } {
-  const rect = canvas.getBoundingClientRect();
+/** Live preview canvases are built before the panel enters the DOM — use a fixed layout size. */
+function measurePreviewCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): { w: number; h: number } {
   const dpr = window.devicePixelRatio || 1;
-  const w = Math.max(1, Math.floor(rect.width));
-  const h = Math.max(1, Math.floor(rect.height));
-  if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
+  const rect = canvas.getBoundingClientRect();
+  const parent = canvas.parentElement;
+  let w = Math.floor(rect.width) || parent?.clientWidth || PREVIEW_PX;
+  let h = Math.floor(rect.height) || parent?.clientHeight || PREVIEW_PX;
+  if (w < 2) w = PREVIEW_PX;
+  if (h < 2) h = PREVIEW_PX;
+  const pw = Math.floor(w * dpr);
+  const ph = Math.floor(h * dpr);
+  if (canvas.width !== pw || canvas.height !== ph) {
+    canvas.width = pw;
+    canvas.height = ph;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   return { w, h };
+}
+
+function initPreviewCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  canvas.style.width = `${PREVIEW_PX}px`;
+  canvas.style.height = `${PREVIEW_PX}px`;
+  measurePreviewCanvas(canvas, ctx);
+  return ctx;
+}
+
+function startPreviewLoop(canvas: HTMLCanvasElement, tick: () => void): () => void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return () => {};
+
+  let frame = 0;
+  let running = true;
+
+  const loop = (): void => {
+    if (!running) return;
+    measurePreviewCanvas(canvas, ctx);
+    tick();
+    frame = window.requestAnimationFrame(loop);
+  };
+
+  loop();
+
+  return () => {
+    running = false;
+    window.cancelAnimationFrame(frame);
+  };
 }
 
 function layoutCell(canvasW: number, canvasH: number, ratio = 0.54): { x: number; y: number; size: number } {
@@ -597,37 +623,52 @@ function drawMineScene(
 function createStaticFrameCanvas(
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
   label: string,
+  index: number,
 ): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = 'asset-gallery__frame';
+  const cell = document.createElement('div');
+  cell.className = 'asset-lab__frame-cell';
+  cell.title = label;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'asset-lab__frame-thumb asset-lab__checker';
 
   const canvas = document.createElement('canvas');
-  canvas.className = 'asset-gallery__frame-canvas';
-  canvas.width = 168;
-  canvas.height = 168;
-  canvas.style.width = '168px';
-  canvas.style.height = '168px';
+  canvas.className = 'asset-lab__frame-canvas';
+  canvas.width = 88;
+  canvas.height = 88;
+  canvas.style.width = '88px';
+  canvas.style.height = '88px';
 
   const ctx = canvas.getContext('2d');
   if (ctx) {
-    draw(ctx, 168, 168);
+    draw(ctx, 88, 88);
   }
 
+  thumb.append(canvas);
+
+  const num = document.createElement('span');
+  num.className = 'asset-lab__frame-num';
+  num.textContent = String(index + 1).padStart(2, '0');
+  thumb.append(num);
+
   const cap = document.createElement('span');
-  cap.className = 'asset-gallery__frame-label';
+  cap.className = 'asset-lab__frame-caption';
   cap.textContent = label;
 
-  wrap.append(canvas, cap);
-  return wrap;
+  cell.append(thumb, cap);
+  return cell;
 }
 
-function createCellLiveCanvas(sprites: TileSprites): LivePreview | null {
+function scaledTime(now: number, fps: number, baseFps: number): number {
+  return now * (fps / baseFps);
+}
+
+function createCellLiveCanvas(sprites: TileSprites, getFps: () => number, baseFps: number): LivePreview | null {
   const canvas = document.createElement('canvas');
-  canvas.className = 'asset-gallery__live-canvas';
-  const ctx = canvas.getContext('2d');
+  canvas.className = 'asset-lab__preview-canvas asset-lab__preview-canvas--interactive';
+  const ctx = initPreviewCanvas(canvas);
   if (!ctx) return null;
 
-  let frame = 0;
   let hoverTarget = 0;
   let hoverProgress = 0;
   let pressed = false;
@@ -635,14 +676,14 @@ function createCellLiveCanvas(sprites: TileSprites): LivePreview | null {
   let openStartedAt = 0;
 
   const draw = (): void => {
-    const { w, h } = fitCanvas(canvas, ctx);
-    const now = performance.now();
+    const { w, h } = measurePreviewCanvas(canvas, ctx);
+    const now = scaledTime(performance.now(), getFps(), baseFps);
     hoverProgress += (hoverTarget - hoverProgress) * 0.16;
     paintStageBg(ctx, w, h);
     const cell = layoutCell(w, h, 0.55);
     if (opened) {
       const pulse = 1 - easeOutCubic((now - openStartedAt) / 460);
-      drawOpenCell(ctx, sprites, cell.x, cell.y, cell.size, pulse);
+      drawOpenCell(ctx, sprites, cell.x, cell.y, cell.size, Math.max(0, pulse));
       if (pulse > 0.02) {
         drawDigitParticles(ctx, cell.x + cell.size / 2, cell.y + cell.size / 2, cell.size, '#34d399', now, 7);
       }
@@ -650,11 +691,6 @@ function createCellLiveCanvas(sprites: TileSprites): LivePreview | null {
     }
     const opts = mixOpts(breathPhase(now), hoverStateOpts(hoverProgress, pressed), hoverProgress);
     drawHiddenCellWithEffect(ctx, sprites, cell.x, cell.y, cell.size, opts);
-  };
-
-  const tick = (): void => {
-    draw();
-    frame = window.requestAnimationFrame(tick);
   };
 
   const onEnter = (): void => {
@@ -672,7 +708,7 @@ function createCellLiveCanvas(sprites: TileSprites): LivePreview | null {
   };
   const onClick = (): void => {
     opened = !opened;
-    openStartedAt = performance.now();
+    openStartedAt = scaledTime(performance.now(), getFps(), baseFps);
   };
 
   canvas.addEventListener('mouseenter', onEnter);
@@ -680,12 +716,13 @@ function createCellLiveCanvas(sprites: TileSprites): LivePreview | null {
   canvas.addEventListener('mousedown', onDown);
   canvas.addEventListener('mouseup', onUp);
   canvas.addEventListener('click', onClick);
-  frame = window.requestAnimationFrame(tick);
+
+  const stopLoop = startPreviewLoop(canvas, draw);
 
   return {
     canvas,
     dispose: () => {
-      window.cancelAnimationFrame(frame);
+      stopLoop();
       canvas.removeEventListener('mouseenter', onEnter);
       canvas.removeEventListener('mouseleave', onLeave);
       canvas.removeEventListener('mousedown', onDown);
@@ -697,33 +734,32 @@ function createCellLiveCanvas(sprites: TileSprites): LivePreview | null {
 
 function createLoopCanvas(
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number, now: number) => void,
+  getFps: () => number,
+  baseFps: number,
 ): LivePreview | null {
   const canvas = document.createElement('canvas');
-  canvas.className = 'asset-gallery__live-canvas';
-  const ctx = canvas.getContext('2d');
+  canvas.className = 'asset-lab__preview-canvas';
+  const ctx = initPreviewCanvas(canvas);
   if (!ctx) return null;
 
-  let frame = 0;
-  const tick = (): void => {
-    const { w, h } = fitCanvas(canvas, ctx);
-    draw(ctx, w, h, performance.now());
-    frame = window.requestAnimationFrame(tick);
-  };
-  frame = window.requestAnimationFrame(tick);
+  const stopLoop = startPreviewLoop(canvas, () => {
+    const { w, h } = measurePreviewCanvas(canvas, ctx);
+    const now = scaledTime(performance.now(), getFps(), baseFps);
+    draw(ctx, w, h, now);
+  });
 
   return {
     canvas,
-    dispose: () => window.cancelAnimationFrame(frame),
+    dispose: () => stopLoop(),
   };
 }
 
 function createMineLiveCanvas(sprites: TileSprites): LivePreview | null {
   const canvas = document.createElement('canvas');
-  canvas.className = 'asset-gallery__live-canvas asset-gallery__live-canvas--action';
-  const ctx = canvas.getContext('2d');
+  canvas.className = 'asset-lab__preview-canvas asset-lab__preview-canvas--interactive';
+  const ctx = initPreviewCanvas(canvas);
   if (!ctx) return null;
 
-  let frame = 0;
   let explosionStart: number | null = null;
   let settled = false;
 
@@ -738,8 +774,8 @@ function createMineLiveCanvas(sprites: TileSprites): LivePreview | null {
     }
   };
 
-  const tick = (): void => {
-    const { w, h } = fitCanvas(canvas, ctx);
+  const stopLoop = startPreviewLoop(canvas, () => {
+    const { w, h } = measurePreviewCanvas(canvas, ctx);
     const now = performance.now();
     if (settled) {
       drawMineScene(ctx, w, h, sprites, 'exploded', now);
@@ -755,50 +791,50 @@ function createMineLiveCanvas(sprites: TileSprites): LivePreview | null {
     } else {
       drawMineScene(ctx, w, h, sprites, 'armed', now);
     }
-    frame = window.requestAnimationFrame(tick);
-  };
+  });
 
   canvas.addEventListener('click', onClick);
-  frame = window.requestAnimationFrame(tick);
 
   return {
     canvas,
     dispose: () => {
-      window.cancelAnimationFrame(frame);
+      stopLoop();
       canvas.removeEventListener('click', onClick);
     },
   };
 }
 
-function createFrames(id: EffectId, sprites: TileSprites): HTMLElement {
+function createFrames(id: EffectPanelId, sprites: TileSprites): HTMLElement {
   const frames = document.createElement('div');
-  frames.className = 'asset-gallery__frames';
+  frames.className = 'asset-lab__frame-grid';
 
   if (id === 'cells') {
     const cellFrames: Array<{ label: string; mode: CellMode; t: number }> = [
       { label: 'Hidden', mode: 'hidden', t: 0 },
       { label: 'Breath peak', mode: 'breath', t: BREATH_CYCLE_MS * 0.25 },
-      { label: 'Hover done', mode: 'hover', t: 0 },
+      { label: 'Hover', mode: 'hover', t: 0 },
       { label: 'Open', mode: 'open', t: 0 },
     ];
-    for (const item of cellFrames) {
-      frames.append(createStaticFrameCanvas((ctx, w, h) => drawCellScene(ctx, w, h, sprites, item.mode, item.t), item.label));
-    }
+    cellFrames.forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas((ctx, w, h) => drawCellScene(ctx, w, h, sprites, item.mode, item.t), item.label, index),
+      );
+    });
     return frames;
   }
 
   if (id === 'digits') {
     const digitFrames = [
-      { label: 'Particles start', digit: 0, t: 0 },
+      { label: 'Start', digit: 0, t: 0 },
       { label: 'Expand', digit: 2, t: DIGIT_PARTICLE_MS * 0.33 },
       { label: 'Peak', digit: 4, t: DIGIT_PARTICLE_MS * 0.58 },
       { label: 'Settle', digit: 7, t: DIGIT_PARTICLE_MS * 0.82 },
     ];
-    for (const item of digitFrames) {
+    digitFrames.forEach((item, index) => {
       frames.append(
-        createStaticFrameCanvas((ctx, w, h) => drawDigitScene(ctx, w, h, sprites, item.digit, item.t), item.label),
+        createStaticFrameCanvas((ctx, w, h) => drawDigitScene(ctx, w, h, sprites, item.digit, item.t), item.label, index),
       );
-    }
+    });
     return frames;
   }
 
@@ -809,9 +845,9 @@ function createFrames(id: EffectId, sprites: TileSprites): HTMLElement {
       { label: 'Lift', t: FLAG_WAVE_MS * 0.5 },
       { label: 'Swing back', t: FLAG_WAVE_MS * 0.75 },
     ];
-    for (const item of flagFrames) {
-      frames.append(createStaticFrameCanvas((ctx, w, h) => drawFlagScene(ctx, w, h, sprites, item.t), item.label));
-    }
+    flagFrames.forEach((item, index) => {
+      frames.append(createStaticFrameCanvas((ctx, w, h) => drawFlagScene(ctx, w, h, sprites, item.t), item.label, index));
+    });
     return frames;
   }
 
@@ -819,111 +855,122 @@ function createFrames(id: EffectId, sprites: TileSprites): HTMLElement {
     { label: 'Armed', mode: 'armed', t: 0 },
     { label: 'Hit flash', mode: 'flash', t: 0 },
     { label: 'Exploding', mode: 'blast', t: MINE_EXPLOSION_MS * 0.42, progress: 0.42 },
-    { label: 'After blast', mode: 'exploded', t: MINE_EXPLOSION_MS },
+    { label: 'Settled', mode: 'exploded', t: MINE_EXPLOSION_MS },
   ];
-  for (const item of mineFrames) {
+  mineFrames.forEach((item, index) => {
     frames.append(
       createStaticFrameCanvas(
         (ctx, w, h) => drawMineScene(ctx, w, h, sprites, item.mode, item.t, item.progress ?? 0),
         item.label,
+        index,
       ),
     );
-  }
+  });
   return frames;
 }
 
-function createLivePreview(id: EffectId, sprites: TileSprites): LivePreview | null {
-  if (id === 'cells') return createCellLiveCanvas(sprites);
+function createAnimPreview(
+  id: EffectPanelId,
+  sprites: TileSprites,
+  getFps: () => number,
+  baseFps: number,
+): LivePreview | null {
+  if (id === 'cells') return createCellLiveCanvas(sprites, getFps, baseFps);
   if (id === 'digits') {
     return createLoopCanvas((ctx, w, h, now) => {
       const digit = Math.floor(now / 760) % sprites.numbers.length;
       drawDigitScene(ctx, w, h, sprites, digit, now);
-    });
+    }, getFps, baseFps);
   }
   if (id === 'flag') {
-    return createLoopCanvas((ctx, w, h, now) => drawFlagScene(ctx, w, h, sprites, now));
+    return createLoopCanvas((ctx, w, h, now) => drawFlagScene(ctx, w, h, sprites, now), getFps, baseFps);
   }
   return createMineLiveCanvas(sprites);
 }
 
-function createEffectCard(spec: EffectCardSpec): HTMLElement | null {
+function createEffectPanel(spec: EffectCardSpec): { panel: HTMLElement; dispose: () => void } | null {
   const sprites = getTileSprites();
   if (!sprites) return null;
 
-  const card = document.createElement('article');
-  card.className = 'asset-gallery__effect';
-  card.id = `effect-${spec.id}`;
+  let fps = spec.defaultFps;
+  const getFps = (): number => fps;
 
-  const head = document.createElement('div');
-  head.className = 'asset-gallery__effect-head';
-  const title = document.createElement('h3');
-  title.textContent = spec.title;
-  const copy = document.createElement('p');
-  copy.textContent = spec.description;
-  head.append(title, copy);
+  const panel = document.createElement('section');
+  panel.className = 'asset-lab__panel';
+  panel.dataset.panelId = spec.id;
+  panel.append(createPanelHead(spec.title, spec.description));
 
-  const body = document.createElement('div');
-  body.className = 'asset-gallery__effect-body';
+  const workspace = document.createElement('div');
+  workspace.className = 'asset-lab__anim-workspace';
 
-  const framesHead = document.createElement('p');
-  framesHead.className = 'asset-gallery__effect-subhead';
-  framesHead.textContent = spec.frameTitle;
+  const previewWrap = document.createElement('div');
+  previewWrap.className = 'asset-lab__anim-preview asset-lab__checker';
+  const preview = createAnimPreview(spec.id, sprites, getFps, spec.defaultFps);
+  if (preview) previewWrap.append(preview.canvas);
 
-  const liveHead = document.createElement('p');
-  liveHead.className = 'asset-gallery__effect-subhead';
-  liveHead.textContent = spec.liveTitle;
+  const controls = document.createElement('div');
+  controls.className = 'asset-lab__anim-controls';
 
-  const liveStage = document.createElement('div');
-  liveStage.className = 'asset-gallery__live-stage';
-  const live = createLivePreview(spec.id, sprites);
-  if (live) {
-    liveStage.append(live.canvas);
+  const meta = document.createElement('dl');
+  meta.className = 'asset-lab__meta-list';
+  meta.innerHTML = `
+    <div><dt>Cycle</dt><dd>${spec.cycleMs} ms</dd></div>
+    <div><dt>Frames</dt><dd>${spec.frameCount}</dd></div>
+    <div><dt>Loop</dt><dd>${spec.loop ? 'yes' : 'one-shot'}</dd></div>
+  `;
+
+  controls.append(meta);
+
+  if (spec.loop) {
+    controls.append(createFpsControl(spec.defaultFps, (next) => {
+      fps = next;
+    }));
   }
 
-  body.append(framesHead, createFrames(spec.id, sprites), liveHead, liveStage);
-  card.append(head, body);
+  if (spec.interactive) {
+    const hint = document.createElement('p');
+    hint.className = 'asset-lab__field-hint';
+    hint.textContent =
+      spec.id === 'mine'
+        ? 'Click the preview to play the blast sequence.'
+        : 'Hover and click the preview to test hover / open states.';
+    controls.append(hint);
+  }
 
-  card.addEventListener('gallery:dispose', () => {
-    live?.dispose();
-  });
+  workspace.append(previewWrap, controls);
 
-  return card;
+  const framesSection = document.createElement('div');
+  framesSection.className = 'asset-lab__frames-section';
+
+  const framesHeader = document.createElement('div');
+  framesHeader.className = 'asset-lab__frames-header';
+  framesHeader.innerHTML = `<span>Keyframes</span><small>${spec.frameCount} samples</small>`;
+
+  framesSection.append(framesHeader, createFrames(spec.id, sprites));
+  panel.append(workspace, framesSection);
+
+  return {
+    panel,
+    dispose: () => preview?.dispose(),
+  };
 }
 
-export function mountCellEffectSection(): { section: HTMLElement; dispose: () => void } {
-  const section = document.createElement('section');
-  section.className = 'asset-gallery__section';
-  section.id = 'section-effects';
+export function mountEffectPanels(): { panels: Record<EffectPanelId, HTMLElement>; dispose: () => void } {
+  const panels = {} as Record<EffectPanelId, HTMLElement>;
+  const disposers: Array<() => void> = [];
 
-  const head = document.createElement('div');
-  head.className = 'asset-gallery__section-head';
-  const title = document.createElement('h2');
-  title.textContent = 'Arcade cell FX';
-  const copy = document.createElement('p');
-  copy.textContent =
-    'Digits, mines, flags, and cells only: Canvas procedural FX + keyframe previews for the main game renderer.';
-  head.append(title, copy);
-
-  const grid = document.createElement('div');
-  grid.className = 'asset-gallery__effects-grid';
-
-  const cards: HTMLElement[] = [];
   for (const spec of EFFECT_SPECS) {
-    const card = createEffectCard(spec);
-    if (card) {
-      grid.append(card);
-      cards.push(card);
+    const built = createEffectPanel(spec);
+    if (built) {
+      panels[spec.id] = built.panel;
+      disposers.push(built.dispose);
     }
   }
 
-  section.append(head, grid);
-
   return {
-    section,
+    panels,
     dispose: () => {
-      for (const card of cards) {
-        card.dispatchEvent(new CustomEvent('gallery:dispose'));
-      }
+      for (const dispose of disposers) dispose();
     },
   };
 }

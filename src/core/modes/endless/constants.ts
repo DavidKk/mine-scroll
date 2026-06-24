@@ -1,7 +1,7 @@
 /** Endless mode constants and mine-density curve. */
 
 export const ENDLESS_COLS = 9;
-export const ENDLESS_VISIBLE_ROWS = 21;
+export const ENDLESS_VISIBLE_ROWS = 18;
 export const ENDLESS_PREVIEW_ROWS = 0.5;
 export const ENDLESS_PREVIEW_SOURCE_ROWS = 1;
 export const ENDLESS_WINDOW_BUFFER = 12;

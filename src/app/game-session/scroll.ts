@@ -13,6 +13,7 @@ export interface ScrollControllerDeps {
   render(): void;
   refreshAiHint(): void;
   stopAiAuto(): void;
+  onScrollTick?: () => void;
 }
 
 export interface ScrollController {
@@ -43,7 +44,7 @@ function getScrollElapsedMsFromRuntime(runtime: GameSessionRuntime): number {
 }
 
 export function createScrollController(deps: ScrollControllerDeps): ScrollController {
-  const { runtime, gameLog, applySession, render, refreshAiHint, stopAiAuto } = deps;
+  const { runtime, gameLog, applySession, render, refreshAiHint, stopAiAuto, onScrollTick } = deps;
 
   function getElapsedMs(): number {
     return getScrollElapsedMsFromRuntime(runtime);
@@ -95,6 +96,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     const batchRows = profile.batchRows;
     const beforeLives = runtime.session.lives;
     const next = endlessScrollTick(runtime.session, batchRows);
+    onScrollTick?.();
     const depthAfter = next.scrollRowCount ?? 0;
     const batchNote = batchRows > 1 ? ` · ×${batchRows} rows` : '';
     const trigger = manual

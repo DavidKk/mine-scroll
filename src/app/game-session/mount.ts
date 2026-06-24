@@ -18,8 +18,7 @@ import {
 import { getModeEntry } from '../../core/modes/catalog.ts';
 import type { ModeSession } from '../../core/types.ts';
 import { createGameCanvas, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts';
-import { createGameAudio, playFlagToggleAudio, playRevealAudio } from '../../ui/game-audio.ts';
-import { DEFAULT_CELL_SIZE } from '../../ui/theme.ts';
+import { createGameAudio, hadMineLifeLoss, playFlagToggleAudio, playHealRewardAudio, playLifeLossAudio, playRevealAudio } from '../../ui/game-audio.ts';
 import { createAiController } from './ai-loop.ts';
 import { applySessionUpdate, createGameLog, formatCell, logPlayerAction } from './logging.ts';
 import { createScrollController } from './scroll.ts';
@@ -90,6 +89,8 @@ export function mountGameSession(
     beforeLives?: number,
     context?: Parameters<typeof applySessionUpdate>[3],
   ): void {
+    playLifeLossAudio(gameAudio, beforeLives, next);
+    playHealRewardAudio(gameAudio, beforeLives, runtime.session, next);
     applySessionUpdate(sessionDeps, next, beforeLives, context);
   }
 
@@ -119,6 +120,7 @@ export function mountGameSession(
     render,
     refreshAiHint: () => ai.refreshAiHint(),
     stopAiAuto: () => ai.stopAiAuto(),
+    onScrollTick: () => gameAudio.play('scrollUp'),
   });
 
   ai = createAiController({
@@ -198,6 +200,7 @@ export function mountGameSession(
       },
       onDevAuto: () => ai.toggleAiAuto(startArcadeRun),
       onUiHover: () => gameAudio.play('uiHover'),
+      onUiClick: () => gameAudio.play('uiClick'),
     };
     const controller = createGameCanvas(
       canvasContainer,
@@ -214,7 +217,7 @@ export function mountGameSession(
           const beforeBoard = runtime.session.state.board;
           logPlayerAction(gameLog, 'reveal', row, col);
           const next = revealAt(runtime.session, toBoardRow(row), col);
-          if (next !== runtime.session) {
+          if (next !== runtime.session && !hadMineLifeLoss(beforeLives, next)) {
             playRevealAudio(gameAudio, beforeBoard, next.state.board);
           }
           applySession(next, beforeLives, { trigger: `Player reveal ${formatCell(row, col)}` });
@@ -252,11 +255,10 @@ export function mountGameSession(
           if (runtime.session.state.status !== 'playing') return;
           if (!isEndlessInteractiveScreenRow(row)) return;
           const beforeLives = runtime.session.lives;
-          const beforeBoard = runtime.session.state.board;
           logPlayerAction(gameLog, 'Chord', row, col);
           const next = chordAt(runtime.session, toBoardRow(row), col);
-          if (next !== runtime.session) {
-            playRevealAudio(gameAudio, beforeBoard, next.state.board);
+          if (next !== runtime.session && !hadMineLifeLoss(beforeLives, next)) {
+            gameAudio.play('chordAction');
           }
           applySession(next, beforeLives, { trigger: `Player Chord ${formatCell(row, col)}` });
           if (next.state.status === 'won' || next.state.status === 'lost') {
@@ -275,7 +277,7 @@ export function mountGameSession(
         fitViewport: {
           cols: runtime.session.state.board.cols,
           rows: ENDLESS_VISIBLE_ROWS,
-          maxCellSize: DEFAULT_CELL_SIZE,
+          maxCellSize: 40,
           minCellSize: 18,
         },
         getScrollPressure: () => scroll.getScrollPressureState(),

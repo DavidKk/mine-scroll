@@ -1740,6 +1740,7 @@ export function createGameCanvas(
         y <= devAutoRect.y + devAutoRect.h;
       if (insideAuto) {
         event.preventDefault();
+        fullscreen.onUiClick?.();
         fullscreen.onDevAuto?.();
         return;
       }
@@ -1758,6 +1759,7 @@ export function createGameCanvas(
         y <= startRect.y + startRect.h;
       if (insideStart) {
         event.preventDefault();
+        fullscreen.onUiClick?.();
         fullscreen.onStart?.();
         return;
       }
@@ -1772,6 +1774,7 @@ export function createGameCanvas(
         y <= retryRect.y + retryRect.h;
       if (insideRetry) {
         event.preventDefault();
+        fullscreen.onUiClick?.();
         fullscreen.onRestart?.();
         return;
       }

@@ -131,7 +131,7 @@ export function computeEndlessBoardCellSize(
       viewportW,
       viewportH,
       { safe: reserves.side, top: reserves.top, bottom: reserves.bottom },
-      { min, max },
+      { min, max, fillHeight: true },
     );
   }
 
