@@ -340,7 +340,7 @@ export function mountResponsiveMatrix(root: HTMLElement): () => void {
     <ul>
       <li>Score, Combo, and Lives do not collide at 360×640 and 390×844.</li>
       <li>Combo/score/break feedback does not cover more than one board row.</li>
-      <li>Space appears only when available as a small key hint; AI tag stays secondary.</li>
+      <li>Space appears only when available as small blinking <code>SPACE</code> text above the board scroll countdown band.</li>
       <li>Bottom pressure band and danger overlay show no seconds or row counts.</li>
       <li>Game Over panel does not block critical button hitboxes.</li>
     </ul>

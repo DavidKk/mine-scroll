@@ -233,28 +233,6 @@
   "uiPanels": {
     "source": "docs/design-assets/production/ui-panels-production-v1.png",
     "items": {
-      "space-active": {
-        "src": "/assets/game/ui/space-active.png",
-        "width": 293,
-        "height": 111,
-        "sourceRect": {
-          "x": 45,
-          "y": 55,
-          "w": 293,
-          "h": 111
-        }
-      },
-      "space-disabled": {
-        "src": "/assets/game/ui/space-disabled.png",
-        "width": 276,
-        "height": 109,
-        "sourceRect": {
-          "x": 383,
-          "y": 56,
-          "w": 276,
-          "h": 109
-        }
-      },
       "auto-off": {
         "src": "/assets/game/ui/auto-off.png",
         "width": 113,

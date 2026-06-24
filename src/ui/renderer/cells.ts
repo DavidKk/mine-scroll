@@ -2,7 +2,7 @@ import type { CellView, GameStatus } from '../../core/types.ts';
 import { FONTS, THEME, type GridMetrics } from '../theme.ts';
 import { drawSimpleFlagMark, drawWavingFlagMark, resolveMineCutout } from '../cell-fx.ts';
 import { GAME_ASSET_TUNING, drawGameMineCutout, getGameCutout } from '../game-assets.ts';
-import { drawSpriteInCell, getTileSprites } from '../tile-sprites.ts';
+import { drawHiddenCellSprite, drawSpriteInCell, getTileSprites } from '../tile-sprites.ts';
 import { fillRoundRect, strokeRoundRect } from './primitives.ts';
 
 function drawCellDigit(
@@ -249,7 +249,7 @@ export function drawCell(
   const sprites = getTileSprites();
   if (sprites) {
     if (!view.revealed) {
-      drawSpriteInCell(ctx, sprites.hidden, x, y, g.cellSize);
+      drawHiddenCellSprite(ctx, sprites, x, y, g.cellSize);
       return;
     }
 

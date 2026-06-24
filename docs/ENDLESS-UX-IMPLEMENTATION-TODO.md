@@ -362,8 +362,9 @@ Purpose: remove utility-style timer/buttons and make scroll pressure feel spatia
   - [ ] Fade out automatically.
 - [x] Add actionable hint:
   - [x] Show only when Space can actually clear/advance resolved bottom rows.
-  - [x] Position near the board bottom or pressure boundary.
-  - [x] Use a tiny flashing pressure-line prompt, not a button or keycap panel.
+  - [x] Position **above board scroll countdown / danger band** (`getSpaceHintRect`), not viewport bottom rail.
+  - [x] **Canvas text `SPACE` only** — no button/keycap panel bitmap; `space-active`/`space-disabled` removed.
+  - [x] Sinusoidal alpha blink (`0.38 ± 0.38`, ~480ms period).
 - [x] High-pressure actionable state:
   - [x] Hint becomes brighter or gold-tinted.
   - [x] No extra explanatory sentence.

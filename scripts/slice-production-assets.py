@@ -58,8 +58,6 @@ LOOP_FX_NAMES = [
 ]
 
 UI_PANELS = [
-    ('space-active', (45, 55, 293, 111)),
-    ('space-disabled', (383, 56, 276, 109)),
     ('auto-off', (712, 56, 113, 117)),
     ('auto-on', (861, 54, 116, 128)),
     ('start-panel', (45, 208, 364, 246)),

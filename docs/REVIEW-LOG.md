@@ -372,6 +372,7 @@
 - 用户反馈后将 Space 从大底部面板收为中等主按钮，保持主操作层级但降低压迫感
 - 二次截图 Review 后继续调大棋盘基准格宽，并将 Start/Game Over 面板宽度改为跟棋盘联动；Space 进一步收为小主按钮
 - 开发环境下 `AI` 与 `SPACE` 改为同尺寸并排按钮；正式环境仍隐藏 `AI`，`SPACE` 单独居中
+- **2026-06-24 纠正**：SPACE **不得**使用按钮图（`space-active`/`space-disabled` 已删除）。固定为进度条（`bottomRailRect`）**上方居中**的 Canvas 文字 `SPACE`，正弦闪烁；详见 `ENDLESS-FULLSCREEN-LAYOUT.md` §8.1
 - 后续 Review 改为全屏宽 HUD、`AI` 固定右下角开发入口，不为 `AI` 预留底部按钮区；无尽可见行数 `20 -> 22`，棋盘在可用区域内略向下放置
 - 初始 combo 为 `0` 时不渲染顶部 combo，避免默认显示 `x0` / `x1` 造成误读；仅连击真正大于 1 时展示
 - 棋盘下方加入低亮蓝紫底部能量轨/扫描线；滚动压力升高时转 amber/red，作为氛围反馈，不新增功能按钮

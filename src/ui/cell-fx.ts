@@ -8,7 +8,7 @@ import {
   type GameCutoutName,
 } from './game-assets.ts';
 import type { GridMetrics } from './theme.ts';
-import { drawSpriteInCell, getTileSprites } from './tile-sprites.ts';
+import { drawHiddenCellSprite, drawSpriteInCell, getTileSprites } from './tile-sprites.ts';
 
 export interface BoardPointerState {
   row: number;
@@ -222,7 +222,7 @@ export function drawCellHoverOverlay(
 
   const sprites = getTileSprites();
   if (!sprites) return;
-  drawSpriteInCell(ctx, sprites.hidden, drawX, drawY, drawSize);
+  drawHiddenCellSprite(ctx, sprites, drawX, drawY, drawSize);
 }
 
 export function drawDigitAmbientOverlay(

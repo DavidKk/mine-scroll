@@ -11,4 +11,7 @@ if (!root) {
 }
 
 attachPageScrollbar();
-void Promise.all([loadTileSprites(), loadHudSprites(), loadGameAssets()]).then(() => mountApp(root));
+void Promise.all([loadTileSprites(), loadHudSprites(), loadGameAssets()]).then(() => {
+  mountApp(root);
+  window.addEventListener('popstate', () => mountApp(root));
+});

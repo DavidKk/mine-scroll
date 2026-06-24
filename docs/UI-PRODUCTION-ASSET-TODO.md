@@ -43,7 +43,7 @@ Sliced designer copies:
 
 - [x] Core cutout sheet: mines, flags, hearts, warning/status badges, no labels, chroma-key background.
 - [x] FX additive sprite sheet: explosion, combo burst, safe reveal, level up, heart refill, score pop, black additive background.
-- [x] UI panel/control sheet: Space, Auto, Retry, Start, Game Over, log panel, countdown rings, no decorative showcase text.
+- [x] UI panel/control sheet: Auto, Retry, Start, Game Over, log panel, countdown rings, no decorative showcase text. (**SPACE 不用图**，运行时 Canvas 文字，见 `ENDLESS-FULLSCREEN-LAYOUT.md` §8.1)
 
 ## Sheet Notes
 

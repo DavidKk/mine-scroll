@@ -1,4 +1,7 @@
 import { getTileSprites } from '../ui/tile-sprites.ts';
+import type { AssetLabSection } from './routes.ts';
+import { audioNavItems, mountAudioPanels, type AudioPanelId } from './asset-gallery/audio-lab.ts';
+import { backdropNavItems, mountBackdropPanels, type BackdropPanelId } from './asset-gallery/ambient-backdrop-lab.ts';
 import {
   createFooterNote,
   createPanelHead,
@@ -160,101 +163,169 @@ const FX_NAV: Array<{ id: EffectPanelId; label: string }> = [
   { id: 'mine', label: 'Mine explosion' },
 ];
 
-export function mountAssetGallery(root: HTMLElement): () => void {
+const FOOTER_NOTES: Record<AssetLabSection, string> = {
+  sprites: 'Tile slices under public/assets/tiles · npm run assets:all for atlas rebuild',
+  animations: 'Procedural cell FX previews · src/app/asset-gallery/cell-effects.ts',
+  background: 'Live parallax backdrop · src/ui/ambient-backdrop.ts',
+  audio: 'Game SFX & BGM · public/assets/game/audio · gains in game-audio.ts',
+};
+
+export function mountAssetGallery(
+  root: HTMLElement,
+  section: AssetLabSection,
+  onNavigate: (path: string) => void,
+): () => void {
   root.className = 'app app--asset-lab';
   root.replaceChildren();
 
-  const sections = buildSections();
-  const effects = mountEffectPanels();
+  const disposers: Array<() => void> = [];
 
-  if (sections.length === 0) {
-    const empty = document.createElement('main');
-    empty.className = 'asset-lab asset-lab--empty';
-    empty.textContent = 'Failed to load tile assets. Check public/assets/tiles.';
-    root.append(empty);
-    return () => root.replaceChildren();
+  if (section === 'sprites') {
+    const sections = buildSections();
+    if (sections.length === 0) {
+      const empty = document.createElement('main');
+      empty.className = 'asset-lab asset-lab--empty';
+      empty.textContent = 'Failed to load tile assets. Check public/assets/tiles.';
+      root.append(empty);
+      return () => root.replaceChildren();
+    }
+
+    disposers.push(mountSpritesSection(root, sections, section, onNavigate));
+    return () => {
+      for (const dispose of disposers) dispose();
+      root.replaceChildren();
+    };
   }
 
-  const shell = document.createElement('div');
-  shell.className = 'asset-lab';
-
-  let activeGroup: 'sprites' | 'animations' = 'sprites';
-  let activeId = sections[0]!.id;
-
-  const spritePanels = new Map(sections.map((s) => [s.id, createSpritePanel(s)]));
-  const workspace = createWorkspace();
-  const sidebarHost = document.createElement('div');
-  sidebarHost.className = 'asset-lab__sidebar-host';
-
-  const panelHost = document.createElement('div');
-  panelHost.className = 'asset-lab__panel-host';
-
-  function navItems(): NavItem[] {
-    if (activeGroup === 'sprites') {
-      return sections.map((s) => ({
-        id: s.id,
-        label: s.title.replace(' tiles', '').replace(' glyphs', ''),
-        group: 'sprites' as const,
-        count: s.items.length,
-      }));
-    }
-    return FX_NAV.map((fx) => ({
+  if (section === 'animations') {
+    const effects = mountEffectPanels();
+    disposers.push(effects.dispose);
+    disposers.push(mountLabSection(root, section, onNavigate, FX_NAV.map((fx) => ({
       id: fx.id,
       label: fx.label,
       group: 'animations' as const,
       count: 8,
-    }));
+    })), (id) => effects.panels[id as EffectPanelId]));
+    return () => {
+      for (const dispose of disposers) dispose();
+      root.replaceChildren();
+    };
   }
+
+  if (section === 'background') {
+    const backdrop = mountBackdropPanels();
+    disposers.push(backdrop.dispose);
+    disposers.push(mountLabSection(root, section, onNavigate, backdropNavItems().map((item) => ({
+      id: item.id,
+      label: item.label,
+      group: 'background' as const,
+      count: item.count,
+    })), (id) => backdrop.panels[id as BackdropPanelId]));
+    return () => {
+      for (const dispose of disposers) dispose();
+      root.replaceChildren();
+    };
+  }
+
+  const audio = mountAudioPanels();
+  disposers.push(audio.dispose);
+  disposers.push(mountLabSection(root, section, onNavigate, audioNavItems().map((item) => ({
+    id: item.id,
+    label: item.label,
+    group: 'audio' as const,
+    count: item.count,
+  })), (id) => audio.panels[id as AudioPanelId]));
+
+  return () => {
+    for (const dispose of disposers) dispose();
+    root.replaceChildren();
+  };
+}
+
+function mountSpritesSection(
+  root: HTMLElement,
+  sections: AssetSection[],
+  section: AssetLabSection,
+  onNavigate: (path: string) => void,
+): () => void {
+  const shell = document.createElement('div');
+  shell.className = 'asset-lab';
+
+  let activeId = sections[0]!.id;
+  const spritePanels = new Map(sections.map((s) => [s.id, createSpritePanel(s)]));
+  const workspace = createWorkspace();
+  const sidebarHost = document.createElement('div');
+  sidebarHost.className = 'asset-lab__sidebar-host';
+  const panelHost = document.createElement('div');
+  panelHost.className = 'asset-lab__panel-host';
+
+  const navItems = (): NavItem[] =>
+    sections.map((s) => ({
+      id: s.id,
+      label: s.title.replace(' tiles', '').replace(' glyphs', ''),
+      group: 'sprites' as const,
+      count: s.items.length,
+    }));
 
   function showPanel(id: string): void {
     activeId = id;
     panelHost.replaceChildren();
-    if (activeGroup === 'sprites') {
-      const panel = spritePanels.get(id);
-      if (panel) panelHost.append(panel);
-    } else {
-      const panel = effects.panels[id as EffectPanelId];
-      if (panel) panelHost.append(panel);
-    }
+    const panel = spritePanels.get(id);
+    if (panel) panelHost.append(panel);
     renderSidebar();
   }
 
   function renderSidebar(): void {
-    sidebarHost.replaceChildren(
-      createSidebar(navItems(), activeId, (id) => {
-        showPanel(id);
-      }),
-    );
+    sidebarHost.replaceChildren(createSidebar(navItems(), activeId, showPanel));
   }
-
-  function setGroup(group: 'sprites' | 'animations'): void {
-    activeGroup = group;
-    const items = navItems();
-    showPanel(items[0]?.id ?? activeId);
-    topbar.querySelectorAll('.asset-lab__tab').forEach((tab) => {
-      const el = tab as HTMLButtonElement;
-      const isActive = el.dataset.group === group;
-      el.classList.toggle('asset-lab__tab--active', isActive);
-      el.setAttribute('aria-selected', String(isActive));
-    });
-  }
-
-  const topbar = createTopbar(activeGroup, setGroup);
 
   const panel = document.createElement('div');
   panel.className = 'asset-lab__panel-layout';
   panel.append(sidebarHost, workspace);
   workspace.append(panelHost);
-  shell.append(
-    topbar,
-    panel,
-    createFooterNote('Assets live under public/assets/tiles and public/assets/game — regenerate with npm run assets:all'),
-  );
+  shell.append(createTopbar(section, onNavigate), panel, createFooterNote(FOOTER_NOTES[section]));
   root.append(shell);
   showPanel(activeId);
 
-  return () => {
-    effects.dispose();
-    root.replaceChildren();
-  };
+  return () => undefined;
+}
+
+function mountLabSection(
+  root: HTMLElement,
+  section: AssetLabSection,
+  onNavigate: (path: string) => void,
+  items: NavItem[],
+  getPanel: (id: string) => HTMLElement | undefined,
+): () => void {
+  const shell = document.createElement('div');
+  shell.className = 'asset-lab';
+
+  let activeId = items[0]?.id ?? '';
+  const workspace = createWorkspace();
+  const sidebarHost = document.createElement('div');
+  sidebarHost.className = 'asset-lab__sidebar-host';
+  const panelHost = document.createElement('div');
+  panelHost.className = 'asset-lab__panel-host';
+
+  function showPanel(id: string): void {
+    activeId = id;
+    panelHost.replaceChildren();
+    const panel = getPanel(id);
+    if (panel) panelHost.append(panel);
+    renderSidebar();
+  }
+
+  function renderSidebar(): void {
+    sidebarHost.replaceChildren(createSidebar(items, activeId, showPanel));
+  }
+
+  const panel = document.createElement('div');
+  panel.className = 'asset-lab__panel-layout';
+  panel.append(sidebarHost, workspace);
+  workspace.append(panelHost);
+  shell.append(createTopbar(section, onNavigate), panel, createFooterNote(FOOTER_NOTES[section]));
+  root.append(shell);
+  if (activeId) showPanel(activeId);
+
+  return () => undefined;
 }

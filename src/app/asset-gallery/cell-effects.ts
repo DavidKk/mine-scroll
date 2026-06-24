@@ -7,7 +7,7 @@ import {
   getGameFxBlendMode,
   getGameFxFrames,
 } from '../../ui/game-assets.ts';
-import { drawSpriteInCell, getTileSprites, type TileSprites } from '../../ui/tile-sprites.ts';
+import { drawHiddenCellSprite, drawSpriteInCell, getTileSprites, type TileSprites } from '../../ui/tile-sprites.ts';
 import { createFpsControl, createPanelHead, paintCheckerBg } from './editor-shell.ts';
 
 type CellMode = 'hidden' | 'hover' | 'open' | 'breath';
@@ -299,7 +299,7 @@ function drawHiddenCellWithEffect(
   if (brightness !== 0) {
     ctx.filter = `brightness(${1 + brightness})`;
   }
-  drawSpriteInCell(ctx, sprites.hidden, x, y, drawSize);
+  drawHiddenCellSprite(ctx, sprites, x, y, drawSize);
   ctx.restore();
 
   if (ringAlpha > 0.35) {

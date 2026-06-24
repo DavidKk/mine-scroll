@@ -29,9 +29,17 @@ export interface GameCanvasHudStats {
     minesCleared: number;
   };
   lives?: string;
-  spaceEnabled: boolean;
+  /** Bottom rows are safe — player can press Space to manual scroll. */
+  spaceEnabled?: boolean;
   devAutoVisible?: boolean;
   devAutoActive?: boolean;
+  /** Difficulty inputs for ambient backdrop (scroll tier / depth / lives). */
+  backdrop?: {
+    scrollElapsedMs: number;
+    scrollDepth: number;
+    livesCurrent: number;
+    livesMax: number;
+  };
 }
 
 export interface GameCanvasFullscreenOptions {
@@ -42,10 +50,13 @@ export interface GameCanvasFullscreenOptions {
   /** Whether to show the start overlay while idle (false = started, waiting for first click). */
   showStartOverlay?: () => boolean;
   onRestart?: () => void;
-  onSpace?: () => void;
   onDevAuto?: () => void;
   onUiHover?: () => void;
   onUiClick?: () => void;
+  /** First pointer on canvas — unlock audio context (browser autoplay policy). */
+  onPointerDown?: () => void;
+  getBgmMuted?: () => boolean;
+  onToggleBgmMute?: () => void;
 }
 
 export interface ViewportFitOptions {

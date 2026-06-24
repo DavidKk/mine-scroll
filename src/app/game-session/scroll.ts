@@ -96,6 +96,9 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     const batchRows = profile.batchRows;
     const beforeLives = runtime.session.lives;
     const next = endlessScrollTick(runtime.session, batchRows);
+    if (!manual) {
+      runtime.backdropScrollDepth += batchRows;
+    }
     onScrollTick?.();
     const depthAfter = next.scrollRowCount ?? 0;
     const batchNote = batchRows > 1 ? ` · ×${batchRows} rows` : '';

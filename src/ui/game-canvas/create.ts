@@ -42,6 +42,12 @@ import {
   type GameStageLayout,
 } from '../game-stage-layout.ts';
 import {
+  computeBackdropMood,
+  drawAmbientBackdrop,
+  smoothBackdropMood,
+  type BackdropMood,
+} from '../ambient-backdrop.ts';
+import {
   applyCanvasSize,
   type GameCanvasCallbacks,
   type GameCanvasController,
@@ -162,6 +168,7 @@ export function createGameCanvas(
   let startRect: { x: number; y: number; w: number; h: number } | null = null;
   let retryRect: { x: number; y: number; w: number; h: number } | null = null;
   let devAutoRect: { x: number; y: number; w: number; h: number } | null = null;
+  let bgmMuteRect: { x: number; y: number; w: number; h: number } | null = null;
   let uiHoverTarget: string | null = null;
   applyCanvasSize(canvas, ctx, width, height);
 
@@ -186,8 +193,8 @@ export function createGameCanvas(
   let ambientDelayId: number | null = null;
   let lastPaintAt = 0;
   const fpsMeter = new FpsMeter();
-  /** Ambient FX (breath / flags / digit particles) target rate: min 20 FPS */
-  const AMBIENT_FRAME_MS = 1000 / 20;
+  /** Live wallpaper target rate (~40 FPS). */
+  const AMBIENT_FRAME_MS = 1000 / 40;
   let boardLayerCache: HTMLCanvasElement | null = null;
   let boardLayerCacheCtx: CanvasRenderingContext2D | null = null;
   let boardLayerCacheKey = '';
@@ -198,6 +205,8 @@ export function createGameCanvas(
   let lastLivesCurrent = -1;
   let heartRefillFxStartedAt = 0;
   let levelUpFxStartedAt = 0;
+  let backdropMood: BackdropMood = { heat: 0.15, energy: 0.88, intensity: 0 };
+  let lastBackdropSampleAt = 0;
 
   type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode';
   interface CellFx {
@@ -289,6 +298,7 @@ export function createGameCanvas(
       const comboAge = now - comboFxStartedAt;
       if (comboAge < GAME_ASSET_TUNING.fx.comboBurst.durationMs) return 'full';
     }
+    if (fullscreen) return 'ambient';
     if (currentStatus === 'idle') return 'ambient';
     if (currentStatus !== 'playing') return false;
     if (fullscreen?.getStats?.()?.spaceEnabled) return 'ambient';
@@ -375,6 +385,50 @@ export function createGameCanvas(
       shellBgCacheKey = key;
     }
     shellCtx.drawImage(shellBgCache, 0, 0);
+  }
+
+  function drawAmbientShellBackdrop(shellCtx: CanvasRenderingContext2D, now: number): void {
+    if (!fullscreen) return;
+    const stats = fullscreen.getStats?.();
+    const target = computeBackdropMood(
+      {
+        status: currentStatus,
+        scrollElapsedMs: stats?.backdrop?.scrollElapsedMs ?? 0,
+        scrollDepth: stats?.backdrop?.scrollDepth ?? 0,
+        lives: stats?.backdrop?.livesCurrent ?? 5,
+        maxLives: stats?.backdrop?.livesMax ?? 5,
+      },
+      stats?.combo ?? 0,
+    );
+    const dtMs = lastBackdropSampleAt > 0 ? now - lastBackdropSampleAt : AMBIENT_FRAME_MS;
+    lastBackdropSampleAt = now;
+    backdropMood = smoothBackdropMood(backdropMood, target, dtMs);
+
+    try {
+      drawAmbientBackdrop(shellCtx, {
+        shellW: width,
+        shellH: height,
+        nowMs: now,
+        status: currentStatus,
+        mood: backdropMood,
+        boardSafeRect: squareLayout
+          ? {
+              x: boardOffsetX,
+              y: boardOffsetY,
+              w: squareLayout.width,
+              h: squareLayout.height,
+            }
+          : undefined,
+      });
+    } catch (err) {
+      console.error('[backdrop]', err);
+    }
+  }
+
+  function startAmbientLoop(): void {
+    if (!fullscreen) return;
+    lastBackdropSampleAt = 0;
+    scheduleContinuousRepaint();
   }
 
   function scheduleContinuousRepaint(): void {
@@ -710,6 +764,7 @@ export function createGameCanvas(
       devAutoRect = null;
       ctx.clearRect(0, 0, width, height);
       drawShellBackground(ctx);
+      drawAmbientShellBackdrop(ctx, now);
       ctx.save();
       ctx.translate(boardOffsetX, boardOffsetY);
     }
@@ -939,27 +994,36 @@ export function createGameCanvas(
     shellCtx.restore();
   }
 
-  function drawSpaceHint(
+  function drawBgmMuteHud(
     shellCtx: CanvasRenderingContext2D,
-    rect: { x: number; y: number; w: number; h: number },
-    pressure: ScrollPressureState | undefined,
+    anchorX: number,
+    hudY: number,
+    livesRaw: string | undefined,
     scale: number,
+    muted: boolean,
+    hovered: boolean,
   ): void {
-    const flash = 0.32 + Math.sin(Date.now() / 520) * 0.32;
-    const urgent = Boolean(pressure?.urgent);
-    const cx = rect.x + rect.w / 2;
-    const cy = rect.y + rect.h / 2;
+    const lives = parseLivesDisplay(livesRaw);
+    const heartIconSize = Math.max(15, Math.min(20, 18 * scale));
+    const iconSize = Math.max(14, Math.min(18, 16 * scale));
+    const hitSize = Math.max(26, 28 * scale);
+    const heartRowY = hudY + 28 * scale;
+    const rectX = anchorX - hitSize;
+    const rectY = heartRowY + (lives ? heartIconSize : 12 * scale) + 4 * scale;
+    const cx = rectX + hitSize / 2;
+    const cy = rectY + hitSize / 2;
+
+    bgmMuteRect = { x: rectX, y: rectY, w: hitSize, h: hitSize };
 
     shellCtx.save();
-    shellCtx.globalAlpha = flash;
-    shellCtx.fillStyle = urgent ? '#fef08a' : '#cbd5e1';
-    shellCtx.font = `600 ${Math.max(9, 10 * scale)}px ${FONTS.mono}`;
-    shellCtx.textAlign = 'center';
-    shellCtx.textBaseline = 'middle';
-    shellCtx.fillText('SPACE', cx, cy);
+    if (hovered) {
+      fillRounded(rectX, rectY, hitSize, hitSize, 8 * scale, 'rgba(59, 130, 246, 0.14)');
+    }
+    shellCtx.globalAlpha = hovered ? 1 : 0.82;
+    drawHudIcon(shellCtx, muted ? 'volume-off' : 'volume-on', cx - iconSize / 2, cy - iconSize / 2, {
+      size: iconSize,
+    });
     shellCtx.restore();
-
-    scheduleContinuousRepaint();
   }
 
   function drawBottomEnergyRail(
@@ -1039,30 +1103,6 @@ export function createGameCanvas(
     shellCtx.restore();
   }
 
-  function getSpaceHintRect(pressure: ScrollPressureState | undefined): { x: number; y: number; w: number; h: number } | null {
-    if (!stageLayout || !squareLayout) return null;
-    const scale = stageLayout.scale;
-    const grid = squareLayout.grid;
-    const coveredRows = Math.max(1, Math.min(currentRows, Math.floor(pressure?.batchRows ?? 1)));
-    const dangerTop =
-      boardOffsetY +
-      squareLayout.gridOriginY +
-      (currentRows - coveredRows) * grid.cellStep -
-      2;
-    const hintH = Math.max(12 * scale, grid.cellSize * 0.28);
-    const hintW = grid.cellStep * 2;
-    const gridLeft = boardOffsetX + squareLayout.gridOriginX;
-    const hintX = gridLeft + (boardWidth - hintW) / 2;
-    const hintY = dangerTop - hintH - 4 * scale;
-    const minY = boardOffsetY + squareLayout.gridOriginY + 4 * scale;
-    return {
-      x: hintX,
-      y: Math.max(minY, hintY),
-      w: hintW,
-      h: hintH,
-    };
-  }
-
   function drawDevAutoButton(
     shellCtx: CanvasRenderingContext2D,
     rect: { x: number; y: number; w: number; h: number },
@@ -1099,42 +1139,9 @@ export function createGameCanvas(
     shellH: number,
   ): void {
     const bg = shellCtx.createLinearGradient(0, 0, 0, shellH);
-    bg.addColorStop(0, '#0b0d16');
-    bg.addColorStop(0.55, '#090a12');
-    bg.addColorStop(1, '#05060b');
+    bg.addColorStop(0, '#06070d');
+    bg.addColorStop(1, '#030408');
     shellCtx.fillStyle = bg;
-    shellCtx.fillRect(0, 0, shellW, shellH);
-
-    shellCtx.save();
-    shellCtx.globalAlpha = 0.22;
-    shellCtx.strokeStyle = '#1f2a44';
-    shellCtx.lineWidth = 1;
-    const step = 48;
-    for (let x = (shellW % step) - step; x <= shellW; x += step) {
-      shellCtx.beginPath();
-      shellCtx.moveTo(x, 0);
-      shellCtx.lineTo(x, shellH);
-      shellCtx.stroke();
-    }
-    for (let y = (shellH % step) - step; y <= shellH; y += step) {
-      shellCtx.beginPath();
-      shellCtx.moveTo(0, y);
-      shellCtx.lineTo(shellW, y);
-      shellCtx.stroke();
-    }
-    shellCtx.globalAlpha = 0.08;
-    shellCtx.fillStyle = '#ffffff';
-    for (let y = 0; y < shellH; y += 4) {
-      shellCtx.fillRect(0, y, shellW, 1);
-    }
-    shellCtx.restore();
-
-    const vignette = shellCtx.createLinearGradient(0, 0, shellW, 0);
-    vignette.addColorStop(0, 'rgba(0, 0, 0, 0.42)');
-    vignette.addColorStop(0.18, 'rgba(0, 0, 0, 0)');
-    vignette.addColorStop(0.82, 'rgba(0, 0, 0, 0)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.42)');
-    shellCtx.fillStyle = vignette;
     shellCtx.fillRect(0, 0, shellW, shellH);
   }
 
@@ -1169,6 +1176,19 @@ export function createGameCanvas(
     drawScoreHud(shellCtx, stage.scoreAnchor.x, hudY, stats?.score ?? 0, scale);
     drawComboHud(shellCtx, stage.countdownAnchor.x, hudY, stats?.combo ?? 0, scale);
     drawLivesHud(shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale);
+    if (shell.getBgmMuted && shell.onToggleBgmMute) {
+      drawBgmMuteHud(
+        shellCtx,
+        stage.livesAnchor.x,
+        hudY,
+        livesRaw,
+        scale,
+        shell.getBgmMuted(),
+        uiHoverTarget === 'bgm-mute',
+      );
+    } else {
+      bgmMuteRect = null;
+    }
 
     const livesParsed = parseLivesDisplay(livesRaw);
     if (livesParsed) {
@@ -1302,6 +1322,55 @@ export function createGameCanvas(
     if (kind === 'player') return THEME.success;
     if (kind === 'scroll') return THEME.warning;
     return THEME.hudMuted;
+  }
+
+  function drawSpaceHint(
+    shellCtx: CanvasRenderingContext2D,
+    rect: { x: number; y: number; w: number; h: number },
+    pressure: ScrollPressureState | undefined,
+    scale: number,
+  ): void {
+    const flash = 0.32 + Math.sin(Date.now() / 520) * 0.32;
+    const urgent = Boolean(pressure?.urgent);
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2;
+
+    shellCtx.save();
+    shellCtx.globalAlpha = flash;
+    shellCtx.fillStyle = urgent ? '#fef08a' : '#cbd5e1';
+    shellCtx.font = `600 ${Math.max(9, 10 * scale)}px ${FONTS.mono}`;
+    shellCtx.textAlign = 'center';
+    shellCtx.textBaseline = 'middle';
+    shellCtx.fillText('SPACE', cx, cy);
+    shellCtx.restore();
+
+    scheduleContinuousRepaint();
+  }
+
+  function getSpaceHintRect(
+    pressure: ScrollPressureState | undefined,
+  ): { x: number; y: number; w: number; h: number } | null {
+    if (!stageLayout || !squareLayout) return null;
+    const scale = stageLayout.scale;
+    const grid = squareLayout.grid;
+    const coveredRows = Math.max(1, Math.min(currentRows, Math.floor(pressure?.batchRows ?? 1)));
+    const dangerTop =
+      boardOffsetY +
+      squareLayout.gridOriginY +
+      (currentRows - coveredRows) * grid.cellStep -
+      2;
+    const hintH = Math.max(12 * scale, grid.cellSize * 0.28);
+    const hintW = grid.cellStep * 2;
+    const gridLeft = boardOffsetX + squareLayout.gridOriginX;
+    const hintX = gridLeft + (boardWidth - hintW) / 2;
+    const hintY = dangerTop - hintH - 4 * scale;
+    const minY = boardOffsetY + squareLayout.gridOriginY + 4 * scale;
+    return {
+      x: hintX,
+      y: Math.max(minY, hintY),
+      w: hintW,
+      h: hintH,
+    };
   }
 
   function drawFullscreenScrollWarning(
@@ -1460,9 +1529,6 @@ export function createGameCanvas(
 
     drawBottomEnergyRail(shellCtx, scrollPressure, shellW, shellH);
     drawFullscreenScrollWarning(shellCtx, scrollPressure, shellW, shellH);
-    drawParticles(shellCtx, performance.now());
-    drawScoreEvent(shellCtx, activeScoreEvent, scoreFxStartedAt, shellW);
-    drawBreakEvent(shellCtx, activeBreakEvent, breakFxStartedAt, shellW, shellH);
 
     if (stats?.spaceEnabled) {
       const spaceRect = getSpaceHintRect(scrollPressure);
@@ -1470,6 +1536,10 @@ export function createGameCanvas(
         drawSpaceHint(shellCtx, spaceRect, scrollPressure, stageLayout?.scale ?? 1);
       }
     }
+
+    drawParticles(shellCtx, performance.now());
+    drawScoreEvent(shellCtx, activeScoreEvent, scoreFxStartedAt, shellW);
+    drawBreakEvent(shellCtx, activeBreakEvent, breakFxStartedAt, shellW, shellH);
 
     if (combo > 1 && comboFxStartedAt > 0) {
       const elapsedMs = performance.now() - comboFxStartedAt;
@@ -1573,8 +1643,6 @@ export function createGameCanvas(
       const y = Math.max(120, boardOffsetY + boardHeight * 0.46 - h / 2);
       startRect = { x, y, w, h };
       shellCtx.save();
-      shellCtx.fillStyle = THEME.overlayScrim;
-      shellCtx.fillRect(0, 0, shellW, shellH);
       if (!drawUiPanelImage(shellCtx, 'start-panel', x, y, w, h, 1.03)) {
         drawArcadePanel(shellCtx, x, y, w, h, 'rgba(59, 130, 246, 0.78)', 'rgba(3, 8, 20, 0.95)');
         drawHudIcon(shellCtx, 'play', shellW / 2 - 12, y + 32, { size: 24 });
@@ -1729,8 +1797,17 @@ export function createGameCanvas(
   function onMouseDown(event: MouseEvent): void {
     const { x, y } = canvasCoords(event);
     if (event.button === 0) updateBoardPointer(x, y, true);
+    unlockAudioFromPointer();
 
     if (fullscreen?.isLogOpen?.()) return;
+
+    if (fullscreen && bgmMuteRect && insideRect(bgmMuteRect, x, y)) {
+      event.preventDefault();
+      fullscreen.onUiClick?.();
+      fullscreen.onToggleBgmMute?.();
+      scheduleAnimationFrame();
+      return;
+    }
 
     if (fullscreen && devAutoRect) {
       const insideAuto =
@@ -1830,6 +1907,7 @@ export function createGameCanvas(
   }
 
   function hitInteractiveUi(x: number, y: number): string | null {
+    if (bgmMuteRect && insideRect(bgmMuteRect, x, y)) return 'bgm-mute';
     if (devAutoRect && insideRect(devAutoRect, x, y)) return 'dev-auto';
     if (
       currentStatus === 'idle' &&
@@ -1872,7 +1950,17 @@ export function createGameCanvas(
     uiHoverTarget = null;
   }
 
+  function unlockAudioFromPointer(): void {
+    fullscreen?.onPointerDown?.();
+  }
+
+  function onPointerDown(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') return;
+    unlockAudioFromPointer();
+  }
+
   canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('mousemove', onMouseMove);
   canvas.addEventListener('mouseup', onMouseUp);
   canvas.addEventListener('mouseleave', onMouseLeave);
@@ -1881,6 +1969,7 @@ export function createGameCanvas(
   canvas.addEventListener('dblclick', onDoubleClick);
   if (fullscreen) {
     window.addEventListener('resize', paint);
+    startAmbientLoop();
   }
 
   return {

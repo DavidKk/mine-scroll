@@ -159,6 +159,23 @@ cell = min(fromW, fromH)
 - 矩形：**只用** `stageLayout.bottomRailRect`，禁止 `boardY + boardH + …` 推算  
 - 玩局中 `progress` 来自 `getScrollPressure()`；无压迫时仍保留淡轨占位  
 
+### 8.1 SPACE 提示（固定规范，禁止改回按钮图）
+
+| 项 | 规范 |
+|----|------|
+| 形式 | **Canvas 文字** `SPACE`，**不用** `space-active` / `space-disabled` 等 UI 面板图 |
+| 位置 | 棋盘底部**卷轴倒计时/压迫带上方**居中（`getSpaceHintRect`：`dangerTop - hintH - 4*scale`），**不是**视口底栏 `bottomRailRect` |
+| 时机 | 仅 `spaceEnabled === true`（底行可安全手动上移）时显示；**不显示** disabled 态 |
+| 动效 | 小字（`9–10*scale px`）正弦闪烁：`globalAlpha = 0.32 + sin(t/520)*0.32` |
+| 函数 | `getSpaceHintRect` + `drawSpaceHint`（`game-canvas/create.ts`） |
+
+**禁止**：把 SPACE 画成底部按钮、keycap 面板，或优先 `drawUiPanelImage('space-active', …)`。
+
+### 8.2 手动 SPACE 与背景 mood
+
+- 背景难度 mood（`computeBackdropMood`）的 `scrollDepth` 用 **`runtime.backdropScrollDepth`**，**仅自动卷轴 tick 累加**。
+- 玩家按 **Space 手动上移**（`performScrollTick(manual: true)`）**不得**推进 `backdropScrollDepth`，避免背景变热/变亮/加速。
+
 ---
 
 ## 9. 代码落点速查

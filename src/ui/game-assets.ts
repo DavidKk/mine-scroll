@@ -55,8 +55,6 @@ export function resolveFxFrameIndex(progress: number, frameCount: number, loop: 
 }
 
 export const GAME_UI_PANEL_NAMES = [
-  'space-active',
-  'space-disabled',
   'auto-off',
   'auto-on',
   'start-panel',

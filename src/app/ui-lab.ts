@@ -48,7 +48,7 @@ const ASSET_SHEETS = [
   },
   {
     title: 'Production UI Panels',
-    note: 'Crop candidates and Canvas reference for SPACE/AUTO/START/RETRY/Game Over/Log/HUD components.',
+    note: 'Crop candidates and Canvas reference for AUTO/START/RETRY/Game Over/Log/HUD components. SPACE is Canvas text only.',
     src: '/assets/production/ui-panels-production-v1.png',
   },
   {
@@ -63,7 +63,7 @@ const ASSET_SHEETS = [
   },
   {
     title: 'Sliced UI Panel Preview',
-    note: 'Cropped SPACE/AUTO/START/RETRY/Game Over/Log/HUD panel references from public/assets/game/ui.',
+    note: 'Cropped AUTO/START/RETRY/Game Over/Log/HUD panel references from public/assets/game/ui. SPACE is not a bitmap.',
     src: '/assets/game/preview-ui-panels.png',
   },
 ] as const;

@@ -62,3 +62,50 @@ export function drawSpriteInCell(
   ctx.drawImage(img, ix, iy, size, size);
   ctx.imageSmoothingEnabled = prevSmooth;
 }
+
+/** cell-hidden.png is a frame — center is transparent; fill before drawing the sprite. */
+const HIDDEN_CELL_UNDERLAY = '#121f35';
+
+function hiddenCellCornerRadius(cellSize: number): number {
+  return Math.max(4, cellSize * 0.08);
+}
+
+function hiddenCellUnderlayPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  cellSize: number,
+): void {
+  const r = hiddenCellCornerRadius(cellSize);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + cellSize, y, x + cellSize, y + cellSize, r);
+  ctx.arcTo(x + cellSize, y + cellSize, x, y + cellSize, r);
+  ctx.arcTo(x, y + cellSize, x, y, r);
+  ctx.arcTo(x, y, x + cellSize, y, r);
+  ctx.closePath();
+}
+
+export function drawHiddenCellUnderlay(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  cellSize: number,
+): void {
+  ctx.save();
+  hiddenCellUnderlayPath(ctx, x, y, cellSize);
+  ctx.fillStyle = HIDDEN_CELL_UNDERLAY;
+  ctx.fill();
+  ctx.restore();
+}
+
+export function drawHiddenCellSprite(
+  ctx: CanvasRenderingContext2D,
+  sprites: TileSprites,
+  x: number,
+  y: number,
+  cellSize: number,
+): void {
+  drawHiddenCellUnderlay(ctx, x, y, cellSize);
+  drawSpriteInCell(ctx, sprites.hidden, x, y, cellSize);
+}

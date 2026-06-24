@@ -29,6 +29,7 @@ function createInitialRuntime(session: ModeSession): GameSessionRuntime {
     session,
     timerStarted: false,
     scrollGameStartedAt: 0,
+    backdropScrollDepth: 0,
     scrollTimeoutId: null,
     scrollDeadlineAt: 0,
     scrollIntervalMs: 0,
@@ -57,6 +58,10 @@ export function mountGameSession(
   const modeMeta = getModeEntry();
   const runtime = createInitialRuntime(createSession());
   const gameAudio = createGameAudio();
+
+  function syncIdleBgm(): void {
+    gameAudio.setIdleBgm(runtime.session.state.status === 'idle');
+  }
 
   root.className = 'app';
   root.replaceChildren();
@@ -92,6 +97,7 @@ export function mountGameSession(
     playLifeLossAudio(gameAudio, beforeLives, next);
     playHealRewardAudio(gameAudio, beforeLives, runtime.session, next);
     applySessionUpdate(sessionDeps, next, beforeLives, context);
+    syncIdleBgm();
   }
 
   let scroll!: ReturnType<typeof createScrollController>;
@@ -149,6 +155,12 @@ export function mountGameSession(
       spaceEnabled: playing && isBatchScrollSafe(runtime.session, batchRows),
       devAutoVisible: import.meta.env.DEV,
       devAutoActive: runtime.aiAutoActive,
+      backdrop: {
+        scrollElapsedMs: scrollElapsed,
+        scrollDepth: runtime.backdropScrollDepth,
+        livesCurrent: lives,
+        livesMax: maxLives,
+      },
     };
   }
 
@@ -169,6 +181,7 @@ export function mountGameSession(
     runtime.view?.destroy();
     runtime.session = createSession();
     runtime.scrollGameStartedAt = 0;
+    runtime.backdropScrollDepth = 0;
     runtime.timerStarted = false;
     runtime.aiHint = null;
     runtime.aiWaitLogged = false;
@@ -181,6 +194,7 @@ export function mountGameSession(
     gameLog.clear();
     gameLog.append('New game', 'system');
     ai.refreshAiHint();
+    syncIdleBgm();
     render();
   }
 
@@ -195,12 +209,16 @@ export function mountGameSession(
       showStartOverlay: () => runtime.startOverlayOpen && runtime.session.state.status === 'idle',
       onStart: () => startArcadeRun(),
       onRestart: () => restartGame(),
-      onSpace: () => {
-        if (runtime.session.state.status === 'playing') scroll.performScrollTick(true);
-      },
       onDevAuto: () => ai.toggleAiAuto(startArcadeRun),
       onUiHover: () => gameAudio.play('uiHover'),
       onUiClick: () => gameAudio.play('uiClick'),
+      onPointerDown: () => gameAudio.unlock(),
+      getBgmMuted: () => gameAudio.isIdleBgmMuted(),
+      onToggleBgmMute: () => {
+        gameAudio.toggleIdleBgmMuted();
+        syncIdleBgm();
+        render();
+      },
     };
     const controller = createGameCanvas(
       canvasContainer,
@@ -311,9 +329,15 @@ export function mountGameSession(
       return;
     }
 
-    if ((event.code === 'Space' || event.key === ' ') && !event.repeat) {
-      if (runtime.logOpen || event.target instanceof HTMLButtonElement) return;
+    if (event.code === 'Space') {
+      if (runtime.logOpen) return;
+      if (runtime.session.state.status !== 'playing') return;
+      const scrollElapsed =
+        runtime.scrollGameStartedAt > 0 ? Date.now() - runtime.scrollGameStartedAt : 0;
+      const batchRows = getEndlessScrollProfile(scrollElapsed).batchRows;
+      if (!isBatchScrollSafe(runtime.session, batchRows)) return;
       event.preventDefault();
+      gameAudio.unlock();
       scroll.performScrollTick(true);
       return;
     }
@@ -342,6 +366,7 @@ export function mountGameSession(
   mountCanvas();
   ai.refreshAiHint();
   gameLog.append(`${modeMeta.name} · ready`, 'system');
+  syncIdleBgm();
   render();
 
   return cleanup;

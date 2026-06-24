@@ -29,6 +29,8 @@ export interface GameSessionRuntime {
   session: ModeSession;
   timerStarted: boolean;
   scrollGameStartedAt: number;
+  /** Backdrop mood depth — auto scroll ticks only; manual Space does not advance this. */
+  backdropScrollDepth: number;
   scrollTimeoutId: number | null;
   scrollDeadlineAt: number;
   scrollIntervalMs: number;

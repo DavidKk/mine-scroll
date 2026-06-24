@@ -16,13 +16,53 @@ export const GAME_AUDIO_ASSETS = {
   uiClick: '/assets/game/audio/ui-click.wav',
 } as const;
 
+export const BGM_IDLE_SRC = '/assets/game/audio/bgm-idle.wav';
+
 export type GameAudioId = keyof typeof GAME_AUDIO_ASSETS;
 
-const DEFAULT_VOLUME = 0.72;
+/** Master bus — keep headroom for overlapping one-shots. */
+const MASTER_VOLUME = 0.62;
+
+/**
+ * Per-clip gain (0–1) from peak analysis — targets similar perceived loudness.
+ * Loudest sources (scroll-up, heal-reward @ 0 dBFS) are pulled down most.
+ */
+const SFX_GAIN: Record<GameAudioId, number> = {
+  cellReveal: 0.88,
+  cellFlood: 0.78,
+  flagPlace: 0.76,
+  flagRemove: 0.78,
+  chordAction: 0.82,
+  mineHit: 0.55,
+  lifeWarning: 0.72,
+  scrollUp: 0.28,
+  healReward: 0.3,
+  uiHover: 0.85,
+  uiClick: 0.62,
+};
+
+function clipVolume(id: GameAudioId): number {
+  return Math.min(1, MASTER_VOLUME * (SFX_GAIN[id] ?? 1));
+}
+
+export function getEffectiveSfxVolume(id: GameAudioId): number {
+  return clipVolume(id);
+}
+
+export const GAME_AUDIO_MASTER_VOLUME = MASTER_VOLUME;
+export const GAME_AUDIO_SFX_GAIN = SFX_GAIN;
+
+/** Idle-menu loop — source peaks around −26 dBFS. */
+const BGM_IDLE_VOLUME = 0.58;
+
+export const GAME_AUDIO_BGM_IDLE_VOLUME = BGM_IDLE_VOLUME;
 
 export interface GameAudioController {
   play(id: GameAudioId): void;
   unlock(): void;
+  setIdleBgm(active: boolean): void;
+  isIdleBgmMuted(): boolean;
+  toggleIdleBgmMuted(): boolean;
   destroy(): void;
 }
 
@@ -90,13 +130,45 @@ export function playHealRewardAudio(
 export function createGameAudio(): GameAudioController {
   const clips = new Map<GameAudioId, HTMLAudioElement>();
   let unlocked = false;
+  let idleBgmSceneActive = false;
+  let idleBgmMuted = true;
+  let idleBgmPlayPending = false;
+
+  const idleBgm = new Audio(BGM_IDLE_SRC);
+  idleBgm.loop = true;
+  idleBgm.preload = 'auto';
+  idleBgm.volume = BGM_IDLE_VOLUME;
 
   for (const [id, src] of Object.entries(GAME_AUDIO_ASSETS) as [GameAudioId, string][]) {
     const audio = new Audio(src);
     audio.preload = 'auto';
-    audio.volume = DEFAULT_VOLUME;
+    audio.volume = clipVolume(id);
     clips.set(id, audio);
   }
+
+  function syncIdleBgmPlayback(): void {
+    const shouldPlay = idleBgmSceneActive && !idleBgmMuted;
+    if (shouldPlay) {
+      tryPlayIdleBgm();
+      return;
+    }
+    idleBgmPlayPending = false;
+    idleBgm.pause();
+    if (!idleBgmSceneActive) idleBgm.currentTime = 0;
+  }
+
+  function tryPlayIdleBgm(): void {
+    if (!idleBgmSceneActive || idleBgmMuted || !unlocked) return;
+    void idleBgm.play().catch(() => {
+      idleBgmPlayPending = true;
+    });
+  }
+
+  idleBgm.addEventListener('canplaythrough', () => {
+    if (!idleBgmPlayPending) return;
+    idleBgmPlayPending = false;
+    tryPlayIdleBgm();
+  });
 
   function unlock(): void {
     if (unlocked) return;
@@ -111,6 +183,37 @@ export function createGameAudio(): GameAudioController {
         })
         .catch(() => undefined);
     }
+
+    // Unlock the loop element itself — required before play() on large preloaded files.
+    idleBgm.muted = true;
+    void idleBgm
+      .play()
+      .then(() => {
+        idleBgm.pause();
+        idleBgm.currentTime = 0;
+        idleBgm.muted = false;
+        tryPlayIdleBgm();
+      })
+      .catch(() => {
+        idleBgm.muted = false;
+        tryPlayIdleBgm();
+      });
+  }
+
+  function setIdleBgm(active: boolean): void {
+    idleBgmSceneActive = active;
+    syncIdleBgmPlayback();
+  }
+
+  function isIdleBgmMuted(): boolean {
+    return idleBgmMuted;
+  }
+
+  function toggleIdleBgmMuted(): boolean {
+    unlock();
+    idleBgmMuted = !idleBgmMuted;
+    syncIdleBgmPlayback();
+    return idleBgmMuted;
   }
 
   function play(id: GameAudioId): void {
@@ -118,7 +221,7 @@ export function createGameAudio(): GameAudioController {
     const template = clips.get(id);
     if (!template) return;
     const audio = template.cloneNode() as HTMLAudioElement;
-    audio.volume = template.volume;
+    audio.volume = clipVolume(id);
     void audio.play().catch(() => undefined);
   }
 
@@ -128,7 +231,12 @@ export function createGameAudio(): GameAudioController {
       audio.src = '';
     }
     clips.clear();
+    idleBgmPlayPending = false;
+    idleBgm.pause();
+    idleBgm.src = '';
+    idleBgmSceneActive = false;
+    idleBgmMuted = true;
   }
 
-  return { play, unlock, destroy };
+  return { play, unlock, setIdleBgm, isIdleBgmMuted, toggleIdleBgmMuted, destroy };
 }
