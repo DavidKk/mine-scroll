@@ -1,3 +1,4 @@
+import { ROUTES } from './routes.ts';
 import { FONTS } from '../ui/theme.ts';
 
 type PreviewKind = 'tile' | 'flag' | 'explode' | 'combo' | 'scroll' | 'life' | 'gameover';
@@ -440,7 +441,7 @@ export function mountUiLab(root: HTMLElement): () => void {
   const links = document.createElement('div');
   links.className = 'ui-lab__links';
   const gameLink = document.createElement('a');
-  gameLink.href = '/';
+  gameLink.href = ROUTES.game;
   gameLink.textContent = 'Back to Game';
   const todoLink = document.createElement('a');
   todoLink.href = '/docs/UI-ASSET-TODO.md';
@@ -449,9 +450,12 @@ export function mountUiLab(root: HTMLElement): () => void {
   productionTodoLink.href = '/docs/UI-PRODUCTION-ASSET-TODO.md';
   productionTodoLink.textContent = 'Production TODO';
   const responsiveLink = document.createElement('a');
-  responsiveLink.href = '/?ui=responsive';
+  responsiveLink.href = ROUTES.responsive;
   responsiveLink.textContent = 'Responsive Matrix';
-  links.append(gameLink, todoLink, productionTodoLink, responsiveLink);
+  const assetsLink = document.createElement('a');
+  assetsLink.href = ROUTES.assets;
+  assetsLink.textContent = 'Tile Assets';
+  links.append(gameLink, todoLink, productionTodoLink, assetsLink, responsiveLink);
   header.append(title, subtitle, links);
 
   const target = document.createElement('section');

@@ -12,7 +12,8 @@
     "assets:tiles": "python3 scripts/optimize-tiles.py",
     "assets:hud": "python3 scripts/slice-brief-hud.py",
     "assets:production": "python3 scripts/slice-production-assets.py",
-    "assets:all": "python3 scripts/optimize-tiles.py && python3 scripts/slice-brief-hud.py && python3 scripts/slice-production-assets.py"
+    "assets:gameplay": "python3 scripts/generate-gameplay-assets.py",
+    "assets:all": "python3 scripts/optimize-tiles.py && python3 scripts/slice-brief-hud.py && python3 scripts/slice-production-assets.py && python3 scripts/generate-gameplay-assets.py"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

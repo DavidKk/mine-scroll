@@ -20,6 +20,10 @@ export const GAME_CUTOUT_NAMES = [
 export type GameCutoutName = (typeof GAME_CUTOUT_NAMES)[number];
 
 export const GAME_FX_NAMES = [
+  'cell-breath',
+  'cell-hover',
+  'digit-particles',
+  'flag-wave',
   'mine-explosion',
   'combo-burst',
   'safe-reveal',

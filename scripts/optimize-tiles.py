@@ -13,8 +13,6 @@ SRC_DIR = ROOT / 'docs/design-assets/tiles'
 REF_SHEET = ROOT / 'docs/design-assets/reference/tile-sprite-sheet-v1.png'
 OUT_DIR = ROOT / 'public/assets/tiles'
 TARGET = 128
-ICON_NAMES = ('cell-hidden', 'cell-revealed', 'mine', 'flag')
-NUM_REF = 'num-1'
 # Top icon row vs number strip (gap ~329–431 on 1024×682 sheet)
 TOP_ROW_Y = (100, 335)
 NUMBER_ROW_Y = (431, 558)
@@ -36,11 +34,18 @@ def center_on_canvas(tile: Image.Image, target: int = TARGET) -> Image.Image:
     return canvas
 
 
-def normalize_to_ref_bbox(tile: Image.Image, ref_bbox: tuple[int, int, int, int]) -> Image.Image:
-    x0, y0, x1, y1 = ref_bbox
-    tw, th = x1 - x0, y1 - y0
-    fitted = tile.resize((tw, th), Image.Resampling.LANCZOS)
-    return center_on_canvas(fitted)
+def place_without_stretch(tile: Image.Image, target: int = TARGET) -> Image.Image:
+    """Trim to content bbox, shrink uniformly if needed, center — no ref-bbox stretch."""
+    bb = content_bbox(tile)
+    content = tile.crop(bb) if bb else tile
+    cw, ch = content.size
+    scale = min(1.0, target / cw, target / ch)
+    if scale < 1.0:
+        content = content.resize(
+            (max(1, int(cw * scale)), max(1, int(ch * scale))),
+            Image.Resampling.LANCZOS,
+        )
+    return center_on_canvas(content)
 
 
 def repair_num7_border(num7: Image.Image, num1: Image.Image) -> Image.Image:
@@ -120,19 +125,8 @@ def main() -> None:
         p.stem: Image.open(p) for p in SRC_DIR.glob('*.png')
     }
 
-    ref = tiles.get(NUM_REF) or Image.open(SRC_DIR / f'{NUM_REF}.png')
-    ref_bb = content_bbox(ref)
-    if not ref_bb:
-        raise SystemExit('missing num-1 reference bbox')
-
-    for name in ICON_NAMES:
-        if name in tiles:
-            tiles[name] = normalize_to_ref_bbox(tiles[name], ref_bb)
-
-    for i in range(1, 9):
-        key = f'num-{i}'
-        if key in tiles:
-            tiles[key] = center_on_canvas(tiles[key])
+    for name, image in list(tiles.items()):
+        tiles[name] = place_without_stretch(image)
 
     if 'num-7' in tiles and 'num-1' in tiles:
         tiles['num-7'] = repair_num7_border(tiles['num-7'], tiles['num-1'])

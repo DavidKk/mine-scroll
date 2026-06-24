@@ -163,6 +163,70 @@
           "/assets/game/fx/score-pop/frame-07.png",
           "/assets/game/fx/score-pop/frame-08.png"
         ]
+      },
+      "digit-particles": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/digit-particles/frame-01.png",
+          "/assets/game/fx/digit-particles/frame-02.png",
+          "/assets/game/fx/digit-particles/frame-03.png",
+          "/assets/game/fx/digit-particles/frame-04.png",
+          "/assets/game/fx/digit-particles/frame-05.png",
+          "/assets/game/fx/digit-particles/frame-06.png",
+          "/assets/game/fx/digit-particles/frame-07.png",
+          "/assets/game/fx/digit-particles/frame-08.png"
+        ]
+      },
+      "cell-breath": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/cell-breath/frame-01.png",
+          "/assets/game/fx/cell-breath/frame-02.png",
+          "/assets/game/fx/cell-breath/frame-03.png",
+          "/assets/game/fx/cell-breath/frame-04.png",
+          "/assets/game/fx/cell-breath/frame-05.png",
+          "/assets/game/fx/cell-breath/frame-06.png",
+          "/assets/game/fx/cell-breath/frame-07.png",
+          "/assets/game/fx/cell-breath/frame-08.png"
+        ]
+      },
+      "cell-hover": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/cell-hover/frame-01.png",
+          "/assets/game/fx/cell-hover/frame-02.png",
+          "/assets/game/fx/cell-hover/frame-03.png",
+          "/assets/game/fx/cell-hover/frame-04.png",
+          "/assets/game/fx/cell-hover/frame-05.png",
+          "/assets/game/fx/cell-hover/frame-06.png",
+          "/assets/game/fx/cell-hover/frame-07.png",
+          "/assets/game/fx/cell-hover/frame-08.png"
+        ]
+      },
+      "flag-wave": {
+        "frameWidth": 192,
+        "frameHeight": 128,
+        "frameCount": 8,
+        "blendMode": "lighter",
+        "frames": [
+          "/assets/game/fx/flag-wave/frame-01.png",
+          "/assets/game/fx/flag-wave/frame-02.png",
+          "/assets/game/fx/flag-wave/frame-03.png",
+          "/assets/game/fx/flag-wave/frame-04.png",
+          "/assets/game/fx/flag-wave/frame-05.png",
+          "/assets/game/fx/flag-wave/frame-06.png",
+          "/assets/game/fx/flag-wave/frame-07.png",
+          "/assets/game/fx/flag-wave/frame-08.png"
+        ]
       }
     }
   },
