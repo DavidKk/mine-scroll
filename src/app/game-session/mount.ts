@@ -11,6 +11,8 @@ import {
   ENDLESS_VISIBLE_ROWS,
   endlessScreenRowToLocal,
   getEndlessPreviewRows,
+  getEndlessScrollProfile,
+  isBatchScrollSafe,
   isEndlessInteractiveScreenRow,
 } from '../../core/modes/endless/index.ts';
 import { getModeEntry } from '../../core/modes/catalog.ts';
@@ -129,13 +131,17 @@ export function mountGameSession(
   function getCanvasHudStats(): GameCanvasHudStats {
     const lives = runtime.session.lives ?? 0;
     const maxLives = 5;
+    const scrollElapsed =
+      runtime.scrollGameStartedAt > 0 ? Date.now() - runtime.scrollGameStartedAt : 0;
+    const batchRows = getEndlessScrollProfile(scrollElapsed).batchRows;
+    const playing = runtime.session.state.status === 'playing';
     return {
       score: runtime.session.score ?? 0,
       combo: runtime.session.defuseCombo ?? 0,
       scoreEvent: runtime.presentation.scoreEvent,
       breakEvent: runtime.presentation.breakEvent,
       lives: `${'♥'.repeat(lives)}${'♡'.repeat(Math.max(0, maxLives - lives))}`,
-      spaceEnabled: runtime.session.state.status === 'playing',
+      spaceEnabled: playing && isBatchScrollSafe(runtime.session, batchRows),
       devAutoVisible: import.meta.env.DEV,
       devAutoActive: runtime.aiAutoActive,
     };

@@ -184,8 +184,8 @@ export function computeGameStageLayout(
       ? boardAreaTop + slack * 0.5
       : boardAreaTop + slack * 0.15;
 
-  const autoW = (viewportW < 560 ? 46 : 56) * scale;
-  const autoH = (viewportW < 560 ? 28 : 32) * scale;
+  const autoSize = (profile === 'desktop' ? 72 : 56) * scale;
+  const autoInset = safe + 10 * scale;
   const bottomRailRect: Rect = {
     x: 0,
     y: viewportH - reserves.bottomRailH - reserves.bottomPad,
@@ -194,10 +194,10 @@ export function computeGameStageLayout(
   };
 
   const autoRect: Rect = {
-    x: viewportW - autoW - safe,
-    y: bottomRailRect.y - autoH - 6 * scale,
-    w: autoW,
-    h: autoH,
+    x: Math.max(safe, viewportW - autoSize - autoInset),
+    y: bottomRailRect.y - autoSize - 8 * scale,
+    w: autoSize,
+    h: autoSize,
   };
 
   return {

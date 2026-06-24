@@ -8,6 +8,8 @@ export {
 export {
   renderFrame,
   renderBoardOnlyFrame,
+  renderBoardStaticFrame,
+  renderBoardDynamicFrame,
   getBoardSideRailLayout,
   getBoardSideRailBounds,
   createBoardSideRailGradient,

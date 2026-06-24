@@ -1,4 +1,7 @@
 import type { AiHintDisplay } from '../../core/ai/types.ts';
+import { drawAiHintCutout } from '../cell-fx.ts';
+import { getGameUiPanel, drawImageContained } from '../game-assets.ts';
+import type { GameUiPanelName } from '../game-assets.ts';
 import { GRID_PADDING, HUD_HEIGHT, HUD_GAP, THEME, cellPixelOrigin } from '../theme.ts';
 import type { LayoutMetrics } from './layout.ts';
 import { fillRoundRect, strokeRoundRect } from './primitives.ts';
@@ -34,6 +37,18 @@ export function drawScrollPressureBar(
       3,
       pressure.urgent ? THEME.danger : THEME.warning,
     );
+  }
+
+  const countdownName: GameUiPanelName = pressure.urgent
+    ? 'countdown-red'
+    : pressure.progress > 0.62
+      ? 'countdown-orange'
+      : 'countdown-yellow';
+  const countdown = getGameUiPanel(countdownName);
+  if (countdown) {
+    const chipW = Math.min(36, barW * 0.14);
+    const chipH = chipW * (countdown.naturalHeight / Math.max(1, countdown.naturalWidth));
+    drawImageContained(ctx, countdown, barX + barW - chipW - 2, barY - chipH + 2, chipW, chipH, 1);
   }
 
   ctx.restore();
@@ -170,5 +185,6 @@ export function drawAiHint(
     isGuess ? THEME.warning : THEME.accent,
     2,
   );
+  drawAiHintCutout(ctx, x, y, grid, hint);
   ctx.restore();
 }

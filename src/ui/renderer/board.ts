@@ -1,4 +1,6 @@
+import type { CellView } from '../../core/types.ts';
 import { GRID_PADDING, HUD_HEIGHT, HUD_GAP, PANEL_RADIUS, THEME, cellPixelOrigin } from '../theme.ts';
+import { drawBoardCellOverlays, type BoardPointerState } from '../cell-fx.ts';
 import {
   drawCell,
   drawCellMarksOverlay,
@@ -18,6 +20,130 @@ export {
   getBoardOnlyLayoutMetrics,
   applyBoardPreviewBand,
 } from './layout.ts';
+
+function isPointerCell(pointer: BoardPointerState | null | undefined, view: CellView): boolean {
+  return Boolean(pointer && pointer.row === view.row && pointer.col === view.col);
+}
+
+function drawPlayableCells(
+  ctx: CanvasRenderingContext2D,
+  views: CellView[],
+  layout: LayoutMetrics,
+  state: RenderState,
+): void {
+  const { gridOriginX, gridOriginY, grid } = layout;
+  for (const view of views) {
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    drawCell(ctx, x, y, view, grid, state.status);
+  }
+}
+
+function drawPlayableMarks(
+  ctx: CanvasRenderingContext2D,
+  views: CellView[],
+  layout: LayoutMetrics,
+  state: RenderState,
+  animateFlags: boolean,
+): void {
+  const { gridOriginX, gridOriginY, grid } = layout;
+  for (const view of views) {
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    const animate = animateFlags && isPointerCell(state.pointer, view);
+    drawCellMarksOverlay(ctx, x, y, view, grid, state.nowMs ?? 0, animate);
+  }
+}
+
+function drawPlayableAmbientOverlays(
+  ctx: CanvasRenderingContext2D,
+  views: CellView[],
+  layout: LayoutMetrics,
+  state: RenderState,
+): void {
+  const { gridOriginX, gridOriginY, grid } = layout;
+  const overlayOptions = {
+    status: state.status,
+    nowMs: state.nowMs ?? 0,
+    pointer: state.pointer,
+  };
+  for (const view of views) {
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    drawBoardCellOverlays(ctx, state.views, grid, x, y, view, overlayOptions);
+  }
+}
+
+/** 棋盘静态层：格面 + 旗标 + AI 提示（可缓存，不含卷轴压迫与指针动效） */
+export function renderBoardStaticFrame(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  state: RenderState,
+): void {
+  const { gridOriginX, gridOriginY, gridWidth, gridHeight, grid } = layout;
+
+  ctx.clearRect(0, 0, layout.width, layout.height);
+
+  const trackBg = ctx.createLinearGradient(0, 0, gridWidth, 0);
+  trackBg.addColorStop(0, 'rgba(24, 24, 27, 0.34)');
+  trackBg.addColorStop(0.08, THEME.panelBg);
+  trackBg.addColorStop(0.92, THEME.panelBg);
+  trackBg.addColorStop(1, 'rgba(24, 24, 27, 0.34)');
+  ctx.fillStyle = trackBg;
+  ctx.fillRect(0, 0, gridWidth, gridHeight);
+
+  const previewRows = state.previewRows ?? 0;
+  drawBoardSideRails(ctx, layout, previewRows);
+
+  const previewViews = previewRows > 0 ? state.views.filter((view) => view.preview) : [];
+  const playableViews = previewRows > 0 ? state.views.filter((view) => !view.preview) : state.views;
+
+  if (previewViews.length > 0) {
+    const bandTop = gridOriginY - grid.cellStep;
+    const bandH = grid.cellStep;
+    const visibleH = previewRows * grid.cellStep;
+
+    ctx.save();
+    drawPlayableCells(ctx, previewViews, layout, state);
+    drawPlayableMarks(ctx, previewViews, layout, state, false);
+
+    ctx.globalCompositeOperation = 'destination-in';
+    const fade = ctx.createLinearGradient(0, bandTop, 0, bandTop + bandH);
+    fade.addColorStop(0, 'rgba(0,0,0,0)');
+    fade.addColorStop(Math.max(0, 1 - visibleH / bandH - 0.08), 'rgba(0,0,0,0)');
+    fade.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = fade;
+    ctx.fillRect(gridOriginX - 2, bandTop - 2, gridWidth + 4, bandH + 4);
+    ctx.restore();
+  }
+
+  drawPlayableCells(ctx, playableViews, layout, state);
+  drawPlayableMarks(ctx, playableViews, layout, state, false);
+
+  if (state.aiHint && state.status !== 'lost') {
+    drawAiHint(ctx, layout, state.aiHint);
+  }
+}
+
+/** 棋盘动态层：卷轴压迫 + 指针附近动效 */
+export function renderBoardDynamicFrame(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  state: RenderState,
+): void {
+  const previewRows = state.previewRows ?? 0;
+  const playableViews = previewRows > 0 ? state.views.filter((view) => !view.preview) : state.views;
+
+  if (state.scrollPressure && state.status === 'playing') {
+    drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
+  }
+
+  drawPlayableAmbientOverlays(ctx, playableViews, layout, state);
+
+  const { gridOriginX, gridOriginY, grid } = layout;
+  for (const view of playableViews) {
+    if (!view.flagged || view.revealed || !isPointerCell(state.pointer, view)) continue;
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+    drawCellMarksOverlay(ctx, x, y, view, grid, state.nowMs ?? 0, true);
+  }
+}
 
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
@@ -92,16 +218,19 @@ export function renderFrame(
 
   for (const view of state.views) {
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
-    drawCell(ctx, x, y, view, grid);
+    drawCell(ctx, x, y, view, grid, state.status);
   }
 
   if (state.scrollPressure && state.status === 'playing') {
     drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
   }
 
+  drawPlayableAmbientOverlays(ctx, state.views, layout, state);
+
   for (const view of state.views) {
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
-    drawCellMarksOverlay(ctx, x, y, view, grid);
+    const animate = isPointerCell(state.pointer, view);
+    drawCellMarksOverlay(ctx, x, y, view, grid, state.nowMs ?? 0, animate);
   }
 
   if (state.aiHint && state.status !== 'lost') {
@@ -208,64 +337,6 @@ export function renderBoardOnlyFrame(
   layout: LayoutMetrics,
   state: RenderState,
 ): void {
-  const { gridOriginX, gridOriginY, gridWidth, gridHeight, grid } = layout;
-
-  ctx.clearRect(0, 0, layout.width, layout.height);
-
-  const trackBg = ctx.createLinearGradient(0, 0, gridWidth, 0);
-  trackBg.addColorStop(0, 'rgba(24, 24, 27, 0.34)');
-  trackBg.addColorStop(0.08, THEME.panelBg);
-  trackBg.addColorStop(0.92, THEME.panelBg);
-  trackBg.addColorStop(1, 'rgba(24, 24, 27, 0.34)');
-  ctx.fillStyle = trackBg;
-  ctx.fillRect(0, 0, gridWidth, gridHeight);
-
-  const previewRows = state.previewRows ?? 0;
-  drawBoardSideRails(ctx, layout, previewRows);
-
-  const previewViews = previewRows > 0 ? state.views.filter((view) => view.preview) : [];
-  const playableViews = previewRows > 0 ? state.views.filter((view) => !view.preview) : state.views;
-
-  if (previewViews.length > 0) {
-    const bandTop = gridOriginY - grid.cellStep;
-    const bandH = grid.cellStep;
-    const visibleH = previewRows * grid.cellStep;
-
-    ctx.save();
-    for (const view of previewViews) {
-      const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
-      drawCell(ctx, x, y, view, grid);
-    }
-    for (const view of previewViews) {
-      const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
-      drawCellMarksOverlay(ctx, x, y, view, grid);
-    }
-
-    ctx.globalCompositeOperation = 'destination-in';
-    const fade = ctx.createLinearGradient(0, bandTop, 0, bandTop + bandH);
-    fade.addColorStop(0, 'rgba(0,0,0,0)');
-    fade.addColorStop(Math.max(0, 1 - visibleH / bandH - 0.08), 'rgba(0,0,0,0)');
-    fade.addColorStop(1, 'rgba(0,0,0,1)');
-    ctx.fillStyle = fade;
-    ctx.fillRect(gridOriginX - 2, bandTop - 2, gridWidth + 4, bandH + 4);
-    ctx.restore();
-  }
-
-  for (const view of playableViews) {
-    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
-    drawCell(ctx, x, y, view, grid);
-  }
-
-  if (state.scrollPressure && state.status === 'playing') {
-    drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
-  }
-
-  for (const view of playableViews) {
-    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
-    drawCellMarksOverlay(ctx, x, y, view, grid);
-  }
-
-  if (state.aiHint && state.status !== 'lost') {
-    drawAiHint(ctx, layout, state.aiHint);
-  }
+  renderBoardStaticFrame(ctx, layout, state);
+  renderBoardDynamicFrame(ctx, layout, state);
 }

@@ -460,7 +460,7 @@ function drawFlagScene(
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(cx, cy, cell.size * (0.43 + pop * 0.06), -0.45, Math.PI * 1.25);
+  ctx.arc(cx, cy, cell.size * (0.43 + pop * 0.06), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 

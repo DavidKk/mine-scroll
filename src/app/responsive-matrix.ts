@@ -227,7 +227,7 @@ function drawHud(ctx: CanvasRenderingContext2D, state: StateSpec, viewport: View
 
   if (state.spaceAvailable) {
     const hintW = (viewport.w < 560 ? 52 : 60) * scale;
-    const hintH = (viewport.w < 560 ? 16 : 18) * scale;
+    const hintH = (viewport.w < 560 ? 14 : 16) * scale;
     const coveredRows = Math.max(1, state.coveredRows ?? 1);
     const cell = computeEndlessBoardCellSize(BOARD_COLS, BOARD_ROWS, viewport.w, viewport.h, {
       min: 18,
@@ -236,26 +236,13 @@ function drawHud(ctx: CanvasRenderingContext2D, state: StateSpec, viewport: View
     const dangerTop = layout.boardY + GRID_PADDING + (BOARD_ROWS - coveredRows) * (cell + CELL_GAP) - 2;
     const hintX = layout.boardX + layout.boardW / 2 - hintW / 2;
     const hintY = Math.max(layout.boardY + GRID_PADDING, dangerTop - hintH - 4 * scale);
-    const pulse = 0.78;
+    const flash = 0.32 + Math.sin(performance.now() / 520) * 0.32;
     const cx = hintX + hintW / 2;
     const cy = hintY + hintH / 2;
-    const railW = Math.max(9 * scale, hintW * 0.24);
-    const railGap = Math.max(18 * scale, hintW * 0.42);
     ctx.save();
-    ctx.globalAlpha = state.urgent ? 0.9 : 0.62;
-    ctx.shadowColor = state.urgent ? 'rgba(250, 204, 21, 0.55)' : 'rgba(96, 165, 250, 0.42)';
-    ctx.shadowBlur = (state.urgent ? 12 : 8) * scale;
-    ctx.strokeStyle = state.urgent ? `rgba(250, 204, 21, ${0.28 + pulse * 0.35})` : `rgba(96, 165, 250, ${0.18 + pulse * 0.26})`;
-    ctx.lineWidth = Math.max(1, 1.2 * scale);
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(cx - railGap - railW, cy + 7 * scale);
-    ctx.lineTo(cx - railGap, cy + 7 * scale);
-    ctx.moveTo(cx + railGap, cy + 7 * scale);
-    ctx.lineTo(cx + railGap + railW, cy + 7 * scale);
-    ctx.stroke();
-    ctx.fillStyle = state.urgent ? '#fef08a' : '#dbeafe';
-    ctx.font = `900 ${Math.max(9, 10 * scale)}px ${FONTS.display}`;
+    ctx.globalAlpha = flash;
+    ctx.fillStyle = state.urgent ? '#fef08a' : '#cbd5e1';
+    ctx.font = `600 ${Math.max(9, 10 * scale)}px ${FONTS.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('SPACE', cx, cy);

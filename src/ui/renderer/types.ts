@@ -1,5 +1,6 @@
 import type { CellView, GameStatus } from '../../core/types.ts';
 import type { AiHintDisplay } from '../../core/ai/types.ts';
+import type { BoardPointerState } from '../cell-fx.ts';
 
 export interface ScrollPressureState {
   /** 剩余整秒（显示用） */
@@ -29,4 +30,8 @@ export interface RenderState {
   previewRows?: number;
   /** AI 建议高亮（屏幕行坐标） */
   aiHint?: AiHintDisplay | null;
+  /** 指针悬停格（用于 Hover / 呼吸动效） */
+  pointer?: BoardPointerState | null;
+  /** 动画时间戳（performance.now） */
+  nowMs?: number;
 }

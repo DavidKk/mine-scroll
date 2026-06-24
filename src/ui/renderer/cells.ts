@@ -1,5 +1,6 @@
 import type { CellView, GameStatus } from '../../core/types.ts';
 import { FONTS, THEME, type GridMetrics } from '../theme.ts';
+import { drawSimpleFlagMark, drawWavingFlagMark, resolveMineCutout } from '../cell-fx.ts';
 import { GAME_ASSET_TUNING, drawImageContained, getGameCutout } from '../game-assets.ts';
 import { drawSpriteInCell, getTileSprites } from '../tile-sprites.ts';
 import { fillRoundRect, strokeRoundRect } from './primitives.ts';
@@ -47,27 +48,6 @@ function drawRevealedCellBg(
     g.cellRadius,
     THEME.cellRevealedBorder,
   );
-}
-
-function drawFlag(ctx: CanvasRenderingContext2D, cx: number, cy: number, cellSize: number): void {
-  const scale = cellSize / 36;
-  const px = cx - 5 * scale;
-  const py = cy - 7 * scale;
-  ctx.strokeStyle = THEME.flagPole;
-  ctx.lineWidth = 2 * scale;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(px, py);
-  ctx.lineTo(px, py + 14 * scale);
-  ctx.stroke();
-
-  ctx.fillStyle = THEME.flagCloth;
-  ctx.beginPath();
-  ctx.moveTo(px + scale, py);
-  ctx.lineTo(px + 11 * scale, py + 4 * scale);
-  ctx.lineTo(px + scale, py + 8 * scale);
-  ctx.closePath();
-  ctx.fill();
 }
 
 function drawMine(
@@ -193,24 +173,15 @@ export function drawCellMarksOverlay(
   y: number,
   view: CellView,
   g: GridMetrics,
+  nowMs = 0,
+  animate = false,
 ): void {
   if (view.revealed || !view.flagged) return;
-
-  const gameFlag = getGameCutout('flag-blue');
-  if (gameFlag) {
-    drawImageContained(ctx, gameFlag, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
-    return;
+  if (animate && nowMs > 0) {
+    drawWavingFlagMark(ctx, x, y, g, nowMs);
+  } else {
+    drawSimpleFlagMark(ctx, x, y, g);
   }
-
-  const sprites = getTileSprites();
-  if (sprites) {
-    drawImageContained(ctx, sprites.flag, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
-    return;
-  }
-
-  const cx = x + g.cellSize / 2;
-  const cy = y + g.cellSize / 2;
-  drawFlag(ctx, cx, cy, g.cellSize * GAME_ASSET_TUNING.cutouts.flagScale);
 }
 
 export function drawCell(
@@ -219,6 +190,7 @@ export function drawCell(
   y: number,
   view: CellView,
   g: GridMetrics,
+  status: GameStatus = 'playing',
 ): void {
   const sprites = getTileSprites();
   if (sprites) {
@@ -229,7 +201,8 @@ export function drawCell(
 
     if (view.isMine) {
       drawSpriteInCell(ctx, sprites.revealed, x, y, g.cellSize);
-      const gameMine = getGameCutout('mine-standard');
+      const mineName = resolveMineCutout(status);
+      const gameMine = getGameCutout(mineName) ?? getGameCutout('mine-standard');
       if (gameMine) {
         drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
       } else {
@@ -259,7 +232,8 @@ export function drawCell(
   drawRevealedCellBg(ctx, x, y, g);
 
   if (view.isMine) {
-    const gameMine = getGameCutout('mine-standard');
+    const mineName = resolveMineCutout(status);
+    const gameMine = getGameCutout(mineName) ?? getGameCutout('mine-standard');
     if (gameMine) {
       drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
     } else {

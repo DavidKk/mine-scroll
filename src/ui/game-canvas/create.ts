@@ -17,14 +17,19 @@ import {
   createBoardSideRailGradient,
   hitTestCellWithPreview,
   hitTestReset,
-  renderBoardOnlyFrame,
+  renderBoardStaticFrame,
+  renderBoardDynamicFrame,
   renderFrame,
   type LayoutMetrics,
   type ScrollPressureState,
+  type RenderState,
 } from '../renderer/index.ts';
+import type { BoardPointerState } from '../cell-fx.ts';
+import { FpsMeter, drawFpsHud } from '../fps-meter.ts';
 import {
   GAME_ASSET_TUNING,
   drawImageContained,
+  getGameCutout,
   getGameFxBlendMode,
   getGameFxFrames,
   getGameUiPanel,
@@ -139,7 +144,7 @@ export function createGameCanvas(
   const canvas = document.createElement('canvas');
   canvas.className = fullscreen ? 'game-canvas game-canvas--fullscreen' : 'game-canvas';
   canvas.setAttribute('role', 'application');
-  canvas.setAttribute('aria-label', '扫雷棋盘');
+  canvas.setAttribute('aria-label', 'Minesweeper board');
   container.appendChild(canvas);
 
   const context = canvas.getContext('2d');
@@ -155,7 +160,6 @@ export function createGameCanvas(
   let boardOffsetX = 0;
   let boardOffsetY = 0;
   let stageLayout: GameStageLayout | null = null;
-  let spaceKeyRect: { x: number; y: number; w: number; h: number } | null = null;
   let startRect: { x: number; y: number; w: number; h: number } | null = null;
   let retryRect: { x: number; y: number; w: number; h: number } | null = null;
   let devAutoRect: { x: number; y: number; w: number; h: number } | null = null;
@@ -179,6 +183,20 @@ export function createGameCanvas(
   let breakFxStartedAt = 0;
   let activeBreakEvent: GameCanvasHudStats['breakEvent'] | null = null;
   let animationFrameId: number | null = null;
+  let ambientDelayId: number | null = null;
+  let lastPaintAt = 0;
+  const fpsMeter = new FpsMeter();
+  /** 环境动效（呼吸/旗子/数字粒子）目标帧率：最低 20 FPS */
+  const AMBIENT_FRAME_MS = 1000 / 20;
+  let boardLayerCache: HTMLCanvasElement | null = null;
+  let boardLayerCacheCtx: CanvasRenderingContext2D | null = null;
+  let boardLayerCacheKey = '';
+  let shellBgCache: HTMLCanvasElement | null = null;
+  let shellBgCacheKey = '';
+  let boardPointer: BoardPointerState | null = null;
+  let lastLivesCurrent = -1;
+  let heartRefillFxStartedAt = 0;
+  let levelUpFxStartedAt = 0;
 
   type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode';
   interface CellFx {
@@ -247,6 +265,123 @@ export function createGameCanvas(
       window.clearInterval(pressureRepaintId);
       pressureRepaintId = null;
     }
+    if (ambientDelayId !== null) {
+      window.clearTimeout(ambientDelayId);
+      ambientDelayId = null;
+    }
+  }
+
+  function needsContinuousRepaint(now: number): 'full' | 'ambient' | false {
+    if (cellEffects.length > 0 || particles.length > 0) return 'full';
+    if (
+      heartRefillFxStartedAt > 0 &&
+      now - heartRefillFxStartedAt < GAME_ASSET_TUNING.fx.heartRefillHud.durationMs
+    ) {
+      return 'full';
+    }
+    if (levelUpFxStartedAt > 0 && now - levelUpFxStartedAt < GAME_ASSET_TUNING.fx.levelUp.durationMs) {
+      return 'full';
+    }
+    if (activeScoreEvent && scoreFxStartedAt > 0) return 'full';
+    if (activeBreakEvent && breakFxStartedAt > 0) return 'full';
+    if (lastCombo > 1 && comboFxStartedAt > 0) {
+      const comboAge = now - comboFxStartedAt;
+      if (comboAge < GAME_ASSET_TUNING.fx.comboBurst.durationMs) return 'full';
+    }
+    if (currentStatus === 'idle') return 'ambient';
+    if (currentStatus !== 'playing') return false;
+    if (fullscreen?.getStats?.()?.spaceEnabled) return 'ambient';
+    if (boardPointer !== null) return 'ambient';
+    if (getScrollPressureFn?.()) return 'ambient';
+    return false;
+  }
+
+  function computeBoardLayerCacheKey(state: {
+    views: CellView[];
+    status: GameStatus;
+    flagCount: number;
+    rows: number;
+    previewRows?: number;
+    aiHint?: AiHintDisplay | null;
+  }): string {
+    const layout = squareLayout;
+    const parts: string[] = [
+      state.status,
+      String(state.flagCount),
+      String(state.rows),
+      String(state.previewRows ?? 0),
+      String(layout?.width ?? 0),
+      String(layout?.height ?? 0),
+      String(layout?.grid.cellSize ?? 0),
+    ];
+    for (const view of state.views) {
+      parts.push(
+        `${view.row},${view.col}:${view.preview ? 'p' : ''}${view.revealed ? 1 : 0}${view.flagged ? 1 : 0}${view.adjacentMines ?? '-'}${view.isMine ?? '-'}`,
+      );
+    }
+    if (state.aiHint) {
+      parts.push(`hint:${state.aiHint.row},${state.aiHint.col},${state.aiHint.kind}`);
+    }
+    return parts.join('|');
+  }
+
+  function ensureBoardLayerCache(
+    state: RenderState & { rows: number; cols: number },
+  ): void {
+    const layout = squareLayout!;
+    const key = computeBoardLayerCacheKey(state);
+    if (key === boardLayerCacheKey && boardLayerCache) return;
+
+    if (
+      !boardLayerCache ||
+      boardLayerCache.width !== layout.width ||
+      boardLayerCache.height !== layout.height
+    ) {
+      boardLayerCache = document.createElement('canvas');
+      boardLayerCache.width = layout.width;
+      boardLayerCache.height = layout.height;
+      boardLayerCacheCtx = boardLayerCache.getContext('2d');
+    }
+    if (!boardLayerCacheCtx) return;
+
+    renderBoardStaticFrame(boardLayerCacheCtx, layout, {
+      ...state,
+      nowMs: 0,
+      pointer: null,
+      scrollPressure: undefined,
+    });
+    boardLayerCacheKey = key;
+  }
+
+  function drawShellBackground(shellCtx: CanvasRenderingContext2D): void {
+    const key = `${width}x${height}`;
+    if (key !== shellBgCacheKey || !shellBgCache) {
+      shellBgCache = document.createElement('canvas');
+      shellBgCache.width = width;
+      shellBgCache.height = height;
+      const bgCtx = shellBgCache.getContext('2d');
+      if (bgCtx) drawModernBackground(bgCtx, width, height);
+      shellBgCacheKey = key;
+    }
+    shellCtx.drawImage(shellBgCache, 0, 0);
+  }
+
+  function scheduleContinuousRepaint(): void {
+    const mode = needsContinuousRepaint(performance.now());
+    if (!mode) return;
+    if (animationFrameId !== null) return;
+    if (mode === 'ambient' && ambientDelayId !== null) return;
+
+    const delay =
+      mode === 'full' ? 0 : Math.max(0, AMBIENT_FRAME_MS - (performance.now() - lastPaintAt));
+    if (delay <= 1) {
+      scheduleAnimationFrame();
+      return;
+    }
+    ambientDelayId = window.setTimeout(() => {
+      ambientDelayId = null;
+      scheduleAnimationFrame();
+    }, delay);
   }
 
   function syncPressureRepaint(): void {
@@ -254,14 +389,7 @@ export function createGameCanvas(
       stopPressureRepaint();
       return;
     }
-    if (pressureRepaintId !== null) return;
-    pressureRepaintId = window.setInterval(() => {
-      if (!getScrollPressureFn?.() || currentStatus !== 'playing') {
-        stopPressureRepaint();
-        return;
-      }
-      paint();
-    }, 100);
+    scheduleContinuousRepaint();
   }
 
   function scheduleAnimationFrame(): void {
@@ -417,6 +545,25 @@ export function createGameCanvas(
       }
 
       if (fx.kind === 'explode') {
+        if (t < 0.42) {
+          const flash = getGameCutout('mine-hit-flash');
+          if (flash) {
+            const flashAlpha = (1 - t / 0.42) * 0.92;
+            effectCtx.save();
+            effectCtx.globalAlpha = flashAlpha;
+            drawImageContained(
+              effectCtx,
+              flash,
+              x,
+              y,
+              grid.cellSize,
+              grid.cellSize,
+              GAME_ASSET_TUNING.cutouts.mineScale,
+            );
+            effectCtx.restore();
+          }
+        }
+
         const alpha = 1 - t;
         const radius = grid.cellSize * (0.35 + t * 1.15);
         const glow = effectCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
@@ -565,6 +712,8 @@ export function createGameCanvas(
       scrollPressure,
       aiHint: currentAiHint,
       previewRows: currentPreviewRows > 0 ? currentPreviewRows : undefined,
+      nowMs: now,
+      pointer: boardPointer,
       ...(fullscreen
         ? {}
         : {
@@ -574,38 +723,49 @@ export function createGameCanvas(
     };
 
     if (fullscreen) {
-      spaceKeyRect = null;
       startRect = null;
       retryRect = null;
       devAutoRect = null;
       ctx.clearRect(0, 0, width, height);
-      drawModernBackground(ctx, width, height);
+      drawShellBackground(ctx);
       ctx.save();
       ctx.translate(boardOffsetX, boardOffsetY);
     }
 
+    const boardState = {
+      ...renderState,
+      rows: currentRows,
+      cols: currentCols,
+    };
+
     if (fullscreen) {
-      renderBoardOnlyFrame(ctx, squareLayout!, {
-        ...renderState,
-        rows: currentRows,
-        cols: currentCols,
-      });
+      ensureBoardLayerCache(boardState);
+      if (boardLayerCache) {
+        ctx.drawImage(boardLayerCache, 0, 0);
+      } else {
+        renderBoardStaticFrame(ctx, squareLayout!, boardState);
+      }
+      renderBoardDynamicFrame(ctx, squareLayout!, boardState);
     } else {
-      renderFrame(ctx, squareLayout!, {
-        ...renderState,
-        rows: currentRows,
-        cols: currentCols,
-      });
+      renderFrame(ctx, squareLayout!, boardState);
     }
 
     drawCellEffects(ctx, now);
+    fpsMeter.tick(now);
+    const fps = fpsMeter.getFps();
+    const frameMs = fpsMeter.getFrameMs();
 
     if (fullscreen) {
       ctx.restore();
       drawFullscreenOverlay(ctx, fullscreen, width, height);
-      drawFullscreenHud(ctx, fullscreen, width, height);
+      drawFullscreenHud(ctx, fullscreen, width, height, fps, frameMs);
+    } else {
+      drawFpsHud(ctx, width - 8, 8, fps, frameMs, 1);
     }
+
+    lastPaintAt = now;
     syncPressureRepaint();
+    scheduleContinuousRepaint();
   }
 
   function roundedPath(x: number, y: number, w: number, h: number, r: number): void {
@@ -800,41 +960,21 @@ export function createGameCanvas(
     pressure: ScrollPressureState | undefined,
     scale: number,
   ): void {
-    const pulse = 0.5 + Math.sin(Date.now() / 170) * 0.5;
+    const flash = 0.32 + Math.sin(Date.now() / 520) * 0.32;
     const urgent = Boolean(pressure?.urgent);
     const cx = rect.x + rect.w / 2;
     const cy = rect.y + rect.h / 2;
-    const alpha = urgent ? 0.62 + pulse * 0.34 : 0.42 + pulse * 0.28;
-    const color = urgent ? '#fef08a' : '#dbeafe';
-    const glow = urgent ? 'rgba(250, 204, 21, 0.55)' : 'rgba(96, 165, 250, 0.42)';
-    const rail = urgent
-      ? `rgba(250, 204, 21, ${0.28 + pulse * 0.35})`
-      : `rgba(96, 165, 250, ${0.18 + pulse * 0.26})`;
-    const railW = Math.max(9 * scale, rect.w * 0.24);
-    const railGap = Math.max(18 * scale, rect.w * 0.42);
 
     shellCtx.save();
-    shellCtx.globalAlpha = alpha;
-    shellCtx.shadowColor = glow;
-    shellCtx.shadowBlur = ((urgent ? 12 : 8) + pulse * 4) * scale;
-    shellCtx.strokeStyle = rail;
-    shellCtx.lineWidth = Math.max(1, 1.2 * scale);
-    shellCtx.lineCap = 'round';
-    shellCtx.beginPath();
-    shellCtx.moveTo(cx - railGap - railW, cy + 7 * scale);
-    shellCtx.lineTo(cx - railGap, cy + 7 * scale);
-    shellCtx.moveTo(cx + railGap, cy + 7 * scale);
-    shellCtx.lineTo(cx + railGap + railW, cy + 7 * scale);
-    shellCtx.stroke();
-
-    shellCtx.fillStyle = color;
-    shellCtx.font = `900 ${Math.max(9, 10 * scale)}px ${FONTS.display}`;
+    shellCtx.globalAlpha = flash;
+    shellCtx.fillStyle = urgent ? '#fef08a' : '#cbd5e1';
+    shellCtx.font = `600 ${Math.max(9, 10 * scale)}px ${FONTS.mono}`;
     shellCtx.textAlign = 'center';
     shellCtx.textBaseline = 'middle';
     shellCtx.fillText('SPACE', cx, cy);
     shellCtx.restore();
 
-    if (currentStatus === 'playing') scheduleAnimationFrame();
+    scheduleContinuousRepaint();
   }
 
   function drawBottomEnergyRail(
@@ -912,28 +1052,27 @@ export function createGameCanvas(
       shellCtx.fillRect(mx - 0.5 * scale, y - 6 * scale, Math.max(1, scale), 12 * scale);
     }
     shellCtx.restore();
-
-    if (currentStatus === 'playing') scheduleAnimationFrame();
   }
 
   function getSpaceHintRect(pressure: ScrollPressureState | undefined): { x: number; y: number; w: number; h: number } | null {
     if (!stageLayout || !squareLayout) return null;
     const scale = stageLayout.scale;
-    const hintW = (stageLayout.viewportW < 560 ? 52 : 60) * scale;
-    const hintH = (stageLayout.viewportW < 560 ? 16 : 18) * scale;
+    const grid = squareLayout.grid;
     const coveredRows = Math.max(1, Math.min(currentRows, Math.floor(pressure?.batchRows ?? 1)));
     const dangerTop =
       boardOffsetY +
       squareLayout.gridOriginY +
-      (currentRows - coveredRows) * squareLayout.grid.cellStep -
+      (currentRows - coveredRows) * grid.cellStep -
       2;
-    const preferredY = pressure
-      ? dangerTop - hintH - 4 * scale
-      : boardOffsetY + boardHeight - hintH - 18 * scale;
+    const hintH = Math.max(12 * scale, grid.cellSize * 0.28);
+    const hintW = grid.cellStep * 2;
+    const gridLeft = boardOffsetX + squareLayout.gridOriginX;
+    const hintX = gridLeft + (boardWidth - hintW) / 2;
+    const hintY = dangerTop - hintH - 4 * scale;
     const minY = boardOffsetY + squareLayout.gridOriginY + 4 * scale;
     return {
-      x: boardOffsetX + boardWidth / 2 - hintW / 2,
-      y: Math.max(minY, preferredY),
+      x: hintX,
+      y: Math.max(minY, hintY),
       w: hintW,
       h: hintH,
     };
@@ -945,6 +1084,10 @@ export function createGameCanvas(
     active: boolean,
     scale: number,
   ): void {
+    if (drawUiPanelImage(shellCtx, active ? 'auto-on' : 'auto-off', rect.x, rect.y, rect.w, rect.h, 0.98)) {
+      return;
+    }
+
     drawArcadePanel(
       shellCtx,
       rect.x,
@@ -1015,6 +1158,8 @@ export function createGameCanvas(
     shell: GameCanvasFullscreenOptions,
     shellW: number,
     _shellH: number,
+    fps: number,
+    frameMs: number,
   ): void {
     if (!stageLayout) return;
     const stats = shell.getStats?.();
@@ -1040,7 +1185,14 @@ export function createGameCanvas(
     drawComboHud(shellCtx, stage.countdownAnchor.x, hudY, stats?.combo ?? 0, scale);
     drawLivesHud(shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale);
 
-    spaceKeyRect = null;
+    const livesParsed = parseLivesDisplay(livesRaw);
+    if (livesParsed) {
+      if (lastLivesCurrent >= 0 && livesParsed.current > lastLivesCurrent) {
+        heartRefillFxStartedAt = performance.now();
+        scheduleAnimationFrame();
+      }
+      lastLivesCurrent = livesParsed.current;
+    }
 
     if (stats?.devAutoVisible) {
       const { x: autoX, y: autoY, w: autoW, h: autoH } = stage.autoRect;
@@ -1048,6 +1200,74 @@ export function createGameCanvas(
       const active = Boolean(stats.devAutoActive);
       drawDevAutoButton(shellCtx, devAutoRect, active, scale);
     }
+
+    drawFpsHud(shellCtx, shellW - 10 * scale, barY + 2 * scale, fps, frameMs, scale);
+  }
+
+  function drawHeartRefillFx(shellCtx: CanvasRenderingContext2D, _shellW: number, _shellH: number): void {
+    if (heartRefillFxStartedAt <= 0 || !stageLayout) return;
+    const durationMs = GAME_ASSET_TUNING.fx.heartRefillHud.durationMs;
+    const t = Math.min(1, (performance.now() - heartRefillFxStartedAt) / durationMs);
+    if (t >= 1) {
+      heartRefillFxStartedAt = 0;
+      return;
+    }
+    const alpha = Math.max(0, 1 - t);
+    const stageScale = stageLayout.scale;
+    const anchor = stageLayout.livesAnchor;
+    const cx = anchor.x - 28 * stageScale;
+    const cy = anchor.y + 34 * stageScale;
+
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    drawFxFrame(
+      shellCtx,
+      'heart-refill',
+      t,
+      cx,
+      cy,
+      52 * stageScale * GAME_ASSET_TUNING.fx.heartRefillHud.spriteW,
+      52 * stageScale * GAME_ASSET_TUNING.fx.heartRefillHud.spriteH,
+      GAME_ASSET_TUNING.fx.heartRefillHud.spriteAlpha,
+    );
+    drawUiPanelImage(shellCtx, 'heal-chip', cx - 36 * stageScale, cy - 52 * stageScale, 72 * stageScale, 28 * stageScale, 1);
+    const refillCutout = getGameCutout('heart-refill');
+    if (refillCutout) {
+      drawImageContained(shellCtx, refillCutout, cx - 20 * stageScale, cy - 20 * stageScale, 40 * stageScale, 40 * stageScale, 1);
+    }
+    shellCtx.restore();
+
+    if (t < 1) scheduleAnimationFrame();
+  }
+
+  function drawLevelUpFx(shellCtx: CanvasRenderingContext2D, shellW: number, shellH: number): void {
+    if (levelUpFxStartedAt <= 0) return;
+    const durationMs = GAME_ASSET_TUNING.fx.levelUp.durationMs;
+    const t = Math.min(1, (performance.now() - levelUpFxStartedAt) / durationMs);
+    if (t >= 1) {
+      levelUpFxStartedAt = 0;
+      return;
+    }
+    const alpha = Math.max(0, 1 - t * 0.85);
+    const stageScale = stageLayout?.scale ?? 1;
+    const cx = shellW / 2;
+    const cy = shellH * 0.38;
+
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    drawFxFrame(
+      shellCtx,
+      'level-up',
+      t,
+      cx,
+      cy,
+      180 * stageScale * GAME_ASSET_TUNING.fx.levelUp.spriteW,
+      120 * stageScale * GAME_ASSET_TUNING.fx.levelUp.spriteH,
+      GAME_ASSET_TUNING.fx.levelUp.spriteAlpha,
+    );
+    shellCtx.restore();
+
+    if (t < 1) scheduleAnimationFrame();
   }
 
   function comboColor(combo: number): { fill: string; stroke: string; glow: string; text: string } {
@@ -1197,6 +1417,7 @@ export function createGameCanvas(
     shellCtx.translate(cx, cy);
     shellCtx.scale(scale, scale);
     drawFxFrame(shellCtx, 'wrong-flag-break', t, 0, 6, 190 * stageScale, 108 * stageScale, GAME_ASSET_TUNING.fx.break.spriteAlpha);
+    drawUiPanelImage(shellCtx, 'break-chip', -52 * stageScale, -42 * stageScale, 104 * stageScale, 32 * stageScale, 1);
     shellCtx.textAlign = 'center';
     shellCtx.textBaseline = 'middle';
     shellCtx.shadowColor = 'rgba(239, 68, 68, 0.9)';
@@ -1237,9 +1458,20 @@ export function createGameCanvas(
 
     if (combo !== lastCombo) {
       if (combo > lastCombo && combo > 1) spawnComboParticles(combo);
+      const levelThresholds = [10, 20, 50];
+      for (const threshold of levelThresholds) {
+        if (lastCombo < threshold && combo >= threshold) {
+          levelUpFxStartedAt = performance.now();
+          scheduleAnimationFrame();
+          break;
+        }
+      }
       lastCombo = combo;
       if (combo > 1) comboFxStartedAt = performance.now();
     }
+
+    drawHeartRefillFx(shellCtx, shellW, shellH);
+    drawLevelUpFx(shellCtx, shellW, shellH);
 
     drawBottomEnergyRail(shellCtx, scrollPressure, shellW, shellH);
     drawFullscreenScrollWarning(shellCtx, scrollPressure, shellW, shellH);
@@ -1247,9 +1479,11 @@ export function createGameCanvas(
     drawScoreEvent(shellCtx, activeScoreEvent, scoreFxStartedAt, shellW);
     drawBreakEvent(shellCtx, activeBreakEvent, breakFxStartedAt, shellW, shellH);
 
-    spaceKeyRect = stats?.spaceEnabled ? getSpaceHintRect(scrollPressure) : null;
-    if (spaceKeyRect) {
-      drawSpaceHint(shellCtx, spaceKeyRect, scrollPressure, stageLayout?.scale ?? 1);
+    if (stats?.spaceEnabled) {
+      const spaceRect = getSpaceHintRect(scrollPressure);
+      if (spaceRect) {
+        drawSpaceHint(shellCtx, spaceRect, scrollPressure, stageLayout?.scale ?? 1);
+      }
     }
 
     if (combo > 1 && comboFxStartedAt > 0) {
@@ -1416,7 +1650,9 @@ export function createGameCanvas(
     shellCtx.save();
     shellCtx.fillStyle = THEME.overlayScrim;
     shellCtx.fillRect(0, 0, shellW, shellH);
-    drawArcadePanel(shellCtx, x, y, modalW, modalH, 'rgba(59, 130, 246, 0.72)', 'rgba(3, 8, 18, 0.96)');
+    if (!drawUiPanelImage(shellCtx, 'log-panel', x, y, modalW, modalH, 1.02)) {
+      drawArcadePanel(shellCtx, x, y, modalW, modalH, 'rgba(59, 130, 246, 0.72)', 'rgba(3, 8, 18, 0.96)');
+    }
     drawArcadeGlow(shellCtx, x + 10, y + 10, modalW - 20, modalH - 20, 'rgba(59, 130, 246, 0.46)', 0.7);
     shellCtx.fillStyle = '#60a5fa';
     shellCtx.font = `800 18px ${FONTS.display}`;
@@ -1485,8 +1721,23 @@ export function createGameCanvas(
     return (event.buttons & 1) !== 0 && (event.buttons & 2) !== 0;
   }
 
+  function updateBoardPointer(x: number, y: number, pressed: boolean): void {
+    if (currentStatus !== 'playing') {
+      boardPointer = null;
+      return;
+    }
+    const cell = cellAtCoords(x, y);
+    if (cell) {
+      boardPointer = { row: cell.row, col: cell.col, pressed };
+      scheduleAnimationFrame();
+      return;
+    }
+    if (!pressed) boardPointer = null;
+  }
+
   function onMouseDown(event: MouseEvent): void {
     const { x, y } = canvasCoords(event);
+    if (event.button === 0) updateBoardPointer(x, y, true);
 
     if (fullscreen?.isLogOpen?.()) return;
 
@@ -1536,19 +1787,6 @@ export function createGameCanvas(
       return;
     }
 
-    if (fullscreen && spaceKeyRect) {
-      const insideSpace =
-        x >= spaceKeyRect.x &&
-        x <= spaceKeyRect.x + spaceKeyRect.w &&
-        y >= spaceKeyRect.y &&
-        y <= spaceKeyRect.y + spaceKeyRect.h;
-      if (insideSpace) {
-        event.preventDefault();
-        fullscreen.onSpace?.();
-        return;
-      }
-    }
-
     if (hitReset(x, y)) {
       if (event.button === 0) callbacks.onReset();
       return;
@@ -1589,7 +1827,28 @@ export function createGameCanvas(
     }
   }
 
+  function onMouseMove(event: MouseEvent): void {
+    const { x, y } = canvasCoords(event);
+    const pressed = (event.buttons & 1) !== 0;
+    updateBoardPointer(x, y, pressed);
+  }
+
+  function onMouseUp(event: MouseEvent): void {
+    if (event.button === 0) {
+      const { x, y } = canvasCoords(event);
+      updateBoardPointer(x, y, false);
+    }
+  }
+
+  function onMouseLeave(): void {
+    boardPointer = null;
+  }
+
   canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('mouseleave', onMouseLeave);
+  window.addEventListener('mouseup', onMouseUp);
   canvas.addEventListener('contextmenu', onContextMenu);
   canvas.addEventListener('dblclick', onDoubleClick);
   if (fullscreen) {
@@ -1615,6 +1874,7 @@ export function createGameCanvas(
         particles.length = 0;
         lastCombo = 0;
         comboFxStartedAt = 0;
+        boardLayerCacheKey = '';
       }
 
       currentViews = views;
@@ -1650,6 +1910,10 @@ export function createGameCanvas(
       this.stopTimer();
       stopPressureRepaint();
       canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mousemove', onMouseMove);
+      canvas.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('mouseleave', onMouseLeave);
+      window.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('contextmenu', onContextMenu);
       canvas.removeEventListener('dblclick', onDoubleClick);
       if (fullscreen) {

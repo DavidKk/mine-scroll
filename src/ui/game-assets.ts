@@ -113,6 +113,41 @@ export const GAME_ASSET_TUNING = {
       spriteAlpha: 0.46,
       flashAlpha: 0.18,
     },
+    cellBreath: {
+      cycleMs: 2400,
+      spriteW: 1.62,
+      spriteH: 1.62,
+      spriteAlpha: 0.38,
+    },
+    cellHover: {
+      spriteW: 1.68,
+      spriteH: 1.68,
+      spriteAlpha: 0.52,
+    },
+    digitParticles: {
+      cycleMs: 1800,
+      spriteW: 1.48,
+      spriteH: 1.48,
+      spriteAlpha: 0.34,
+    },
+    flagWave: {
+      cycleMs: 1500,
+      spriteW: 1.55,
+      spriteH: 1.15,
+      spriteAlpha: 0.42,
+    },
+    heartRefillHud: {
+      durationMs: 820,
+      spriteW: 1.2,
+      spriteH: 1.2,
+      spriteAlpha: 0.58,
+    },
+    levelUp: {
+      durationMs: 900,
+      spriteW: 1.35,
+      spriteH: 1.35,
+      spriteAlpha: 0.48,
+    },
   },
 } as const;
 
@@ -270,4 +305,29 @@ export function drawImageContained(
   const dw = sourceW * fit;
   const dh = sourceH * fit;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+export function drawFxSpriteFrame(
+  ctx: CanvasRenderingContext2D,
+  name: GameFxName,
+  progress: number,
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  alphaScale = 1,
+): boolean {
+  const frames = getGameFxFrames(name);
+  if (!frames || frames.length === 0) return false;
+  const t = Math.max(0, Math.min(1, progress));
+  const index = Math.min(frames.length - 1, Math.floor(t * frames.length));
+  const frame = frames[index];
+  if (!frame) return false;
+
+  ctx.save();
+  ctx.globalCompositeOperation = getGameFxBlendMode(name);
+  ctx.globalAlpha = alphaScale * Math.max(0, Math.min(1, 1 - Math.max(0, t - 0.72) / 0.28));
+  drawImageContained(ctx, frame, cx - w / 2, cy - h / 2, w, h, 1);
+  ctx.restore();
+  return true;
 }
