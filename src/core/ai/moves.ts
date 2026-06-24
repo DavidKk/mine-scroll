@@ -177,7 +177,7 @@ function pickCertainFlags(
     pick.row,
     pick.col,
     'certain',
-    board.endless ? (onBottom ? '底行必雷' : '必雷') : '必雷',
+    board.endless ? (onBottom ? 'Bottom row certain mine' : 'Certain mine') : 'Certain mine',
   );
 }
 
@@ -207,7 +207,7 @@ function pickCertainReveals(
     pick.row,
     pick.col,
     'certain',
-    board.endless ? (onBottom ? '底行开格' : '必安全') : '必安全',
+    board.endless ? (onBottom ? 'Bottom row reveal' : 'Safe reveal') : 'Safe reveal',
   );
 }
 
@@ -229,7 +229,7 @@ function pickCertainChord(
     pick.row,
     pick.col,
     'certain',
-    board.endless ? '底行 Chord' : 'Chord 可展开',
+    board.endless ? 'Bottom row chord' : 'Chord expandable',
   );
 }
 
@@ -262,7 +262,7 @@ function pickCspMove(
       row,
       col,
       'certain',
-      bottomEmergency ? '底行临期 · 必雷插旗' : '必雷插旗',
+      bottomEmergency ? 'Bottom row urgent · flag mine' : 'Flag certain mine',
     );
   }
 
@@ -277,7 +277,7 @@ function pickCspMove(
       row,
       col,
       'certain',
-      bottomEmergency ? '底行临期开格' : '必安全',
+      bottomEmergency ? 'Bottom row urgent reveal' : 'Safe reveal',
     );
   }
 
@@ -293,7 +293,7 @@ function pickCspMove(
       pick.row,
       pick.col,
       'certain',
-      bottomEmergency ? '底行开格' : '必安全',
+      bottomEmergency ? 'Bottom row urgent reveal' : 'Safe reveal',
     );
   }
 
@@ -306,10 +306,10 @@ function pickCspMove(
     pick.col,
     'guess',
     bottomEmergency
-      ? `底行临期 · 概率 ${pct}%`
+      ? `Bottom row urgent · prob ${pct}%`
       : board.endless
-        ? `概率猜雷 ${pct}%`
-        : `猜雷 ${pct}%`,
+        ? `Probabilistic mine guess ${pct}%`
+        : `Guess mine ${pct}%`,
   );
 }
 
@@ -353,7 +353,7 @@ function pickFrontierEdge(
       pick.row,
       pick.col,
       'certain',
-      board.endless && onBottom ? '底行开格' : '必安全',
+      board.endless && onBottom ? 'Bottom row reveal' : 'Safe reveal',
     );
   }
 
@@ -366,11 +366,11 @@ function pickFrontierEdge(
       if (!best || p < best.prob) best = { ...c, prob: p };
     }
     if (best && best.prob <= 1e-9) {
-      return makeMove('reveal', best.row, best.col, 'certain', '必安全');
+      return makeMove('reveal', best.row, best.col, 'certain', 'Safe reveal');
     }
     if (best && guessAllowed(Boolean(board.endless), lives, best.prob, false)) {
       const pct = Math.round(best.prob * 1000) / 10;
-      return makeMove('reveal', best.row, best.col, 'guess', `前沿探路 ${pct}%`);
+      return makeMove('reveal', best.row, best.col, 'guess', `Frontier probe ${pct}%`);
     }
   }
 
@@ -381,11 +381,11 @@ function pickFrontierEdge(
     if (!fallback || prob < fallback.prob) fallback = { ...c, prob };
   }
   if (fallback && fallback.prob <= 1e-9) {
-    return makeMove('reveal', fallback.row, fallback.col, 'certain', '必安全');
+    return makeMove('reveal', fallback.row, fallback.col, 'certain', 'Safe reveal');
   }
   if (fallback && guessAllowed(Boolean(board.endless), lives, fallback.prob, bottomEmergency)) {
     const pct = Math.round(fallback.prob * 1000) / 10;
-    return makeMove('reveal', fallback.row, fallback.col, 'guess', `线索探路 ${pct}%`);
+    return makeMove('reveal', fallback.row, fallback.col, 'guess', `Clue probe ${pct}%`);
   }
 
   return null;
@@ -467,8 +467,8 @@ function pickExpansion(
 
   if (!pick) return null;
   const pct = Math.round(estimatedRisk * 1000) / 10;
-  const label = forcedUnknown ? '破局 · 全未知' : '开拓';
-  return makeMove('reveal', pick.row, pick.col, 'guess', `${label} · 估算 ${pct}%`);
+  const label = forcedUnknown ? 'Breakthrough · all unknown' : 'Expansion';
+  return makeMove('reveal', pick.row, pick.col, 'guess', `${label} · est. ${pct}%`);
 }
 
 function pickLastResortBreakthrough(
@@ -497,7 +497,7 @@ function pickLastResortBreakthrough(
 
   if (frontier) {
     if (frontier.prob <= 1e-9) {
-      return makeMove('reveal', frontier.row, frontier.col, 'certain', '必安全');
+      return makeMove('reveal', frontier.row, frontier.col, 'certain', 'Safe reveal');
     }
     const pct = Math.round(frontier.prob * 1000) / 10;
     return makeMove(
@@ -505,7 +505,7 @@ function pickLastResortBreakthrough(
       frontier.row,
       frontier.col,
       'guess',
-      `保命破局 · 估算 ${pct}%`,
+      `Emergency salvage · est. ${pct}%`,
     );
   }
 
@@ -520,7 +520,7 @@ function pickLastResortBreakthrough(
 
   const pick = pickBest(candidates, board);
   if (!pick) return null;
-  return makeMove('reveal', pick.row, pick.col, 'guess', '保命破局 · 无线索');
+  return makeMove('reveal', pick.row, pick.col, 'guess', 'Emergency salvage · no clues');
 }
 
 export function pickTacticalMove(
@@ -541,18 +541,18 @@ export function pickTacticalMove(
       excess.row,
       excess.col,
       'certain',
-      endless && excess.row === bottom ? '底行错旗纠正' : '错旗纠正',
+      endless && excess.row === bottom ? 'Bottom row wrong-flag fix' : 'Wrong-flag fix',
     );
   }
 
   const contradictory = findContradictoryFlagMove(board, deduced.mines);
   if (contradictory && !isFlagBlocked(blocks, contradictory.row, contradictory.col)) {
-    return makeMove('unflag', contradictory.row, contradictory.col, 'certain', '矛盾旗纠正');
+    return makeMove('unflag', contradictory.row, contradictory.col, 'certain', 'Contradictory flag fix');
   }
 
   const misflagged = findMisflaggedSafeMove(board, deduced.safe, deduced.mines);
   if (misflagged) {
-    return makeMove('unflag', misflagged.row, misflagged.col, 'certain', '错旗·实为安全');
+    return makeMove('unflag', misflagged.row, misflagged.col, 'certain', 'Wrong flag · actually safe');
   }
 
   const flag = pickCertainFlags(board, deduced, blocks, null);

@@ -24,16 +24,15 @@ import {
   type ScrollPressureState,
   type RenderState,
 } from '../renderer/index.ts';
-import type { BoardPointerState } from '../cell-fx.ts';
+import { drawMineBurstSmoke, type BoardPointerState } from '../cell-fx.ts';
 import { FpsMeter, drawFpsHud } from '../fps-meter.ts';
 import {
   GAME_ASSET_TUNING,
+  drawFxSpriteFrame,
+  drawGameMineCutout,
   drawImageContained,
   getGameCutout,
-  getGameFxBlendMode,
-  getGameFxFrames,
   getGameUiPanel,
-  type GameFxName,
   type GameUiPanelName,
 } from '../game-assets.ts';
 import {
@@ -186,11 +185,12 @@ export function createGameCanvas(
   let ambientDelayId: number | null = null;
   let lastPaintAt = 0;
   const fpsMeter = new FpsMeter();
-  /** 环境动效（呼吸/旗子/数字粒子）目标帧率：最低 20 FPS */
+  /** Ambient FX (breath / flags / digit particles) target rate: min 20 FPS */
   const AMBIENT_FRAME_MS = 1000 / 20;
   let boardLayerCache: HTMLCanvasElement | null = null;
   let boardLayerCacheCtx: CanvasRenderingContext2D | null = null;
   let boardLayerCacheKey = '';
+  let boardLayerCacheDpr = 0;
   let shellBgCache: HTMLCanvasElement | null = null;
   let shellBgCacheKey = '';
   let boardPointer: BoardPointerState | null = null;
@@ -255,8 +255,8 @@ export function createGameCanvas(
     boardHeight = squareLayout!.height;
     if (fullscreen) {
       stageLayout = computeGameStageLayout(width, height, boardWidth, boardHeight);
-      boardOffsetX = stageLayout.boardX;
-      boardOffsetY = stageLayout.boardY;
+      boardOffsetX = Math.round(stageLayout.boardX);
+      boardOffsetY = Math.round(stageLayout.boardY);
     }
   }
 
@@ -330,20 +330,30 @@ export function createGameCanvas(
   ): void {
     const layout = squareLayout!;
     const key = computeBoardLayerCacheKey(state);
-    if (key === boardLayerCacheKey && boardLayerCache) return;
+    const dpr = window.devicePixelRatio || 1;
+    const cacheW = Math.round(layout.width * dpr);
+    const cacheH = Math.round(layout.height * dpr);
 
     if (
+      key !== boardLayerCacheKey ||
       !boardLayerCache ||
-      boardLayerCache.width !== layout.width ||
-      boardLayerCache.height !== layout.height
+      boardLayerCache.width !== cacheW ||
+      boardLayerCache.height !== cacheH ||
+      boardLayerCacheDpr !== dpr
     ) {
       boardLayerCache = document.createElement('canvas');
-      boardLayerCache.width = layout.width;
-      boardLayerCache.height = layout.height;
+      boardLayerCache.width = cacheW;
+      boardLayerCache.height = cacheH;
       boardLayerCacheCtx = boardLayerCache.getContext('2d');
+      boardLayerCacheDpr = dpr;
+      boardLayerCacheKey = '';
     }
+    if (key === boardLayerCacheKey && boardLayerCache) return;
+
     if (!boardLayerCacheCtx) return;
 
+    boardLayerCacheCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    boardLayerCacheCtx.imageSmoothingEnabled = false;
     renderBoardStaticFrame(boardLayerCacheCtx, layout, {
       ...state,
       nowMs: 0,
@@ -475,7 +485,7 @@ export function createGameCanvas(
       const cy = y + grid.cellSize / 2;
 
       if (fx.kind === 'reveal') {
-        drawFxFrame(
+        drawFxSpriteFrame(
           effectCtx,
           'safe-reveal',
           t,
@@ -486,7 +496,7 @@ export function createGameCanvas(
           GAME_ASSET_TUNING.fx.safeReveal.spriteAlpha,
         );
       } else if (fx.kind === 'flag') {
-        drawFxFrame(
+        drawFxSpriteFrame(
           effectCtx,
           'flag-pop',
           t,
@@ -497,7 +507,8 @@ export function createGameCanvas(
           GAME_ASSET_TUNING.fx.flagPop.spriteAlpha,
         );
       } else if (fx.kind === 'explode') {
-        drawFxFrame(
+        const blastFade = 1 - Math.max(0, (t - 0.42) / 0.58) ** 2;
+        drawFxSpriteFrame(
           effectCtx,
           'mine-explosion',
           t,
@@ -505,7 +516,7 @@ export function createGameCanvas(
           cy,
           grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteW,
           grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteH,
-          GAME_ASSET_TUNING.fx.mineExplosion.spriteAlpha,
+          GAME_ASSET_TUNING.fx.mineExplosion.spriteAlpha * blastFade,
         );
       }
 
@@ -551,15 +562,7 @@ export function createGameCanvas(
             const flashAlpha = (1 - t / 0.42) * 0.92;
             effectCtx.save();
             effectCtx.globalAlpha = flashAlpha;
-            drawImageContained(
-              effectCtx,
-              flash,
-              x,
-              y,
-              grid.cellSize,
-              grid.cellSize,
-              GAME_ASSET_TUNING.cutouts.mineScale,
-            );
+            drawGameMineCutout(effectCtx, flash, x, y, grid.cellSize);
             effectCtx.restore();
           }
         }
@@ -587,35 +590,13 @@ export function createGameCanvas(
           effectCtx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
           effectCtx.stroke();
         }
+
+        drawMineBurstSmoke(effectCtx, cx, cy, grid.cellSize, t, 0.88);
       }
     }
     effectCtx.restore();
 
     if (cellEffects.length > 0) scheduleAnimationFrame();
-  }
-
-  function drawFxFrame(
-    fxCtx: CanvasRenderingContext2D,
-    name: GameFxName,
-    t: number,
-    cx: number,
-    cy: number,
-    w: number,
-    h: number,
-    alphaScale = 1,
-  ): boolean {
-    const frames = getGameFxFrames(name);
-    if (!frames || frames.length === 0) return false;
-    const index = Math.min(frames.length - 1, Math.floor(t * frames.length));
-    const frame = frames[index];
-    if (!frame) return false;
-
-    fxCtx.save();
-    fxCtx.globalCompositeOperation = getGameFxBlendMode(name);
-    fxCtx.globalAlpha = alphaScale * Math.max(0, Math.min(1, 1 - Math.max(0, t - 0.72) / 0.28));
-    drawImageContained(fxCtx, frame, cx - w / 2, cy - h / 2, w, h, 1);
-    fxCtx.restore();
-    return true;
   }
 
   function cellPixelForFx(
@@ -631,7 +612,7 @@ export function createGameCanvas(
     };
   }
 
-  /** 消雷连击反馈锚点：底行离屏区（与卷轴触发带对齐） */
+  /** Defuse combo feedback anchor: bottom row scroll-off band */
   function getComboFeedbackAnchor(): { x: number; y: number } {
     return getBottomFeedbackSlots().comboBurst;
   }
@@ -741,7 +722,10 @@ export function createGameCanvas(
     if (fullscreen) {
       ensureBoardLayerCache(boardState);
       if (boardLayerCache) {
-        ctx.drawImage(boardLayerCache, 0, 0);
+        const prevSmooth = ctx.imageSmoothingEnabled;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(boardLayerCache, 0, 0, squareLayout!.width, squareLayout!.height);
+        ctx.imageSmoothingEnabled = prevSmooth;
       } else {
         renderBoardStaticFrame(ctx, squareLayout!, boardState);
       }
@@ -1167,7 +1151,7 @@ export function createGameCanvas(
     const { scale } = stage;
     const topBarH = stage.hudH;
 
-    // 顶栏全宽贴顶
+    // Full-width HUD pinned to top
     const barX = 0;
     const barY = stage.hudY;
     const barW = shellW;
@@ -1220,7 +1204,7 @@ export function createGameCanvas(
 
     shellCtx.save();
     shellCtx.globalAlpha = alpha;
-    drawFxFrame(
+    drawFxSpriteFrame(
       shellCtx,
       'heart-refill',
       t,
@@ -1255,7 +1239,7 @@ export function createGameCanvas(
 
     shellCtx.save();
     shellCtx.globalAlpha = alpha;
-    drawFxFrame(
+    drawFxSpriteFrame(
       shellCtx,
       'level-up',
       t,
@@ -1371,7 +1355,7 @@ export function createGameCanvas(
     shellCtx.globalAlpha = alpha;
     shellCtx.translate(x, y);
     shellCtx.scale(pop, pop);
-    drawFxFrame(shellCtx, 'score-pop', t, 0, 0, 132 * stageScale, 56 * stageScale, GAME_ASSET_TUNING.fx.scorePop.spriteAlpha);
+    drawFxSpriteFrame(shellCtx, 'score-pop', t, 0, 0, 132 * stageScale, 56 * stageScale, GAME_ASSET_TUNING.fx.scorePop.spriteAlpha);
     shellCtx.textAlign = 'center';
     shellCtx.textBaseline = 'middle';
     shellCtx.shadowColor = palette.stroke;
@@ -1416,7 +1400,7 @@ export function createGameCanvas(
     shellCtx.globalAlpha = alpha;
     shellCtx.translate(cx, cy);
     shellCtx.scale(scale, scale);
-    drawFxFrame(shellCtx, 'wrong-flag-break', t, 0, 6, 190 * stageScale, 108 * stageScale, GAME_ASSET_TUNING.fx.break.spriteAlpha);
+    drawFxSpriteFrame(shellCtx, 'wrong-flag-break', t, 0, 6, 190 * stageScale, 108 * stageScale, GAME_ASSET_TUNING.fx.break.spriteAlpha);
     drawUiPanelImage(shellCtx, 'break-chip', -52 * stageScale, -42 * stageScale, 104 * stageScale, 32 * stageScale, 1);
     shellCtx.textAlign = 'center';
     shellCtx.textBaseline = 'middle';
@@ -1498,16 +1482,22 @@ export function createGameCanvas(
       const palette = comboColor(combo);
       const slots = getBottomFeedbackSlots();
       const cx = slots.comboBurst.x;
-      const cy = slots.comboBurst.y - t * 10 * stageScale;
       const burstW = (isMobile ? 150 : 190) * stageScale;
       const burstH = (isMobile ? 66 : 80) * stageScale;
+      const halfBurstH =
+        burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH * burstScale * 0.5;
+      const railTop = stageLayout?.bottomRailRect.y ?? shellH;
+      const cy = Math.min(
+        slots.comboBurst.y - t * 10 * stageScale,
+        railTop - halfBurstH - 8 * stageScale,
+      );
 
       shellCtx.save();
       shellCtx.globalAlpha = alpha;
       shellCtx.translate(cx, cy);
       shellCtx.scale(burstScale, burstScale);
 
-      drawFxFrame(
+      drawFxSpriteFrame(
         shellCtx,
         'combo-burst',
         t,
@@ -1663,7 +1653,7 @@ export function createGameCanvas(
     shellCtx.fillStyle = THEME.hudMuted;
     shellCtx.font = `500 11px ${FONTS.display}`;
     shellCtx.textAlign = 'right';
-    shellCtx.fillText('` / Esc 关闭', x + modalW - 24, y + 25);
+    shellCtx.fillText('` / Esc close', x + modalW - 24, y + 25);
 
     shellCtx.fillStyle = 'rgba(10, 16, 32, 0.74)';
     fillRounded(x + 18, y + 54, modalW - 36, modalH - 74, 8, 'rgba(10, 16, 32, 0.74)');

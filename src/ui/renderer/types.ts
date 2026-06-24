@@ -3,13 +3,13 @@ import type { AiHintDisplay } from '../../core/ai/types.ts';
 import type { BoardPointerState } from '../cell-fx.ts';
 
 export interface ScrollPressureState {
-  /** 剩余整秒（显示用） */
+  /** Whole seconds remaining (display) */
   seconds: number;
-  /** 0→1，越满越接近上移 */
+  /** 0→1, fuller means closer to scroll */
   progress: number;
-  /** 最后 3 秒高亮 */
+  /** Highlight in the last 3 seconds */
   urgent: boolean;
-  /** 本次卷轴事件会离屏的行数 */
+  /** Rows that will leave the screen in this scroll event */
   batchRows?: number;
 }
 
@@ -22,16 +22,16 @@ export interface RenderState {
   flagCount: number;
   elapsedSeconds: number;
   hudLeftDisplay?: string;
-  /** 覆盖右侧 HUD（无尽模式卷轴倒计时） */
+  /** Override right HUD (endless scroll countdown) */
   hudRightDisplay?: string;
-  /** 无尽卷轴：准备上移压迫感 UI */
+  /** Endless scroll: pre-scroll pressure UI */
   scrollPressure?: ScrollPressureState;
-  /** 无尽：顶缘预览带高度（行） */
+  /** Endless: top preview band height (rows) */
   previewRows?: number;
-  /** AI 建议高亮（屏幕行坐标） */
+  /** AI hint highlight (screen row coords) */
   aiHint?: AiHintDisplay | null;
-  /** 指针悬停格（用于 Hover / 呼吸动效） */
+  /** Pointer hover cell (hover / breath FX) */
   pointer?: BoardPointerState | null;
-  /** 动画时间戳（performance.now） */
+  /** Animation timestamp (performance.now) */
   nowMs?: number;
 }

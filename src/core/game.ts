@@ -1,4 +1,4 @@
-/** @deprecated 使用 `core/modes/engine.ts` */
+/** @deprecated Use `core/modes/engine.ts` */
 export {
   chordAt as chordReveal,
   createSession as createGame,

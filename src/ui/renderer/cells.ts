@@ -1,9 +1,63 @@
 import type { CellView, GameStatus } from '../../core/types.ts';
 import { FONTS, THEME, type GridMetrics } from '../theme.ts';
 import { drawSimpleFlagMark, drawWavingFlagMark, resolveMineCutout } from '../cell-fx.ts';
-import { GAME_ASSET_TUNING, drawImageContained, getGameCutout } from '../game-assets.ts';
+import { GAME_ASSET_TUNING, drawGameMineCutout, getGameCutout } from '../game-assets.ts';
 import { drawSpriteInCell, getTileSprites } from '../tile-sprites.ts';
 import { fillRoundRect, strokeRoundRect } from './primitives.ts';
+
+function drawCellDigit(
+  ctx: CanvasRenderingContext2D,
+  digit: number,
+  x: number,
+  y: number,
+  g: GridMetrics,
+): void {
+  const cx = Math.round(x + g.cellSize / 2);
+  const cy = Math.round(y + g.cellSize / 2);
+  const color = THEME.numbers[digit] ?? THEME.hudText;
+  const fontSize = Math.max(12, Math.round(g.cellSize * 0.5));
+  ctx.save();
+  ctx.font = `700 ${fontSize}px ${FONTS.mono}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  const blurRatio = GAME_ASSET_TUNING.tiles.digitShadowBlurRatio;
+  if (blurRatio > 0) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.max(1, fontSize * blurRatio);
+  }
+  ctx.fillText(String(digit), cx, cy);
+  ctx.restore();
+}
+
+function drawRevealedCellFrame(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  g: GridMetrics,
+): void {
+  strokeRoundRect(
+    ctx,
+    x + 0.5,
+    y + 0.5,
+    g.cellSize - 1,
+    g.cellSize - 1,
+    g.cellRadius,
+    THEME.cellRevealedBorder,
+    Math.max(1, g.cellSize >= 28 ? 1.25 : 1),
+  );
+}
+
+function drawRevealedCellSurface(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  g: GridMetrics,
+  sprites: NonNullable<ReturnType<typeof getTileSprites>>,
+): void {
+  drawSpriteInCell(ctx, sprites.revealed, x, y, g.cellSize);
+  drawRevealedCellFrame(ctx, x, y, g);
+}
 
 function drawHiddenCell(
   ctx: CanvasRenderingContext2D,
@@ -199,12 +253,13 @@ export function drawCell(
       return;
     }
 
+    drawRevealedCellSurface(ctx, x, y, g, sprites);
+
     if (view.isMine) {
-      drawSpriteInCell(ctx, sprites.revealed, x, y, g.cellSize);
       const mineName = resolveMineCutout(status);
       const gameMine = getGameCutout(mineName) ?? getGameCutout('mine-standard');
       if (gameMine) {
-        drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
+        drawGameMineCutout(ctx, gameMine, x, y, g.cellSize);
       } else {
         drawSpriteInCell(ctx, sprites.mine, x, y, g.cellSize);
       }
@@ -212,12 +267,16 @@ export function drawCell(
     }
 
     const n = view.adjacentMines ?? 0;
-    if (n > 0 && n <= sprites.numbers.length) {
-      drawSpriteInCell(ctx, sprites.numbers[n - 1]!, x, y, g.cellSize);
+    if (n > 0) {
+      if (GAME_ASSET_TUNING.tiles.crispDigits) {
+        drawCellDigit(ctx, n, x, y, g);
+      } else {
+        drawSpriteInCell(ctx, sprites.numbers[n - 1]!, x, y, g.cellSize);
+        drawRevealedCellFrame(ctx, x, y, g);
+      }
       return;
     }
 
-    drawRevealedCellBg(ctx, x, y, g);
     return;
   }
 
@@ -235,7 +294,7 @@ export function drawCell(
     const mineName = resolveMineCutout(status);
     const gameMine = getGameCutout(mineName) ?? getGameCutout('mine-standard');
     if (gameMine) {
-      drawImageContained(ctx, gameMine, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.mineScale);
+      drawGameMineCutout(ctx, gameMine, x, y, g.cellSize);
     } else {
       drawMine(ctx, cx, cy, g.cellSize, true);
     }
@@ -243,12 +302,7 @@ export function drawCell(
   }
 
   if (view.adjacentMines && view.adjacentMines > 0) {
-    const color = THEME.numbers[view.adjacentMines] ?? THEME.hudText;
-    const fontSize = Math.max(12, Math.round(g.cellSize * 0.48));
-    ctx.font = `600 ${fontSize}px ${FONTS.mono}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = color;
-    ctx.fillText(String(view.adjacentMines), cx, cy + 0.5);
+    drawCellDigit(ctx, view.adjacentMines, x, y, g);
+    return;
   }
 }

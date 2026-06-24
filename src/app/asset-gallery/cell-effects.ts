@@ -1,5 +1,8 @@
+import { drawProceduralOrbitParticles, drawMineBurstSmoke, drawMineScorchMark, drawMineSettledSmoke } from '../../ui/cell-fx.ts';
 import {
   drawImageContained,
+  GAME_ASSET_TUNING,
+  drawGameMineCutoutAtCenter,
   getGameCutout,
   getGameFxBlendMode,
   getGameFxFrames,
@@ -36,35 +39,42 @@ const BREATH_CYCLE_MS = 2400;
 const FLAG_WAVE_MS = 1500;
 const DIGIT_PARTICLE_MS = 1800;
 const MINE_EXPLOSION_MS = 720;
+/** Match in-game revealed mine scale so armed / blast / exploded stay the same size. */
+const MINE_CUTOUT_SCALE = GAME_ASSET_TUNING.cutouts.mineScale;
+
+function mineBlastPopScale(progress: number): number {
+  if (progress <= 0 || progress >= 1) return 1;
+  return 1 + Math.sin(progress * Math.PI) * 0.035;
+}
 
 const EFFECT_SPECS: EffectCardSpec[] = [
   {
     id: 'cells',
-    title: '方格状态',
-    description: '未开启、开启、Hover 过渡与 idle 呼吸都用 Canvas 绘制，保留游戏内触发手感。',
-    frameTitle: '状态 / 过渡关键帧',
-    liveTitle: '整合预览（Hover + 点击切换开启态）',
+    title: 'Cell states',
+    description: 'Hidden, revealed, hover transitions, and idle breath drawn in Canvas to match in-game feel.',
+    frameTitle: 'State / transition keyframes',
+    liveTitle: 'Live preview (hover + click to toggle open)',
   },
   {
     id: 'digits',
-    title: '数字粒子',
-    description: '数字保留原切片，外圈加入程序粒子与脉冲辉光；不额外产出切图帧。',
-    frameTitle: '粒子周期关键帧',
-    liveTitle: '整合预览（循环 1-8 数字）',
+    title: 'Digit particles',
+    description: 'Digits keep original slices; procedural particles and pulse glow wrap the number.',
+    frameTitle: 'Particle cycle keyframes',
+    liveTitle: 'Live preview (digits 1–8 loop)',
   },
   {
     id: 'flag',
-    title: '旗帜飘扬',
-    description: '旗帜按竖向切片做波形偏移，叠加插旗弹出火花，形成单机游戏式飘扬感。',
-    frameTitle: '飘扬关键帧',
-    liveTitle: '整合预览（循环飘扬）',
+    title: 'Flag wave',
+    description: 'Vertical slice wave on the flag cloth plus flag-pop sparks for an arcade flutter.',
+    frameTitle: 'Wave keyframes',
+    liveTitle: 'Live preview (looping wave)',
   },
   {
     id: 'mine',
-    title: '地雷爆炸',
-    description: '点击先播放爆炸 FX，结束后落到爆炸后的炸弹状态，便于接入踩雷反馈。',
-    frameTitle: '爆炸关键帧',
-    liveTitle: '整合预览（点击引爆）',
+    title: 'Mine explosion',
+    description: 'Click plays a one-shot blast, then smoke and a cracked mine remain — no looping shock ring.',
+    frameTitle: 'Explosion keyframes',
+    liveTitle: 'Live preview (click to detonate)',
   },
 ];
 
@@ -344,29 +354,18 @@ function drawDigitParticles(
   color: string,
   tMs: number,
   seed = 0,
+  cycleMs = DIGIT_PARTICLE_MS,
 ): void {
-  const phase = (tMs % DIGIT_PARTICLE_MS) / DIGIT_PARTICLE_MS;
-  for (let i = 0; i < 18; i += 1) {
-    const spin = phase * Math.PI * 2 + seed * 0.3;
-    const angle = i * 2.399 + spin * (i % 2 === 0 ? 0.42 : -0.28);
-    const drift = Math.sin(spin + i * 1.7) * size * 0.035;
-    const radius = size * (0.32 + (i % 5) * 0.034) + drift;
-    const p = (phase + i * 0.071) % 1;
-    const alpha = 0.2 + Math.sin(p * Math.PI) * 0.72;
-    const dot = size * (0.018 + (i % 3) * 0.006);
-    const x = cx + Math.cos(angle) * radius;
-    const y = cy + Math.sin(angle) * radius * 0.72;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = dot * 5;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, dot, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
+  const phase = (tMs % cycleMs) / cycleMs;
+  drawProceduralOrbitParticles(ctx, cx, cy, size, color, phase, seed, 18, {
+    radiusBase: 0.32,
+    radiusStep: 0.034,
+    dotBase: 0.018,
+    dotStep: 0.006,
+    alphaBase: 0.2,
+    alphaPulse: 0.72,
+    shadow: true,
+  });
 }
 
 function drawDigitScene(
@@ -472,10 +471,10 @@ function drawFlagScene(
   drawWaveImage(ctx, flag, cx - drawW / 2, cy - drawH / 2, drawW, drawH, tMs, cell.size * 0.032);
   ctx.restore();
 
-  drawDigitParticles(ctx, cx, cy, cell.size * 0.82, '#38bdf8', tMs, 3);
+  drawDigitParticles(ctx, cx, cy, cell.size * 0.82, '#38bdf8', tMs, 3, FLAG_WAVE_MS);
 }
 
-function drawFxFrames(
+function drawFxFramesOneShot(
   ctx: CanvasRenderingContext2D,
   frames: HTMLImageElement[] | null,
   blendMode: GlobalCompositeOperation,
@@ -484,11 +483,17 @@ function drawFxFrames(
   w: number,
   h: number,
   progress: number,
+  alphaScale = 1,
 ): void {
-  if (!frames || frames.length === 0) return;
-  const frame = frames[Math.min(frames.length - 1, Math.floor(clamp01(progress) * frames.length))];
+  if (!frames || frames.length === 0 || alphaScale <= 0.01) return;
+  const t = clamp01(progress);
+  if (t <= 0) return;
+  const index = Math.min(frames.length - 1, Math.floor(t * frames.length));
+  const frame = frames[index];
+  if (!frame) return;
   ctx.save();
   ctx.globalCompositeOperation = blendMode;
+  ctx.globalAlpha = alphaScale;
   drawImageContained(ctx, frame, x, y, w, h, 1);
   ctx.restore();
 }
@@ -504,7 +509,7 @@ function drawMineCutout(
   ctx.save();
   ctx.shadowColor = 'rgba(248, 113, 113, 0.72)';
   ctx.shadowBlur = size * 0.1;
-  drawImageContained(ctx, img, cx - size / 2, cy - size / 2, size, size, scale);
+  drawGameMineCutoutAtCenter(ctx, img, cx, cy, size, scale);
   ctx.restore();
 }
 
@@ -541,12 +546,12 @@ function drawMineScene(
     ctx.arc(cx, cy, cell.size * (0.35 + pulse * 0.035), 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-    drawMineCutout(ctx, standard, cx, cy, cell.size, 0.72 + pulse * 0.035);
+    drawMineCutout(ctx, standard, cx, cy, cell.size, MINE_CUTOUT_SCALE);
     return;
   }
 
   if (mode === 'flash') {
-    drawMineCutout(ctx, flash, cx, cy, cell.size, 0.86);
+    drawMineCutout(ctx, flash, cx, cy, cell.size, MINE_CUTOUT_SCALE);
     ctx.save();
     ctx.globalAlpha = 0.46;
     ctx.fillStyle = '#fff7ed';
@@ -559,7 +564,8 @@ function drawMineScene(
 
   if (mode === 'blast') {
     const eased = easeOutCubic(blastProgress);
-    drawFxFrames(
+    const fxAlpha = 1 - easeOutCubic(Math.max(0, (blastProgress - 0.42) / 0.58));
+    drawFxFramesOneShot(
       ctx,
       frames,
       blendMode,
@@ -568,20 +574,24 @@ function drawMineScene(
       cell.size * 1.9,
       cell.size * 1.42,
       eased,
+      fxAlpha,
     );
-    drawMineCutout(ctx, blastProgress > 0.55 ? exploded : flash, cx, cy, cell.size, 0.88 + eased * 0.08);
+    drawMineBurstSmoke(ctx, cx, cy, cell.size, blastProgress, 0.85 + blastProgress * 0.15);
+    const mineImg = blastProgress > 0.55 ? exploded : flash;
+    drawMineCutout(
+      ctx,
+      mineImg,
+      cx,
+      cy,
+      cell.size,
+      MINE_CUTOUT_SCALE * mineBlastPopScale(blastProgress),
+    );
     return;
   }
 
-  ctx.save();
-  ctx.globalAlpha = 0.42;
-  ctx.fillStyle = '#020617';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy + cell.size * 0.12, cell.size * 0.33, cell.size * 0.16, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-  drawFxFrames(ctx, frames, blendMode, cx - cell.size * 0.82, cy - cell.size * 0.64, cell.size * 1.64, cell.size * 1.26, 0.92);
-  drawMineCutout(ctx, exploded, cx, cy, cell.size, 0.86);
+  drawMineScorchMark(ctx, cx, cy, cell.size);
+  drawMineSettledSmoke(ctx, cx, cy, cell.size, tMs, 0.9);
+  drawMineCutout(ctx, exploded, cx, cy, cell.size, MINE_CUTOUT_SCALE);
 }
 
 function createStaticFrameCanvas(
@@ -766,10 +776,10 @@ function createFrames(id: EffectId, sprites: TileSprites): HTMLElement {
 
   if (id === 'cells') {
     const cellFrames: Array<{ label: string; mode: CellMode; t: number }> = [
-      { label: '未开启', mode: 'hidden', t: 0 },
-      { label: '呼吸峰值', mode: 'breath', t: BREATH_CYCLE_MS * 0.25 },
-      { label: 'Hover 完成', mode: 'hover', t: 0 },
-      { label: '开启', mode: 'open', t: 0 },
+      { label: 'Hidden', mode: 'hidden', t: 0 },
+      { label: 'Breath peak', mode: 'breath', t: BREATH_CYCLE_MS * 0.25 },
+      { label: 'Hover done', mode: 'hover', t: 0 },
+      { label: 'Open', mode: 'open', t: 0 },
     ];
     for (const item of cellFrames) {
       frames.append(createStaticFrameCanvas((ctx, w, h) => drawCellScene(ctx, w, h, sprites, item.mode, item.t), item.label));
@@ -779,10 +789,10 @@ function createFrames(id: EffectId, sprites: TileSprites): HTMLElement {
 
   if (id === 'digits') {
     const digitFrames = [
-      { label: '粒子初始', digit: 0, t: 0 },
-      { label: '外扩', digit: 2, t: DIGIT_PARTICLE_MS * 0.33 },
-      { label: '峰值', digit: 4, t: DIGIT_PARTICLE_MS * 0.58 },
-      { label: '收束', digit: 7, t: DIGIT_PARTICLE_MS * 0.82 },
+      { label: 'Particles start', digit: 0, t: 0 },
+      { label: 'Expand', digit: 2, t: DIGIT_PARTICLE_MS * 0.33 },
+      { label: 'Peak', digit: 4, t: DIGIT_PARTICLE_MS * 0.58 },
+      { label: 'Settle', digit: 7, t: DIGIT_PARTICLE_MS * 0.82 },
     ];
     for (const item of digitFrames) {
       frames.append(
@@ -794,10 +804,10 @@ function createFrames(id: EffectId, sprites: TileSprites): HTMLElement {
 
   if (id === 'flag') {
     const flagFrames = [
-      { label: '起风', t: 0 },
-      { label: '左摆', t: FLAG_WAVE_MS * 0.25 },
-      { label: '扬起', t: FLAG_WAVE_MS * 0.5 },
-      { label: '回摆', t: FLAG_WAVE_MS * 0.75 },
+      { label: 'Wind up', t: 0 },
+      { label: 'Swing left', t: FLAG_WAVE_MS * 0.25 },
+      { label: 'Lift', t: FLAG_WAVE_MS * 0.5 },
+      { label: 'Swing back', t: FLAG_WAVE_MS * 0.75 },
     ];
     for (const item of flagFrames) {
       frames.append(createStaticFrameCanvas((ctx, w, h) => drawFlagScene(ctx, w, h, sprites, item.t), item.label));
@@ -806,10 +816,10 @@ function createFrames(id: EffectId, sprites: TileSprites): HTMLElement {
   }
 
   const mineFrames: Array<{ label: string; mode: MineMode; t: number; progress?: number }> = [
-    { label: '待触发', mode: 'armed', t: 0 },
-    { label: '命中闪光', mode: 'flash', t: 0 },
-    { label: '爆炸中', mode: 'blast', t: MINE_EXPLOSION_MS * 0.42, progress: 0.42 },
-    { label: '爆炸后', mode: 'exploded', t: MINE_EXPLOSION_MS },
+    { label: 'Armed', mode: 'armed', t: 0 },
+    { label: 'Hit flash', mode: 'flash', t: 0 },
+    { label: 'Exploding', mode: 'blast', t: MINE_EXPLOSION_MS * 0.42, progress: 0.42 },
+    { label: 'After blast', mode: 'exploded', t: MINE_EXPLOSION_MS },
   ];
   for (const item of mineFrames) {
     frames.append(
@@ -888,10 +898,10 @@ export function mountCellEffectSection(): { section: HTMLElement; dispose: () =>
   const head = document.createElement('div');
   head.className = 'asset-gallery__section-head';
   const title = document.createElement('h2');
-  title.textContent = '单机游戏动效';
+  title.textContent = 'Arcade cell FX';
   const copy = document.createElement('p');
   copy.textContent =
-    '只生成数字、地雷、旗帜、方格相关内容：Canvas 程序动效 + 关键帧预览，后续可以直接接入主游戏渲染器。';
+    'Digits, mines, flags, and cells only: Canvas procedural FX + keyframe previews for the main game renderer.';
   head.append(title, copy);
 
   const grid = document.createElement('div');

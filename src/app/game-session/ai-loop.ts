@@ -67,7 +67,7 @@ export function createAiController(deps: AiControllerDeps): AiController {
       const analysis = getAiAnalysis(runtime.session, scroll.getElapsedMs());
       if (!analysis.move) {
         if (!runtime.aiWaitLogged && attempt === 0) {
-          gameLog.append('AI 等待：暂无可用步', 'ai');
+          gameLog.append('AI waiting: no move available', 'ai');
           runtime.aiWaitLogged = true;
         }
         refreshAiHint();
@@ -86,12 +86,12 @@ export function createAiController(deps: AiControllerDeps): AiController {
         const afterMines = next.minesDefused ?? 0;
         if (afterMines < beforeMines) {
           gameLog.append(
-            `−${MINES_PER_LIFE} 消雷 · 累计 ${afterMines}（${MINES_PER_LIFE}→1 命）`,
+            `−${MINES_PER_LIFE} defused · total ${afterMines} (${MINES_PER_LIFE}→1 life)`,
             'system',
           );
         }
         if ((next.lives ?? 0) > (beforeLives ?? 0)) {
-          gameLog.append(`+1 命 · 当前 ${next.lives ?? 0} 命`, 'system');
+          gameLog.append(`+1 life · now ${next.lives ?? 0} lives`, 'system');
         }
         afterSessionChange(false);
         return runtime.session.state.status === 'playing';
@@ -122,7 +122,7 @@ export function createAiController(deps: AiControllerDeps): AiController {
             blocked.add(cellKeyStr);
             runtime.session = { ...runtime.session, aiOscillationBlocked: [...blocked] };
             const screenRow = move.row - (runtime.session.endlessViewStart ?? 0);
-            gameLog.append(`AI 跳过震荡格 ${formatCell(screenRow, move.col)} · 改走其他步`, 'ai');
+            gameLog.append(`AI skip oscillation cell ${formatCell(screenRow, move.col)} · trying another move`, 'ai');
           }
           runtime.aiOscillationCell = null;
           runtime.aiOscillationCount = 0;
@@ -137,18 +137,18 @@ export function createAiController(deps: AiControllerDeps): AiController {
       const wasIdle = runtime.session.state.status === 'idle';
       const screenRow = move.row - (runtime.session.endlessViewStart ?? 0);
       logAiMove(gameLog, move, screenRow, move.col);
-      const triggerPrefix = move.confidence === 'guess' ? '猜' : '';
+      const triggerPrefix = move.confidence === 'guess' ? 'guess ' : '';
       const triggerKind =
         move.kind === 'chord'
           ? 'Chord'
           : move.kind === 'flag'
-            ? '插旗'
+            ? 'flag'
             : move.kind === 'unflag'
-              ? '撤旗'
-              : '开格';
+              ? 'unflag'
+              : 'reveal';
       const trigger = `AI ${triggerPrefix}${triggerKind} ${formatCell(screenRow, move.col)} · ${move.reason}`;
       let next = applyAiMove(runtime.session, move);
-      if (move.kind === 'unflag' && (move.reason.includes('矛盾') || move.reason.includes('错旗'))) {
+      if (move.kind === 'unflag' && (move.reason.includes('contradiction') || move.reason.includes('wrong flag'))) {
         const k = aiPersistCellKey(next.state.board, move.row, move.col);
         const contradicted = new Set(next.aiContradictedFlags ?? []);
         contradicted.add(k);
@@ -167,13 +167,13 @@ export function createAiController(deps: AiControllerDeps): AiController {
   function toggleAiAuto(startArcadeRun: () => void): void {
     if (runtime.aiAutoActive) {
       stopAiAuto();
-      gameLog.append('AI 自动停止', 'ai');
+      gameLog.append('AI auto stopped', 'ai');
       render();
       return;
     }
     runtime.aiAutoActive = true;
     runtime.aiWaitLogged = false;
-    gameLog.append('AI 自动开始', 'ai');
+    gameLog.append('AI auto started', 'ai');
     if (runtime.session.state.status === 'idle') {
       startArcadeRun();
     }

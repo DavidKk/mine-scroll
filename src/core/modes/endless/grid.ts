@@ -251,7 +251,7 @@ export function compactAndBufferBoard(board: Board, scrollDepth: number): Board 
   return ensureWindowRows(compactTrailingBlankRows(board), scrollDepth);
 }
 
-/** 底行是否全为未翻开未插旗（离屏免扣血） */
+/** Whether the bottom row is all hidden and unflagged (scroll life-loss exempt). */
 export function isBottomRowBlank(board: Board): boolean {
   if (board.rows === 0) return false;
   return isRowAllBlank(board, board.rows - 1);

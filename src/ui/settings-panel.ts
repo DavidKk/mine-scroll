@@ -24,7 +24,7 @@ export function createSettingsPanel(
 
   const presetLabel = document.createElement('label');
   presetLabel.className = 'settings__field';
-  presetLabel.textContent = '难度预设';
+  presetLabel.textContent = 'Difficulty preset';
   const presetSelect = document.createElement('select');
   presetSelect.className = 'settings__select';
   for (const option of PRESET_OPTIONS) {
@@ -34,13 +34,13 @@ export function createSettingsPanel(
     presetSelect.appendChild(el);
   }
 
-  const rowsLabel = createField('行数', 'settings__input');
+  const rowsLabel = createField('Rows', 'settings__input');
   const rowsInput = rowsLabel.querySelector('input')!;
 
-  const colsLabel = createField('列数', 'settings__input');
+  const colsLabel = createField('Columns', 'settings__input');
   const colsInput = colsLabel.querySelector('input')!;
 
-  const minesLabel = createField('雷数', 'settings__input');
+  const minesLabel = createField('Mines', 'settings__input');
   const minesInput = minesLabel.querySelector('input')!;
 
   rowsInput.type = 'number';
@@ -62,7 +62,7 @@ export function createSettingsPanel(
   const applyBtn = document.createElement('button');
   applyBtn.type = 'button';
   applyBtn.className = 'settings__apply';
-  applyBtn.textContent = '应用并开始新局';
+  applyBtn.textContent = 'Apply & start new game';
 
   const grid = document.createElement('div');
   grid.className = 'settings__grid';
@@ -75,7 +75,7 @@ export function createSettingsPanel(
     const cols = Number(colsInput.value);
     if (Number.isFinite(rows) && Number.isFinite(cols) && rows > 0 && cols > 0) {
       minesInput.max = String(getMaxMines(rows, cols));
-      hint.textContent = `当前棋盘 ${rows}×${cols}，雷数上限 ${getMaxMines(rows, cols)}（首击安全区预留 9 格）`;
+      hint.textContent = `Board ${rows}×${cols}, max mines ${getMaxMines(rows, cols)} (first-click safe zone reserves 9 cells)`;
     }
   }
 

@@ -321,7 +321,7 @@ export function mountResponsiveMatrix(root: HTMLElement): () => void {
   const title = document.createElement('h1');
   title.textContent = 'Responsive Matrix';
   const note = document.createElement('p');
-  note.textContent = '复用运行时 stage layout，快速检查 HUD、棋盘、Space、Auto 与事件反馈在关键尺寸下是否重叠。';
+  note.textContent = 'Reuses runtime stage layout to check HUD, board, Space, Auto, and feedback overlap at key sizes.';
   header.append(title, note);
 
   const grid = document.createElement('section');
@@ -337,11 +337,11 @@ export function mountResponsiveMatrix(root: HTMLElement): () => void {
   checklist.innerHTML = `
     <h2>Manual Review Checklist</h2>
     <ul>
-      <li>Score、Combo、Lives 在 360x640 和 390x844 不碰撞。</li>
-      <li>Combo/score/break 反馈不遮挡超过一行棋盘。</li>
-      <li>Space 只在可用时出现为小键帽提示，AI tag 不抢视觉层级。</li>
-      <li>底部压力线和危险覆盖不显示秒数或行数。</li>
-      <li>Game Over 面板不会挡住关键按钮 hitbox。</li>
+      <li>Score, Combo, and Lives do not collide at 360×640 and 390×844.</li>
+      <li>Combo/score/break feedback does not cover more than one board row.</li>
+      <li>Space appears only when available as a small key hint; AI tag stays secondary.</li>
+      <li>Bottom pressure band and danger overlay show no seconds or row counts.</li>
+      <li>Game Over panel does not block critical button hitboxes.</li>
     </ul>
   `;
 

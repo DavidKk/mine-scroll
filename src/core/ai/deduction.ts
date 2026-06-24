@@ -38,7 +38,7 @@ function untrustedFlags(board: SolverBoard, row: number, col: number, mines: Set
   return out;
 }
 
-/** 线索约束变量：未翻开且非已推导安全/雷；未被证明的旗子仍按未知格参与约束 */
+/** Clue constraint variables: hidden and not deduced safe/mine; unproven flags count as unknown. */
 function clueVariables(
   board: SolverBoard,
   row: number,
@@ -284,7 +284,7 @@ export function findMisflaggedSafeMove(
   return null;
 }
 
-/** 由邻线索 need===0 直接推出（非子集间接） */
+/** Direct deduction from neighbor clue need === 0 (not via subset CSP). */
 export function isDirectSafe(
   board: SolverBoard,
   row: number,
@@ -309,7 +309,7 @@ export function isDirectSafe(
   return false;
 }
 
-/** 由邻线索 need===hidden 直接推出（非子集间接） */
+/** Direct deduction from neighbor clue need === hidden count (not via subset CSP). */
 export function isDirectMine(
   board: SolverBoard,
   row: number,
@@ -336,7 +336,7 @@ export function isDirectMine(
   return false;
 }
 
-/** 在此格插旗是否与邻线索数字矛盾 */
+/** Whether flagging this cell contradicts a neighbor clue digit. */
 export function wouldViolateCluesIfFlagged(board: SolverBoard, row: number, col: number): boolean {
   const cell = board.cell(row, col);
   if (!cell || cell.revealed || cell.flagged) return true;

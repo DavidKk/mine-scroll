@@ -50,7 +50,7 @@ function countBottomRowPenalty(session: ModeSession, board: Board, localRow: num
   return 0;
 }
 
-/** 与 endlessScrollTick 一致的底行扣血预判（含空白底行免扣） */
+/** Bottom-row life-loss preview consistent with endlessScrollTick (blank bottom row exempt). */
 export function computeBottomRowScrollDamage(
   session: ModeSession,
   board: Board,
@@ -61,7 +61,7 @@ export function computeBottomRowScrollDamage(
   return countBottomRowPenalty(session, board, localRow);
 }
 
-/** 一次卷轴事件内 N 行离屏：任一行有漏格则扣 1 命（不叠成 −N） */
+/** One scroll event with N leaving rows: any leak costs 1 life (not stacked −N). */
 export function computeBatchScrollDamage(
   session: ModeSession,
   board: Board,
@@ -75,13 +75,13 @@ export function computeBatchScrollDamage(
   return 0;
 }
 
-/** 当前底行上移是否不会扣命 */
+/** Whether the current bottom-row scroll would cost a life. */
 export function isBottomRowScrollSafe(session: ModeSession): boolean {
   if (session.modeId !== 'endless' || session.state.status !== 'playing') return false;
   return computeBottomRowScrollDamage(session, session.state.board) === 0;
 }
 
-/** 批量上移前：即将离屏的 N 行均不会扣命 */
+/** Before batch scroll: all N leaving rows are safe. */
 export function isBatchScrollSafe(session: ModeSession, batchRows: number): boolean {
   if (session.modeId !== 'endless' || session.state.status !== 'playing') return false;
   return computeBatchScrollDamage(session, session.state.board, batchRows) === 0;
@@ -105,13 +105,13 @@ function penaltyCellKind(
 function cellKindLabel(kind: LifeLossCellKind): string {
   switch (kind) {
     case 'mine-hit':
-      return '踩雷';
+      return 'mine hit';
     case 'mine-unflagged':
-      return '雷未插旗';
+      return 'unflagged mine';
     case 'wrong-flag':
-      return '错旗';
+      return 'wrong flag';
     case 'unrevealed':
-      return '未翻开';
+      return 'unrevealed';
   }
 }
 
@@ -139,12 +139,12 @@ function buildScrollLifeLoss(
     cause: 'scroll-bottom',
     damage: 1,
     cells,
-    boardChange: '底行离屏移除 · 顶行已补 1 行',
-    reason: `卷轴底行扣血（每轮最多 −1 命）· 漏格：${cellDesc}`,
+    boardChange: 'Bottom row scrolled off · top row added',
+    reason: `Scroll bottom life loss (max −1 per tick) · leaks: ${cellDesc}`,
   };
 }
 
-/** 卷轴离屏底行：全空白则免扣血并一并剔除后续空白行 */
+/** Scroll off bottom row: all-blank row is free and trailing blank rows are trimmed. */
 function scrollOffBottomRow(session: ModeSession, board: Board): { board: Board; damage: number } {
   const bottomRow = board.rows - 1;
   if (isRowAllBlank(board, bottomRow)) {
@@ -163,7 +163,7 @@ interface SingleRowScrollResult {
   autoRevealed: number;
 }
 
-/** 单行卷轴（不扣命，由批量层统一结算） */
+/** Single-row scroll (no life charge here — batch layer settles damage). */
 function performSingleRowScroll(session: ModeSession): SingleRowScrollResult {
   const scrollRowCount = (session.scrollRowCount ?? 0) + 1;
   let board = prependRow(session.state.board, scrollRowCount);
@@ -193,7 +193,7 @@ function performSingleRowScroll(session: ModeSession): SingleRowScrollResult {
 }
 
 /**
- * 传送带批量 tick：每次事件上移 batchRows 行；整事件最多 −1 命。
+ * Conveyor batch tick: each event scrolls batchRows; at most −1 life per event.
  */
 export function endlessScrollBatch(session: ModeSession, batchRows = 1): ModeSession {
   if (session.state.status !== 'playing') return session;

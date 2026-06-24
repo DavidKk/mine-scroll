@@ -25,13 +25,13 @@ function buildSections(): AssetSection[] {
   }
 
   const cellItems: AssetItem[] = [
-    { id: 'cell-hidden', label: '未翻开', src: `${TILE_BASE}/cell-hidden.png`, image: sprites.hidden },
-    { id: 'cell-revealed', label: '已翻开', src: `${TILE_BASE}/cell-revealed.png`, image: sprites.revealed },
+    { id: 'cell-hidden', label: 'Hidden', src: `${TILE_BASE}/cell-hidden.png`, image: sprites.hidden },
+    { id: 'cell-revealed', label: 'Revealed', src: `${TILE_BASE}/cell-revealed.png`, image: sprites.revealed },
   ];
 
   const digitItems: AssetItem[] = sprites.numbers.map((image, index) => ({
     id: `num-${index + 1}`,
-    label: `数字 ${index + 1}`,
+    label: `Digit ${index + 1}`,
     src: `${TILE_BASE}/num-${index + 1}.png`,
     image,
   }));
@@ -39,27 +39,27 @@ function buildSections(): AssetSection[] {
   return [
     {
       id: 'cells',
-      title: '方格',
-      description: '棋盘格子的隐藏态与翻开态，128×128 PNG。',
+      title: 'Cells',
+      description: 'Hidden and revealed board cells, 128×128 PNG.',
       items: cellItems,
     },
     {
       id: 'digits',
-      title: '数字',
-      description: '邻格雷数 1–8，各数字单独切片展示。',
+      title: 'Digits',
+      description: 'Adjacent mine counts 1–8, each digit as its own slice.',
       items: digitItems,
     },
     {
       id: 'mine',
-      title: '地雷',
-      description: '踩雷后显示的地雷图标。',
-      items: [{ id: 'mine', label: '地雷', src: `${TILE_BASE}/mine.png`, image: sprites.mine }],
+      title: 'Mine',
+      description: 'Mine icon shown after a hit.',
+      items: [{ id: 'mine', label: 'Mine', src: `${TILE_BASE}/mine.png`, image: sprites.mine }],
     },
     {
       id: 'flag',
-      title: '旗帜',
-      description: '玩家插旗标记。',
-      items: [{ id: 'flag', label: '旗帜', src: `${TILE_BASE}/flag.png`, image: sprites.flag }],
+      title: 'Flag',
+      description: 'Player flag marker.',
+      items: [{ id: 'flag', label: 'Flag', src: `${TILE_BASE}/flag.png`, image: sprites.flag }],
     },
   ];
 }
@@ -130,7 +130,7 @@ function createAssetCard(item: AssetItem): HTMLElement {
   meta.className = 'asset-gallery__meta';
   const bb = getContentBBox(item.image);
   meta.textContent = bb
-    ? `${item.id} · ${item.image.naturalWidth}×${item.image.naturalHeight} · 内容 ${bb.w}×${bb.h}`
+    ? `${item.id} · ${item.image.naturalWidth}×${item.image.naturalHeight} · content ${bb.w}×${bb.h}`
     : `${item.id} · ${item.image.naturalWidth}×${item.image.naturalHeight}`;
 
   const path = document.createElement('code');
@@ -183,13 +183,13 @@ export function mountAssetGallery(root: HTMLElement): () => void {
   title.textContent = 'Tile Asset Gallery';
   const subtitle = document.createElement('p');
   subtitle.textContent =
-    '单独预览棋盘切片资产与程序动效（Hover、呼吸）。静态 PNG 按 1:1 像素展示；动效区含关键帧与整合预览。';
+    'Preview board tile slices and procedural FX (hover, breath). Static PNG at 1:1; FX section includes keyframes and live previews.';
   intro.append(title, subtitle);
 
   const links = document.createElement('div');
   links.className = 'asset-gallery__links';
   links.append(
-    createLink(ROUTES.game, '返回游戏'),
+    createLink(ROUTES.game, 'Back to game'),
     createLink(ROUTES.lab, 'UI Lab'),
     createLink(ROUTES.responsive, 'Responsive Matrix'),
   );
@@ -200,7 +200,7 @@ export function mountAssetGallery(root: HTMLElement): () => void {
   if (sections.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'asset-gallery__empty';
-    empty.textContent = '未能加载 tile 资产，请确认 public/assets/tiles 下文件存在。';
+    empty.textContent = 'Failed to load tile assets. Check public/assets/tiles.';
     page.append(header, empty);
     root.append(page);
     return () => root.replaceChildren();
@@ -208,8 +208,8 @@ export function mountAssetGallery(root: HTMLElement): () => void {
 
   const nav = document.createElement('nav');
   nav.className = 'asset-gallery__nav';
-  nav.setAttribute('aria-label', '资产分类');
-  const navItems = [...sections, { id: 'effects', title: '动效' }];
+  nav.setAttribute('aria-label', 'Asset categories');
+  const navItems = [...sections, { id: 'effects', title: 'Effects' }];
   for (const section of navItems) {
     const link = document.createElement('a');
     link.href = `#section-${section.id}`;

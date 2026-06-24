@@ -1,6 +1,6 @@
 import { FONTS } from './theme.ts';
 
-/** 滑动窗口 FPS 采样（约每 500ms 更新一次读数） */
+/** Sliding-window FPS sample (~updates every 500ms). */
 export class FpsMeter {
   private frames = 0;
   private lastSampleAt = 0;

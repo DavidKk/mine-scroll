@@ -2,15 +2,15 @@ import { mineDefuseKey } from '../mines-defused.ts';
 import type { Board, ModeSession } from '../types.ts';
 import { cellKey } from '../types.ts';
 
-/** AI 震荡/矛盾禁入格键（无尽用世界行号，卷轴后仍稳定） */
+/** AI oscillation / contradiction blocked cell keys (stable across endless scroll). */
 export function aiPersistCellKey(board: Board, localRow: number, col: number): string {
   return mineDefuseKey(board, localRow, col);
 }
 
 export interface AiBlockedSets {
-  /** 禁止再插/撤旗（矛盾旗、震荡格） */
+  /** Block further flag / unflag (contradiction flags, oscillation cells). */
   flag: Set<string>;
-  /** 禁止再开/猜/Chord（仅震荡格；矛盾撤旗后允许开格验证） */
+  /** Block reveal / guess / chord (oscillation only; contradicted unflag may reveal to verify). */
   reveal: Set<string>;
 }
 
@@ -36,7 +36,7 @@ export function resolveAiBlockedSets(session: ModeSession): AiBlockedSets {
   return { flag, reveal: oscillation };
 }
 
-/** @deprecated 使用 resolveAiBlockedSets */
+/** @deprecated Use resolveAiBlockedSets */
 export function resolveAiBlockedLocalKeys(session: ModeSession): Set<string> {
   return resolveAiBlockedSets(session).flag;
 }

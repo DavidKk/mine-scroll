@@ -74,7 +74,7 @@ export interface DefuseBreakReport {
   comboCleared: number;
 }
 
-/** @deprecated 仅 settings-panel / game-config 遗留；无尽模式不使用 */
+/** @deprecated Legacy settings-panel / game-config only; endless mode does not use it. */
 export interface Difficulty {
   id: string;
   rows: number;

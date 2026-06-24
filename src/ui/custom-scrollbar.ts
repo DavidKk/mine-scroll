@@ -1,4 +1,4 @@
-/** 2px 指示器滚动条：不可拖拽，仅显示位置 */
+/** 2px indicator scrollbar: not draggable, position only. */
 export function attachCustomScrollbar(
   view: HTMLElement,
   indicator: HTMLElement,
@@ -30,7 +30,7 @@ export function attachCustomScrollbar(
   };
 }
 
-/** 包裹可滚动区域并挂载自定义滚动条 */
+/** Wrap a scrollable region and mount the custom scrollbar. */
 export function wrapWithCustomScrollbar(el: HTMLElement, hostClass = ''): () => void {
   if (el.parentElement?.classList.contains('scroll-host')) {
     const indicator = el.parentElement.querySelector('.scroll-indicator');
@@ -58,7 +58,7 @@ export function wrapWithCustomScrollbar(el: HTMLElement, hostClass = ''): () => 
   return attachCustomScrollbar(el, indicator, thumb);
 }
 
-/** 页面级滚动指示器（html/body） */
+/** Page-level scroll indicator (html/body). */
 export function attachPageScrollbar(): () => void {
   const indicator = document.createElement('div');
   indicator.className = 'scroll-indicator scroll-indicator--page';

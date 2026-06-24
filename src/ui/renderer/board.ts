@@ -71,7 +71,7 @@ function drawPlayableAmbientOverlays(
   }
 }
 
-/** 棋盘静态层：格面 + 旗标 + AI 提示（可缓存，不含卷轴压迫与指针动效） */
+/** Board static layer: cells + flags + AI hint (cacheable; no scroll pressure or pointer FX). */
 export function renderBoardStaticFrame(
   ctx: CanvasRenderingContext2D,
   layout: LayoutMetrics,
@@ -122,7 +122,7 @@ export function renderBoardStaticFrame(
   }
 }
 
-/** 棋盘动态层：卷轴压迫 + 指针附近动效 */
+/** Board dynamic layer: scroll pressure + pointer-adjacent FX. */
 export function renderBoardDynamicFrame(
   ctx: CanvasRenderingContext2D,
   layout: LayoutMetrics,
@@ -238,7 +238,7 @@ export function renderFrame(
   }
 }
 
-/** 棋盘两侧竖轨竖向范围；有预览带时延伸至半遮行顶并配合渐变淡出 */
+/** Side rail vertical span; extends to preview band top with fade when preview rows exist. */
 export interface BoardSideRailLayout {
   top: number;
   bottom: number;
@@ -279,7 +279,7 @@ function railGradientStop(railTop: number, railBottom: number, y: number): numbe
   return Math.max(0, Math.min(1, (y - railTop) / span));
 }
 
-/** 竖轨描边渐变：预览带顶缘与半遮行同款渐隐 */
+/** Side rail stroke gradient: same fade as preview band top edge. */
 export function createBoardSideRailGradient(
   ctx: CanvasRenderingContext2D,
   railTop: number,

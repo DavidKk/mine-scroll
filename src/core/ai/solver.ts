@@ -39,7 +39,7 @@ export function analyzeSession(session: ModeSession, elapsedMs = 0): AiAnalysis 
         row: start.row,
         col: start.col,
         confidence: 'certain',
-        reason: '首击开局',
+        reason: 'First click start',
       },
     };
   }

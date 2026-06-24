@@ -20,7 +20,7 @@ export function createGameLog(
   return {
     append(text, kind = 'system') {
       runtime.recentLogLines.push({
-        time: new Date().toLocaleTimeString('zh-CN', {
+        time: new Date().toLocaleTimeString('en-US', {
           hour12: false,
           hour: '2-digit',
           minute: '2-digit',
@@ -53,15 +53,15 @@ function logLifeLoss(
     report && report.cells.length > 0
       ? report.cells.map((c) => formatCell(c.screenRow, c.col)).join(' ')
       : '—';
-  gameLog.append(`−${delta} 命 · 剩余 ${after} · ${positions}`, 'danger');
+  gameLog.append(`−${delta} life · ${after} left · ${positions}`, 'danger');
   if (context?.trigger) {
-    gameLog.append(`触发：${context.trigger}`, 'danger');
+    gameLog.append(`Trigger: ${context.trigger}`, 'danger');
   }
   if (report?.reason) {
-    gameLog.append(`原因：${report.reason}`, 'danger');
+    gameLog.append(`Reason: ${report.reason}`, 'danger');
   }
   if (report?.boardChange) {
-    gameLog.append(`盘面：${report.boardChange}`, 'danger');
+    gameLog.append(`Board: ${report.boardChange}`, 'danger');
   }
 }
 
@@ -111,23 +111,23 @@ function appendDeathDebug(
   const after = next.lives ?? 'n/a';
 
   gameLog.append(
-    `死亡复盘：mode=${next.modeId} seed=${seed} ↑${depth} 命 ${before}→${after} interval=${interval} batch=${batch} elapsed=${Math.round(elapsed / 1000)}s`,
+    `Death review: mode=${next.modeId} seed=${seed} ↑${depth} lives ${before}→${after} interval=${interval} batch=${batch} elapsed=${Math.round(elapsed / 1000)}s`,
     'danger',
   );
   if (context?.trigger) {
-    gameLog.append(`复盘触发：${context.trigger}`, 'danger');
+    gameLog.append(`Review trigger: ${context.trigger}`, 'danger');
   }
   if (report && report.cells.length > 0) {
     const cells = report.cells
       .map((c) => `screen(${c.screenRow},${c.col}) local(${c.localRow},${c.col}) ${c.kind}`)
       .join(' | ');
-    gameLog.append(`复盘扣命格：${cells}`, 'danger');
+    gameLog.append(`Review cells: ${cells}`, 'danger');
   }
 
   const board = next.state.board;
   const start = next.endlessViewStart ?? Math.max(0, board.rows - ENDLESS_VISIBLE_ROWS);
   const end = Math.min(board.rows, start + ENDLESS_VISIBLE_ROWS);
-  gameLog.append('复盘盘面：X=触发雷 !=触发非雷 *=雷 F=正确旗 f=错旗 ?=未开 .=0', 'danger');
+  gameLog.append('Review board: X=trigger mine !=trigger safe *=mine F=correct flag f=wrong flag ?=hidden .=0', 'danger');
   for (let row = start; row < end; row += 1) {
     const screenRow = row - start;
     const cells = Array.from({ length: board.cols }, (_, col) =>
@@ -144,32 +144,32 @@ export function logAiMove(
   col: number,
 ): void {
   if (move.kind === 'heal') {
-    gameLog.append(`AI 回血 · ${move.reason}`, 'ai');
+    gameLog.append(`AI heal · ${move.reason}`, 'ai');
     return;
   }
   if (move.kind === 'scroll') {
-    gameLog.append(`AI 上移 · ${move.reason}`, 'ai');
+    gameLog.append(`AI scroll · ${move.reason}`, 'ai');
     return;
   }
-  const prefix = move.confidence === 'guess' ? '猜' : '';
+  const prefix = move.confidence === 'guess' ? 'guess ' : '';
   const kind =
     move.kind === 'chord'
       ? 'Chord'
       : move.kind === 'flag'
-        ? '插旗'
+        ? 'flag'
         : move.kind === 'unflag'
-          ? '撤旗'
-          : '开格';
+          ? 'unflag'
+          : 'reveal';
   gameLog.append(`AI ${prefix}${kind} ${formatCell(screenRow, col)} · ${move.reason}`, 'ai');
 }
 
 export function logPlayerAction(
   gameLog: CanvasLogController,
-  kind: '开格' | '插旗' | 'Chord',
+  kind: 'reveal' | 'flag' | 'Chord',
   screenRow: number,
   col: number,
 ): void {
-  gameLog.append(`玩家 ${kind} ${formatCell(screenRow, col)}`, 'player');
+  gameLog.append(`Player ${kind} ${formatCell(screenRow, col)}`, 'player');
 }
 
 function logMinesDefusedChange(
@@ -180,7 +180,7 @@ function logMinesDefusedChange(
   const prev = before ?? 0;
   const next = after ?? 0;
   if (next <= prev) return;
-  gameLog.append(`消雷入账 +${next - prev} · 累计 ${next}（${MINES_PER_LIFE}→1 命）`, 'system');
+  gameLog.append(`Defused +${next - prev} · total ${next} (${MINES_PER_LIFE}→1 life)`, 'system');
 }
 
 function logAutoHeal(runtime: GameSessionRuntime, gameLog: CanvasLogController, next: ModeSession): boolean {
@@ -197,18 +197,18 @@ function logAutoHeal(runtime: GameSessionRuntime, gameLog: CanvasLogController, 
   }
 
   gameLog.append(
-    `消雷连击 +${report.defusedAdded} · ×${report.comboAfter} · +${report.scoreAdded} 分 · 总分 ${next.score ?? 0}`,
+    `Defuse combo +${report.defusedAdded} · ×${report.comboAfter} · +${report.scoreAdded} pts · total ${next.score ?? 0}`,
     'system',
   );
-  gameLog.append(`消雷进度 ${report.minesAfter}/${MINES_PER_LIFE}`, 'system');
+  gameLog.append(`Defuse progress ${report.minesAfter}/${MINES_PER_LIFE}`, 'system');
   const spent = report.groupsSpent * MINES_PER_LIFE;
   if (report.livesGained > 0) {
     gameLog.append(
-      `自动回血 +${report.livesGained} 命 · −${spent} 消雷 · 当前 ${report.livesAfter} 命`,
+      `Auto heal +${report.livesGained} life · −${spent} defused · now ${report.livesAfter} lives`,
       'system',
     );
   } else {
-    gameLog.append(`满命自动结算 · −${spent} 消雷 · 不储存整组回血`, 'system');
+    gameLog.append(`Full lives auto settle · −${spent} defused · no stored heal group`, 'system');
   }
   return true;
 }
@@ -225,10 +225,10 @@ function logDefuseScore(runtime: GameSessionRuntime, gameLog: CanvasLogControlle
     };
   }
   gameLog.append(
-    `消雷连击 +${report.defusedAdded} · ×${report.comboAfter} · +${report.scoreAdded} 分 · 总分 ${report.scoreAfter}`,
+    `Defuse combo +${report.defusedAdded} · ×${report.comboAfter} · +${report.scoreAdded} pts · total ${report.scoreAfter}`,
     'system',
   );
-  gameLog.append(`消雷进度 ${next.minesDefused ?? 0}/${MINES_PER_LIFE}`, 'system');
+  gameLog.append(`Defuse progress ${next.minesDefused ?? 0}/${MINES_PER_LIFE}`, 'system');
   return true;
 }
 
@@ -242,7 +242,7 @@ function logDefuseBreak(runtime: GameSessionRuntime, gameLog: CanvasLogControlle
     minesCleared: report.minesCleared,
   };
   gameLog.append(
-    `失误断连 · 消雷 ${report.minesCleared}→0 · 连击 ×${report.comboCleared}→0`,
+    `Mistake break · defused ${report.minesCleared}→0 · combo ×${report.comboCleared}→0`,
     'danger',
   );
 }

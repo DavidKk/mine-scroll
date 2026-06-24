@@ -48,7 +48,7 @@ export interface EndlessShellReserves {
   bottomPad: number;
 }
 
-/** PC / 移动端两套自适应策略的分界（当前优先 PC） */
+/** Desktop / mobile layout profile breakpoint (desktop-first today). */
 export type EndlessLayoutProfile = 'desktop' | 'mobile';
 
 const BASE_STAGE_W = 390;
@@ -56,7 +56,7 @@ const BASE_STAGE_H = 844;
 const BASE_CELL_SIZE = 28;
 const ENDLESS_BOTTOM_RAIL_H = 30;
 const DESKTOP_BREAKPOINT_W = 768;
-/** 格宽拟合时竖向多留出行数，避免棋盘顶/底贴边 */
+/** Extra row reserve when fitting cell size so the board does not hug top/bottom edges. */
 const BOARD_HEIGHT_ROW_RESERVE = 1;
 const BOARD_VERT_MARGIN_BASE = 6;
 
@@ -68,7 +68,7 @@ export function getEndlessLayoutProfile(viewportW: number): EndlessLayoutProfile
   return viewportW >= DESKTOP_BREAKPOINT_W ? 'desktop' : 'mobile';
 }
 
-/** Shell（顶栏/底栏）缩放：PC 跟视口宽度走；移动端跟 contain */
+/** Shell (HUD / bottom rail) scale: desktop follows viewport width; mobile uses contain. */
 export function computeGameStageScale(viewportW: number, viewportH: number): number {
   const profile = getEndlessLayoutProfile(viewportW);
   if (profile === 'desktop') {
@@ -82,7 +82,7 @@ function gridPixelSpan(rows: number, cellSize: number): number {
   return rows * (cellSize + CELL_GAP) - CELL_GAP + GRID_PADDING * 2;
 }
 
-/** 无尽全屏：顶 HUD、底能量轨 —— 与棋盘格宽计算共用 */
+/** Endless fullscreen shell reserves — shared with board cell-size fitting. */
 export function getEndlessShellReserves(viewportW: number, viewportH: number): EndlessShellReserves {
   const profile = getEndlessLayoutProfile(viewportW);
   const scale = computeGameStageScale(viewportW, viewportH);
@@ -107,8 +107,8 @@ export function getEndlessShellReserves(viewportW: number, viewportH: number): E
 }
 
 /**
- * PC：格宽由可用宽度决定（等比），仅当棋盘过高时才用高度上限收紧。
- * 移动：contain（宽高都参与），后续可单独调。
+ * Desktop: cell size from available width; tighten by height only when the board is too tall.
+ * Mobile: contain (both axes); tune separately later.
  */
 export function computeEndlessBoardCellSize(
   cols: number,
@@ -224,7 +224,7 @@ export function computeGameStageLayout(
   };
 }
 
-/** 连击/得分弹出锚点输入（与棋盘底行、底栏对齐） */
+/** Combo / score pop anchor input (aligned with board bottom row and bottom rail). */
 export interface ComboFeedbackAnchorInput {
   scale: number;
   boardOffsetY: number;
@@ -236,8 +236,8 @@ export interface ComboFeedbackAnchorInput {
 }
 
 /**
- * 消雷连击反馈锚点：底行离屏区中心，夹在棋盘底行与底栏能量轨之间。
- * 无布局信息时回退到视口底部上方。
+ * Defuse combo feedback anchor: center of bottom scroll-off band, between last row and bottom rail.
+ * Falls back above viewport bottom when layout is missing.
  */
 export function getComboFeedbackAnchor(
   viewportW: number,
@@ -260,7 +260,7 @@ export function getComboFeedbackAnchor(
   return { x: cx, y };
 }
 
-/** 底栏反馈带上下分层：得分飘字在上，连击爆发在下，避免同锚点重叠 */
+/** Bottom feedback stack: score pop above, combo burst below, separate anchors. */
 export interface BottomFeedbackSlots {
   comboBurst: Point;
   scorePop: Point;
@@ -296,7 +296,7 @@ export function getBottomFeedbackSlots(
     };
   }
 
-  // 竖向空间不足时：得分偏左，连击保持居中
+  // When vertical space is tight: score shifts left, combo stays centered
   return {
     comboBurst,
     scorePop: {

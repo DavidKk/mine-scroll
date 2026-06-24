@@ -36,17 +36,17 @@ export const PRESETS: Record<string, Difficulty> = {
 };
 
 export const PRESET_OPTIONS = [
-  { id: 'beginner', label: '初级 9×9 / 10 雷' },
-  { id: 'intermediate', label: '中级 16×16 / 40 雷' },
-  { id: 'expert', label: '高级 16×30 / 99 雷' },
-  { id: 'custom', label: '自定义' },
+  { id: 'beginner', label: 'Beginner 9×9 / 10 mines' },
+  { id: 'intermediate', label: 'Intermediate 16×16 / 40 mines' },
+  { id: 'expert', label: 'Expert 16×30 / 99 mines' },
+  { id: 'custom', label: 'Custom' },
 ] as const;
 
 export function getDefaultDifficulty(): Difficulty {
   return { ...BEGINNER };
 }
 
-/** 首击安全区最多占 9 格，可放雷上限 */
+/** First-click safe zone uses up to 9 cells; caps mine count. */
 export function getMaxMines(rows: number, cols: number): number {
   return Math.max(1, rows * cols - 9);
 }
@@ -66,20 +66,20 @@ export function validateDifficulty(input: {
   const mines = Math.floor(input.mines);
 
   if (!Number.isFinite(rows) || !Number.isFinite(cols) || !Number.isFinite(mines)) {
-    return { ok: false, error: '请输入有效的数字' };
+    return { ok: false, error: 'Enter valid numbers' };
   }
 
   if (rows < LIMITS.minRows || rows > LIMITS.maxRows) {
-    return { ok: false, error: `行数需在 ${LIMITS.minRows}–${LIMITS.maxRows} 之间` };
+    return { ok: false, error: `Rows must be between ${LIMITS.minRows} and ${LIMITS.maxRows}` };
   }
 
   if (cols < LIMITS.minCols || cols > LIMITS.maxCols) {
-    return { ok: false, error: `列数需在 ${LIMITS.minCols}–${LIMITS.maxCols} 之间` };
+    return { ok: false, error: `Columns must be between ${LIMITS.minCols} and ${LIMITS.maxCols}` };
   }
 
   const maxMines = getMaxMines(rows, cols);
   if (mines < LIMITS.minMines || mines > maxMines) {
-    return { ok: false, error: `雷数需在 ${LIMITS.minMines}–${maxMines} 之间（需保留首击安全区）` };
+    return { ok: false, error: `Mines must be between ${LIMITS.minMines} and ${maxMines} (first-click safe zone reserved)` };
   }
 
   const preset = input.id && PRESETS[input.id];

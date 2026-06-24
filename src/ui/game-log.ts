@@ -60,7 +60,7 @@ export function createGameLog(container: HTMLElement, maxEntries = 1000): GameLo
 
   const title = document.createElement('span');
   title.className = 'game-log__title';
-  title.textContent = '对局日志';
+  title.textContent = 'Match Log';
 
   const actions = document.createElement('div');
   actions.className = 'game-log__actions';
@@ -73,7 +73,7 @@ export function createGameLog(container: HTMLElement, maxEntries = 1000): GameLo
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
   clearBtn.className = 'game-log__action';
-  clearBtn.textContent = '清空';
+  clearBtn.textContent = 'Clear';
 
   actions.append(copyBtn, clearBtn);
   header.append(title, actions);
@@ -89,7 +89,7 @@ export function createGameLog(container: HTMLElement, maxEntries = 1000): GameLo
   list.setAttribute('role', 'textbox');
   list.setAttribute('aria-readonly', 'true');
   list.setAttribute('aria-multiline', 'true');
-  list.setAttribute('aria-label', '对局日志内容');
+  list.setAttribute('aria-label', 'Match log entries');
 
   panel.append(header, list, live);
   container.append(panel);
@@ -177,12 +177,12 @@ export function createGameLog(container: HTMLElement, maxEntries = 1000): GameLo
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      copyBtn.textContent = '已复制';
+      copyBtn.textContent = 'Copied';
       window.setTimeout(() => {
         copyBtn.textContent = 'COPY';
       }, 1200);
     } catch {
-      copyBtn.textContent = '失败';
+      copyBtn.textContent = 'Failed';
       window.setTimeout(() => {
         copyBtn.textContent = 'COPY';
       }, 1200);
@@ -195,7 +195,7 @@ export function createGameLog(container: HTMLElement, maxEntries = 1000): GameLo
 
     const time = document.createElement('time');
     time.className = 'game-log__time';
-    time.textContent = new Date().toLocaleTimeString('zh-CN', {
+    time.textContent = new Date().toLocaleTimeString('en-US', {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit',

@@ -17,14 +17,14 @@ export function createHealMove(reason: string): AiMove {
   };
 }
 
-/** 底行临期确定步：回血 / 上移不应抢占 */
+/** Bottom-row urgent certain moves: heal / scroll must not preempt. */
 export function isUrgentBottomRowCertain(move: AiMove | null): boolean {
   if (!move || move.confidence !== 'certain') return false;
   if (move.kind === 'flag' || move.kind === 'reveal') {
-    return move.reason.includes('底行');
+    return move.reason.includes('bottom row');
   }
   if (move.kind === 'chord') {
-    return move.reason.includes('底行');
+    return move.reason.includes('bottom row');
   }
   return false;
 }
@@ -32,13 +32,14 @@ export function isUrgentBottomRowCertain(move: AiMove | null): boolean {
 function isRiskyMove(move: AiMove | null): boolean {
   if (!move) return true;
   if (move.confidence === 'guess') return true;
-  return move.kind === 'reveal' && move.reason.includes('概率');
+  return move.kind === 'reveal' && move.reason.includes('prob');
 }
 
 export { isRiskyMove };
 
 /**
- * 无尽 AI 回血：消雷 ≥4 且未满命时，优先于猜格/空等；让位于底行确定步。
+ * Endless AI heal: when defused mines ≥ 4 and not full lives, prefer over guesses;
+ * yields to urgent bottom-row certain moves.
  */
 export function pickHealMove(session: ModeSession, tactical: AiMove | null): AiMove | null {
   if (session.modeId !== 'endless' || !canExchangeHeal(session)) return null;
@@ -49,19 +50,19 @@ export function pickHealMove(session: ModeSession, tactical: AiMove | null): AiM
   if (isUrgentBottomRowCertain(tactical)) return null;
 
   if (lives <= 2) {
-    return createHealMove(`命数 ${lives} · 消雷 ${bank} 换 1 命`);
+    return createHealMove(`Lives ${lives} · trade ${bank} defused for +1 life`);
   }
 
   if (lives === 3 && isRiskyMove(tactical)) {
-    return createHealMove(`命数 3 · 消雷 ${bank} 先回血`);
+    return createHealMove(`Lives 3 · heal early with ${bank} defused`);
   }
 
   if (lives === 4) {
     if (isRiskyMove(tactical)) {
-      return createHealMove(`消雷 ${bank} · 换 1 命（4→5）`);
+      return createHealMove(`Defused ${bank} · trade for +1 life (4→5)`);
     }
     if (bank >= MINES_PER_LIFE * 2) {
-      return createHealMove(`消雷 ${bank} 充足 · 换 1 命`);
+      return createHealMove(`Defused ${bank} banked · trade for +1 life`);
     }
   }
 

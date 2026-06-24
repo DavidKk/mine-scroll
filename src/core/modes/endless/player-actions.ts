@@ -58,8 +58,8 @@ export function endlessRevealAt(session: ModeSession, row: number, col: number):
       cause: 'mine-reveal',
       damage: 1,
       cells: [{ localRow: row, col, screenRow, kind: 'mine-hit' }],
-      boardChange: `(${screenRow},${col}) 由隐藏变为翻开（雷）`,
-      reason: '开格踩雷 · 该格为雷且未插旗',
+      boardChange: `(${screenRow},${col}) hidden → revealed (mine)`,
+      reason: 'Reveal hit mine · cell was a mine and not flagged',
     };
     const afterBreak = clearDefuseStreakOnMistake(
       recordMineHitScrollExempt(session, board, [{ row, col }]),
@@ -134,11 +134,11 @@ export function endlessChordAt(session: ModeSession, row: number, col: number): 
       cause: 'chord-mine',
       damage: mineHits,
       cells: mineCells,
-      boardChange: `Chord (${chordScreen},${col}) 展开 · 翻开雷：${opened}`,
+      boardChange: `Chord (${chordScreen},${col}) expand · mines opened: ${opened}`,
       reason:
         mineHits === 1
-          ? `Chord 踩雷 1 颗 · 邻格插旗数已达数字但含未标记雷`
-          : `Chord 踩雷 ${mineHits} 颗 · 邻格含 ${mineHits} 颗未标记雷`,
+          ? `Chord hit 1 mine · flag count matched digit but an unmarked mine remained`
+          : `Chord hit ${mineHits} mines · neighbors had ${mineHits} unmarked mines`,
     };
     const afterBreak = clearDefuseStreakOnMistake(
       recordMineHitScrollExempt(

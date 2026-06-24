@@ -154,7 +154,7 @@ export function mountGameSession(
   function startArcadeRun(): void {
     if (runtime.session.state.status !== 'idle') return;
     runtime.startOverlayOpen = false;
-    gameLog.append('请点击任意格开始', 'system');
+    gameLog.append('Click any cell to start', 'system');
     render();
   }
 
@@ -174,7 +174,7 @@ export function mountGameSession(
     mountCanvas();
     runtime.view?.resetTimer();
     gameLog.clear();
-    gameLog.append('新局', 'system');
+    gameLog.append('New game', 'system');
     ai.refreshAiHint();
     render();
   }
@@ -207,18 +207,18 @@ export function mountGameSession(
           if (!isEndlessInteractiveScreenRow(row)) return;
           const wasIdle = runtime.session.state.status === 'idle';
           const beforeLives = runtime.session.lives;
-          logPlayerAction(gameLog, '开格', row, col);
+          logPlayerAction(gameLog, 'reveal', row, col);
           const next = revealAt(runtime.session, toBoardRow(row), col);
-          applySession(next, beforeLives, { trigger: `玩家 开格 ${formatCell(row, col)}` });
+          applySession(next, beforeLives, { trigger: `Player reveal ${formatCell(row, col)}` });
           if (wasIdle && next.state.status === 'playing') {
-            gameLog.append('对局开始', 'system');
+            gameLog.append('Game started', 'system');
             scroll.markGameClockStarted();
             scroll.startScrollTimer();
           }
           if (next.state.status === 'won' || next.state.status === 'lost') {
             runtime.view?.stopTimer();
             scroll.stopScrollTimer();
-            gameLog.append(next.state.status === 'won' ? '胜利' : '失败', 'system');
+            gameLog.append(next.state.status === 'won' ? 'Victory' : 'Defeat', 'system');
           } else {
             ai.refreshAiHint();
           }
@@ -227,7 +227,7 @@ export function mountGameSession(
         onToggleFlag(row, col) {
           if (runtime.session.state.status !== 'idle' && runtime.session.state.status !== 'playing') return;
           if (!isEndlessInteractiveScreenRow(row)) return;
-          logPlayerAction(gameLog, '插旗', row, col);
+          logPlayerAction(gameLog, 'flag', row, col);
           applySession(toggleMarkAt(runtime.session, toBoardRow(row), col));
           ai.refreshAiHint();
           render();
@@ -238,11 +238,11 @@ export function mountGameSession(
           const beforeLives = runtime.session.lives;
           logPlayerAction(gameLog, 'Chord', row, col);
           const next = chordAt(runtime.session, toBoardRow(row), col);
-          applySession(next, beforeLives, { trigger: `玩家 Chord ${formatCell(row, col)}` });
+          applySession(next, beforeLives, { trigger: `Player Chord ${formatCell(row, col)}` });
           if (next.state.status === 'won' || next.state.status === 'lost') {
             runtime.view?.stopTimer();
             scroll.stopScrollTimer();
-            gameLog.append(next.state.status === 'won' ? '胜利' : '失败', 'system');
+            gameLog.append(next.state.status === 'won' ? 'Victory' : 'Defeat', 'system');
           } else {
             ai.refreshAiHint();
           }
@@ -318,7 +318,7 @@ export function mountGameSession(
 
   mountCanvas();
   ai.refreshAiHint();
-  gameLog.append(`${modeMeta.name} · 就绪`, 'system');
+  gameLog.append(`${modeMeta.name} · ready`, 'system');
   render();
 
   return cleanup;

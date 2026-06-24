@@ -54,5 +54,11 @@ export function drawSpriteInCell(
   y: number,
   cellSize: number,
 ): void {
-  ctx.drawImage(img, x, y, cellSize, cellSize);
+  const prevSmooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  const ix = Math.round(x);
+  const iy = Math.round(y);
+  const size = Math.round(cellSize);
+  ctx.drawImage(img, ix, iy, size, size);
+  ctx.imageSmoothingEnabled = prevSmooth;
 }

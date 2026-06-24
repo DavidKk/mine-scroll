@@ -1,4 +1,4 @@
-/** 无尽模式常量与雷密度曲线 */
+/** Endless mode constants and mine-density curve. */
 
 export const ENDLESS_COLS = 9;
 export const ENDLESS_VISIBLE_ROWS = 21;

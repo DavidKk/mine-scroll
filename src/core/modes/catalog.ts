@@ -10,9 +10,9 @@ export interface ModeEntry {
 export const MODE_ENTRIES: ModeEntry[] = [
   {
     id: 'endless',
-    name: '无尽模式',
-    tag: '卷轴',
-    description: '视窗随时间上移；底行未插旗的雷离屏扣血，顶部持续生成。',
+    name: 'Endless',
+    tag: 'Scroll',
+    description: 'The view scrolls upward over time; unflagged mines leaving the bottom row cost a life, with new rows generated at the top.',
   },
 ];
 

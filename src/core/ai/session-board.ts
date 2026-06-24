@@ -6,12 +6,12 @@ export interface SolverCell {
   revealed: boolean;
   flagged: boolean;
   adjacentMines: number | null;
-  /** 无尽模式踩雷后继续游戏时，已翻开的雷也要参与后续线索约束 */
+  /** In endless, revealed mines after a hit still participate in clue constraints. */
   knownMine?: boolean;
 }
 
 export interface EndlessSolverContext {
-  /** 可见区最底行（本地行号） */
+  /** Bottom visible row (local row index). */
   bottomRow: number;
   viewStart: number;
 }
@@ -19,15 +19,15 @@ export interface EndlessSolverContext {
 export interface SolverBoard {
   rows: number;
   cols: number;
-  /** 是否参与约束（全盘 active 格） */
+  /** Whether the cell participates in constraints (active board cells). */
   inConstraints(row: number, col: number): boolean;
-  /** 是否允许 AI 操作（无尽模式限可见行） */
+  /** Whether AI may act on the cell (endless limits to visible rows). */
   canAct(row: number, col: number): boolean;
   neighbors(row: number, col: number): Array<{ row: number; col: number }>;
   cell(row: number, col: number): SolverCell | null;
-  /** 经典/六边形：固定总雷数；无尽模式未知 */
+  /** Classic/hex: fixed mine total; unknown in endless. */
   totalMines?: number;
-  /** 无尽模式：底行优先策略 */
+  /** Endless: bottom-row priority context. */
   endless?: EndlessSolverContext;
 }
 

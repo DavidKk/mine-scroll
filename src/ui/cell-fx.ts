@@ -76,6 +76,62 @@ function drawWaveImage(
   }
 }
 
+export interface OrbitParticleStyle {
+  radiusBase?: number;
+  radiusStep?: number;
+  dotBase?: number;
+  dotStep?: number;
+  alphaBase?: number;
+  alphaPulse?: number;
+  driftScale?: number;
+  shadow?: boolean;
+}
+
+/** Orbit particles with phase in [0,1); phase 0 and 1 share identical layout (seamless loop). */
+export function drawProceduralOrbitParticles(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  color: string,
+  phase: number,
+  seed: number,
+  count: number,
+  style: OrbitParticleStyle = {},
+): void {
+  const spin = phase * Math.PI * 2 + seed * 0.3;
+  const radiusBase = style.radiusBase ?? 0.3;
+  const radiusStep = style.radiusStep ?? 0.03;
+  const dotBase = style.dotBase ?? 0.014;
+  const dotStep = style.dotStep ?? 0.005;
+  const alphaBase = style.alphaBase ?? 0.16;
+  const alphaPulse = style.alphaPulse ?? 0.5;
+  const driftScale = style.driftScale ?? 0.035;
+
+  for (let i = 0; i < count; i += 1) {
+    const orbitDir = i % 2 === 0 ? 1 : -1;
+    const angle = i * 2.399 + spin * orbitDir;
+    const drift = Math.sin(spin + i * 1.7) * size * driftScale;
+    const radius = size * (radiusBase + (i % 5) * radiusStep) + drift;
+    const p = (phase + i * 0.071) % 1;
+    const alpha = alphaBase + Math.sin(p * Math.PI) * alphaPulse;
+    const dot = size * (dotBase + (i % 3) * dotStep);
+    const px = cx + Math.cos(angle) * radius;
+    const py = cy + Math.sin(angle) * radius * 0.72;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (style.shadow) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = dot * 5;
+    }
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px, py, dot, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 function drawProceduralDigitParticles(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -87,23 +143,7 @@ function drawProceduralDigitParticles(
 ): void {
   const cycle = GAME_ASSET_TUNING.fx.digitParticles.cycleMs;
   const phase = (tMs % cycle) / cycle;
-  for (let i = 0; i < 6; i += 1) {
-    const spin = phase * Math.PI * 2 + seed * 0.3;
-    const angle = i * 2.399 + spin * (i % 2 === 0 ? 0.42 : -0.28);
-    const radius = size * (0.3 + (i % 5) * 0.03);
-    const p = (phase + i * 0.071) % 1;
-    const alpha = 0.16 + Math.sin(p * Math.PI) * 0.5;
-    const dot = size * (0.014 + (i % 3) * 0.005);
-    const px = cx + Math.cos(angle) * radius;
-    const py = cy + Math.sin(angle) * radius * 0.72;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(px, py, dot, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
+  drawProceduralOrbitParticles(ctx, cx, cy, size, color, phase, seed, 6);
 }
 
 export function drawCellBreathOverlay(
@@ -120,12 +160,13 @@ export function drawCellBreathOverlay(
   const usedSprite = drawFxSpriteFrame(
     ctx,
     'cell-breath',
-    ((nowMs % tuning.cycleMs) / tuning.cycleMs + 1) % 1,
+    (nowMs % tuning.cycleMs) / tuning.cycleMs,
     cx,
     cy,
     g.cellSize * tuning.spriteW,
     g.cellSize * tuning.spriteH,
     tuning.spriteAlpha * (0.72 + (wave + 1) * 0.14),
+    { loop: true },
   );
   if (usedSprite) return;
 
@@ -207,6 +248,7 @@ export function drawDigitAmbientOverlay(
     g.cellSize * tuning.spriteW,
     g.cellSize * tuning.spriteH,
     tuning.spriteAlpha,
+    { loop: true },
   );
   if (!usedSprite) {
     drawProceduralDigitParticles(ctx, cx, cy, g.cellSize, color, nowMs, digit);
@@ -251,6 +293,7 @@ export function drawWavingFlagMark(
     g.cellSize * tuning.spriteW,
     g.cellSize * tuning.spriteH,
     tuning.spriteAlpha * 0.55,
+    { loop: true },
   );
 
   const drawW = g.cellSize * 0.74;
@@ -260,6 +303,100 @@ export function drawWavingFlagMark(
   } else {
     drawImageContained(ctx, img, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
   }
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function drawSmokePuff(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  radius: number,
+  alpha: number,
+): void {
+  if (alpha <= 0.01) return;
+  const g = ctx.createRadialGradient(px, py, 0, px, py, radius);
+  g.addColorStop(0, `rgba(203, 213, 225, ${alpha * 0.55})`);
+  g.addColorStop(0.45, `rgba(100, 116, 139, ${alpha * 0.32})`);
+  g.addColorStop(1, 'rgba(71, 85, 105, 0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Forward burst smoke during detonation (progress 0→1). */
+export function drawMineBurstSmoke(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  progress: number,
+  intensity = 1,
+): void {
+  const t = clamp01(progress);
+  if (t <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 14; i += 1) {
+    const seed = i * 2.17;
+    const stagger = (i / 14) * 0.32;
+    const puffT = clamp01((t - stagger) / 0.68);
+    if (puffT <= 0) continue;
+    const rise = puffT * cellSize * (0.18 + (i % 4) * 0.05);
+    const spread = Math.sin(seed * 1.3) * cellSize * 0.16 * puffT;
+    const px = cx + spread;
+    const py = cy - rise + cellSize * 0.04;
+    const radius = cellSize * (0.07 + (i % 3) * 0.028) * (0.45 + puffT * 0.95);
+    const alpha = intensity * (1 - puffT * 0.55) * 0.5;
+    drawSmokePuff(ctx, px, py, radius, alpha);
+  }
+  ctx.restore();
+}
+
+/** Gentle rising smoke after the blast has settled. */
+export function drawMineSettledSmoke(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  nowMs: number,
+  intensity = 1,
+): void {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 10; i += 1) {
+    const seed = i * 1.91;
+    const cycle = 2600 + (i % 4) * 420;
+    const phase = ((nowMs + seed * 140) % cycle) / cycle;
+    const life = Math.sin(phase * Math.PI);
+    if (life <= 0.05) continue;
+    const rise = phase * cellSize * 0.52;
+    const spread = Math.sin(seed) * cellSize * 0.11;
+    const px = cx + spread;
+    const py = cy - rise + cellSize * 0.06;
+    const radius = cellSize * (0.05 + (i % 3) * 0.022) * (0.7 + life * 0.5);
+    const alpha = intensity * life * 0.34;
+    drawSmokePuff(ctx, px, py, radius, alpha);
+  }
+  ctx.restore();
+}
+
+export function drawMineScorchMark(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+): void {
+  ctx.save();
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = '#020617';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + cellSize * 0.12, cellSize * 0.33, cellSize * 0.16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 export function resolveMineCutout(status: GameStatus, isHitMine = false): GameCutoutName {
@@ -287,6 +424,15 @@ export function drawBoardCellOverlays(
     options.pointer &&
     options.pointer.row === view.row &&
     options.pointer.col === view.col;
+
+  if (
+    !view.revealed &&
+    !view.flagged &&
+    options.status === 'idle' &&
+    !isPointer
+  ) {
+    drawCellBreathOverlay(ctx, x, y, g, options.nowMs);
+  }
 
   if (!view.revealed && !view.flagged && options.status === 'playing' && isPointer) {
     drawCellHoverOverlay(ctx, x, y, g, options.pointer!.pressed);

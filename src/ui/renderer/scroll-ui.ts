@@ -54,7 +54,7 @@ export function drawScrollPressureBar(
   ctx.restore();
 }
 
-/** 即将离屏行警戒色带（不绘制数字，避免与盘面冲突） */
+/** Warning band for rows about to scroll off (no digits — avoids board clutter). */
 export function drawScrollDangerBand(
   ctx: CanvasRenderingContext2D,
   layout: LayoutMetrics,

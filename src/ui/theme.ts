@@ -5,7 +5,7 @@ export const GRID_PADDING = 12;
 export const HUD_HEIGHT = 58;
 export const HUD_GAP = 10;
 
-/** 现代 UI 字体（index.html 加载 DM Sans + IBM Plex Mono） */
+/** Modern UI fonts (DM Sans + IBM Plex Mono loaded in index.html). */
 export const FONTS = {
   display: '"DM Sans", "Segoe UI", system-ui, sans-serif',
   mono: '"IBM Plex Mono", "SF Mono", monospace',
@@ -27,8 +27,8 @@ export const THEME = {
   cellHidden: '#27272a',
   cellHiddenHighlight: '#323238',
   cellHiddenBorder: 'rgba(255, 255, 255, 0.07)',
-  cellRevealed: '#0f1117',
-  cellRevealedBorder: 'rgba(255, 255, 255, 0.035)',
+  cellRevealed: '#1a1f2e',
+  cellRevealedBorder: 'rgba(129, 140, 248, 0.28)',
 
   accent: '#6366f1',
   accentSoft: 'rgba(99, 102, 241, 0.14)',
@@ -81,7 +81,7 @@ export const THEME = {
   ] as const,
 } as const;
 
-/** 大棋盘时自动缩小格子，避免 Canvas 超出视口；fixedCellSize 强制固定格宽 */
+/** Shrink cells on large boards to keep canvas in viewport; fixedCellSize forces a fixed width. */
 export function computeGridMetrics(
   rows: number,
   cols: number,
@@ -140,7 +140,7 @@ export function cellPixelOrigin(
   };
 }
 
-/** 按视口与预留区拟合格子尺寸（mobile：contain；desktop 请用 computeEndlessBoardCellSize） */
+/** Fit cell size to viewport and reserved chrome (mobile: contain; desktop: use computeEndlessBoardCellSize). */
 export function computeViewportCellSize(
   cols: number,
   rows: number,

@@ -66,7 +66,7 @@ export function getBoardOnlyLayoutMetrics(
   };
 }
 
-/** 无尽顶缘预览带：在棋盘上方腾出半隐藏行区域，可玩区起点下移 */
+/** Endless top preview band: half-hidden row area above the board; playable origin shifts down. */
 export function applyBoardPreviewBand(
   layout: LayoutMetrics,
   previewRows: number,

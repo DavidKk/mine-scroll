@@ -37,7 +37,7 @@ function isRowAiConfirmed(
   return true;
 }
 
-/** 即将离屏的 N 行均推理确认无漏格 */
+/** All N rows about to leave the screen are AI-confirmed with no leaks. */
 export function isBottomRowsAiConfirmed(
   board: SolverBoard,
   safe: Set<string>,
@@ -56,8 +56,8 @@ export function isBottomRowsAiConfirmed(
 }
 
 /**
- * 无尽 AI 手动上移：离屏 N 行零扣血且推理 100% 确认。
- * 命少 / 仍有确定步 / 底行有隐藏格时不抢卷轴。
+ * Endless AI manual scroll: N leaving rows are zero-damage and 100% confirmed.
+ * Do not scroll when low on lives, certain moves remain, or bottom row has hidden cells.
  */
 export function pickScrollMove(
   session: ModeSession,
@@ -76,15 +76,15 @@ export function pickScrollMove(
   if (tactical !== null && isUrgentBottomRowCertain(tactical)) return null;
   if (tactical !== null && tactical.confidence === 'certain') return null;
 
-  const batchNote = rows > 1 ? `×${rows} 行` : '';
+  const batchNote = rows > 1 ? ` ×${rows} rows` : '';
 
   if (!isBottomRowsAiConfirmed(board, safe, mines, rows)) return null;
 
   if (tactical !== null && isRiskyMove(tactical)) return null;
 
   if (tactical === null) {
-    return createScrollMove(`底行无漏格 · 手动上移${batchNote}`, rows);
+    return createScrollMove(`Bottom rows clear · manual scroll${batchNote}`, rows);
   }
 
-  return createScrollMove(`底行无漏格 · 手动上移加速${batchNote}`, rows);
+  return createScrollMove(`Bottom rows clear · manual scroll rush${batchNote}`, rows);
 }

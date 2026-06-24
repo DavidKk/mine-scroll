@@ -49,6 +49,14 @@ FX_ROWS = [
     'score-pop',
 ]
 
+# Procedural / gameplay-generated loop sheets (not on the production 8x8 grid).
+LOOP_FX_NAMES = [
+    'cell-breath',
+    'cell-hover',
+    'digit-particles',
+    'flag-wave',
+]
+
 UI_PANELS = [
     ('space-active', (45, 55, 293, 111)),
     ('space-disabled', (383, 56, 276, 109)),
@@ -213,6 +221,33 @@ def slice_fx_sprites(manifest: dict[str, object]) -> None:
     }
 
 
+def merge_generated_loop_fx(manifest: dict[str, object]) -> None:
+    fx = manifest.setdefault('fx', {})
+    grid = fx.setdefault('grid', {'frameWidth': 192, 'frameHeight': 128})  # type: ignore[union-attr]
+    effects = fx.setdefault('effects', {})  # type: ignore[union-attr]
+    frame_w = int(grid.get('frameWidth', 192))  # type: ignore[union-attr]
+    frame_h = int(grid.get('frameHeight', 128))  # type: ignore[union-attr]
+
+    for name in LOOP_FX_NAMES:
+        fx_dir = OUT_DIR / 'fx' / name
+        if not fx_dir.is_dir():
+            continue
+        frames = sorted(fx_dir.glob('frame-*.png'))
+        if not frames:
+            continue
+        effects[name] = {
+            'frameWidth': frame_w,
+            'frameHeight': frame_h,
+            'frameCount': len(frames),
+            'blendMode': 'lighter',
+            'frames': [
+                '/' + path.relative_to(ROOT / 'public').as_posix()
+                for path in frames
+            ],
+        }
+        print('merged loop fx', name, f'({len(frames)} frames)')
+
+
 def slice_ui_panels(manifest: dict[str, object]) -> None:
     if not UI_SRC.exists():
         raise SystemExit(f'missing UI panel sheet: {UI_SRC}')
@@ -316,6 +351,7 @@ def main() -> None:
     manifest: dict[str, object] = {'version': 1}
     slice_core_cutouts(manifest)
     slice_fx_sprites(manifest)
+    merge_generated_loop_fx(manifest)
     slice_ui_panels(manifest)
     make_previews(manifest)
 

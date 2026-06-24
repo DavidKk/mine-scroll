@@ -13,7 +13,7 @@ export interface AiMove {
   col: number;
   confidence: AiConfidence;
   reason: string;
-  /** scroll：一次上移行数（跟当前批量档） */
+  /** scroll: rows moved per tick (current batch tier) */
   batchRows?: number;
 }
 

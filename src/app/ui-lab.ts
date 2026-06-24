@@ -436,7 +436,7 @@ export function mountUiLab(root: HTMLElement): () => void {
   title.textContent = 'Endless UI Lab';
 
   const subtitle = document.createElement('p');
-  subtitle.textContent = '目标图、缺口清单、以及可循环预览的核心动效。用于先确认视觉，再同步到主游戏 Canvas。';
+  subtitle.textContent = 'Target art, gap list, and loopable core FX previews. Confirm visuals here before syncing to the main game canvas.';
 
   const links = document.createElement('div');
   links.className = 'ui-lab__links';
@@ -464,7 +464,7 @@ export function mountUiLab(root: HTMLElement): () => void {
   const targetTitle = document.createElement('h2');
   targetTitle.textContent = 'Visual Target';
   const targetCopy = document.createElement('p');
-  targetCopy.textContent = '这张图作为主视觉基准。静态资产覆盖大部分元素；缺口主要在 AI 提示、批量上移覆盖、断连/回血、开始/日志状态，以及可交互动效。';
+  targetCopy.textContent = 'This image is the visual baseline. Static assets cover most elements; gaps remain in AI hints, batch scroll overlays, break/heal, start/log states, and interactive FX.';
   targetText.append(targetTitle, targetCopy);
 
   const targetImg = document.createElement('img');
@@ -479,7 +479,7 @@ export function mountUiLab(root: HTMLElement): () => void {
   const assetsTitle = document.createElement('h2');
   assetsTitle.textContent = 'Generated UI Assets';
   const assetsCopy = document.createElement('p');
-  assetsCopy.textContent = '按 TODO 生成的资产草案。先作为视觉资产池和切片候选，不直接强行替换游戏逻辑。';
+  assetsCopy.textContent = 'Asset drafts from the TODO pipeline. Visual pool and slice candidates only — not wired into game logic yet.';
   assetsHead.append(assetsTitle, assetsCopy);
 
   const assetsGrid = document.createElement('div');

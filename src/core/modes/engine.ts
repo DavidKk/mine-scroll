@@ -81,7 +81,7 @@ export function applyAiMove(session: ModeSession, move: AiMove): ModeSession {
     const cell = session.state.board.cells[move.row]?.[move.col];
     if (!cell || cell.revealed || cell.mark !== 'flag') return session;
     let next = toggleMarkAt(session, move.row, move.col);
-    if (move.reason.includes('矛盾') || move.reason.includes('错旗')) {
+    if (move.reason.includes('contradiction') || move.reason.includes('wrong flag')) {
       const pk = aiPersistCellKey(next.state.board, move.row, move.col);
       const contradicted = new Set(next.aiContradictedFlags ?? []);
       contradicted.add(pk);

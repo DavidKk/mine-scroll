@@ -36,6 +36,24 @@ export const GAME_FX_NAMES = [
 
 export type GameFxName = (typeof GAME_FX_NAMES)[number];
 
+/** Sprite sheets that loop continuously (ambient cell / digit / flag FX). */
+export const LOOPING_GAME_FX = new Set<GameFxName>([
+  'cell-breath',
+  'digit-particles',
+  'flag-wave',
+]);
+
+export function isLoopingGameFx(name: GameFxName): boolean {
+  return LOOPING_GAME_FX.has(name);
+}
+
+export function resolveFxFrameIndex(progress: number, frameCount: number, loop: boolean): number {
+  if (frameCount <= 0) return 0;
+  const t = Math.max(0, Math.min(1, progress));
+  const raw = Math.floor(t * frameCount);
+  return loop ? raw % frameCount : Math.min(frameCount - 1, raw);
+}
+
 export const GAME_UI_PANEL_NAMES = [
   'space-active',
   'space-disabled',
@@ -68,9 +86,16 @@ export const GAME_UI_PANEL_NAMES = [
 export type GameUiPanelName = (typeof GAME_UI_PANEL_NAMES)[number];
 
 export const GAME_ASSET_TUNING = {
+  tiles: {
+    /** Render clue digits as sharp canvas text instead of downscaled glow sprites. */
+    crispDigits: true,
+    digitShadowBlurRatio: 0.1,
+  },
   cutouts: {
     flagScale: 1,
     mineScale: 1.04,
+    /** Shift mine draw up so opaque bbox center aligns with cell center (256px art). */
+    mineAnchorYOffset: -7.5 / 256,
     heartScale: 1.18,
   },
   fx: {
@@ -297,7 +322,7 @@ export function drawImageContained(
   y: number,
   w: number,
   h: number,
-  scale = 1,
+  scale: number = 1,
 ): void {
   const sourceW = 'naturalWidth' in img ? img.naturalWidth : 'width' in img ? Number(img.width) : w;
   const sourceH = 'naturalHeight' in img ? img.naturalHeight : 'height' in img ? Number(img.height) : h;
@@ -305,6 +330,34 @@ export function drawImageContained(
   const dw = sourceW * fit;
   const dh = sourceH * fit;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+export function drawGameMineCutout(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  cellX: number,
+  cellY: number,
+  cellSize: number,
+  scale: number = GAME_ASSET_TUNING.cutouts.mineScale,
+): void {
+  const anchorY = cellSize * GAME_ASSET_TUNING.cutouts.mineAnchorYOffset;
+  drawImageContained(ctx, img, cellX, cellY + anchorY, cellSize, cellSize, scale);
+}
+
+export function drawGameMineCutoutAtCenter(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  scale: number = GAME_ASSET_TUNING.cutouts.mineScale,
+): void {
+  drawGameMineCutout(ctx, img, cx - cellSize / 2, cy - cellSize / 2, cellSize, scale);
+}
+
+export interface DrawFxSpriteOptions {
+  /** When true, progress wraps through all frames at full alpha (no end fade). */
+  loop?: boolean;
 }
 
 export function drawFxSpriteFrame(
@@ -316,17 +369,18 @@ export function drawFxSpriteFrame(
   w: number,
   h: number,
   alphaScale = 1,
+  options: DrawFxSpriteOptions = {},
 ): boolean {
   const frames = getGameFxFrames(name);
   if (!frames || frames.length === 0) return false;
-  const t = Math.max(0, Math.min(1, progress));
-  const index = Math.min(frames.length - 1, Math.floor(t * frames.length));
+  const loop = options.loop ?? isLoopingGameFx(name);
+  const index = resolveFxFrameIndex(progress, frames.length, loop);
   const frame = frames[index];
   if (!frame) return false;
 
   ctx.save();
   ctx.globalCompositeOperation = getGameFxBlendMode(name);
-  ctx.globalAlpha = alphaScale * Math.max(0, Math.min(1, 1 - Math.max(0, t - 0.72) / 0.28));
+  ctx.globalAlpha = alphaScale;
   drawImageContained(ctx, frame, cx - w / 2, cy - h / 2, w, h, 1);
   ctx.restore();
   return true;

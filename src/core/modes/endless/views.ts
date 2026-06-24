@@ -35,7 +35,7 @@ export function isEndlessPlayableScreenRow(screenRow: number): boolean {
   return screenRow >= 0 && screenRow < ENDLESS_VISIBLE_ROWS;
 }
 
-/** 屏幕行 -1 为顶缘半隐藏预览行，可点击操作 */
+/** Screen row −1 is the top half-hidden preview row (interactive). */
 export function isEndlessInteractiveScreenRow(screenRow: number): boolean {
   return screenRow === -1 || isEndlessPlayableScreenRow(screenRow);
 }
@@ -78,7 +78,7 @@ export function toEndlessCellViews(session: ModeSession): CellView[] {
   return views;
 }
 
-/** 将屏幕行索引转为棋盘本地行 */
+/** Map screen row index to board local row. */
 export function endlessScreenRowToLocal(session: ModeSession, screenRow: number): number {
   return (session.endlessViewStart ?? 0) + screenRow;
 }

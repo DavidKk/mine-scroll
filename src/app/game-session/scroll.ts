@@ -96,22 +96,22 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     const beforeLives = runtime.session.lives;
     const next = endlessScrollTick(runtime.session, batchRows);
     const depthAfter = next.scrollRowCount ?? 0;
-    const batchNote = batchRows > 1 ? ` · ×${batchRows} 行` : '';
+    const batchNote = batchRows > 1 ? ` · ×${batchRows} rows` : '';
     const trigger = manual
       ? aiReason
-        ? `AI 手动上移 ↑${depthAfter}${batchNote} · ${aiReason}`
-        : `玩家 手动上移 ↑${depthAfter}${batchNote}`
-      : `卷轴上移 ↑${depthAfter}${batchNote}`;
+        ? `AI manual scroll ↑${depthAfter}${batchNote} · ${aiReason}`
+        : `Player manual scroll ↑${depthAfter}${batchNote}`
+      : `Scroll ↑${depthAfter}${batchNote}`;
     applySession(next, beforeLives, { trigger });
     if (manual) {
       gameLog.append(
         aiReason
-          ? `AI 上移 ↑${depthAfter}${batchNote} · ${aiReason}`
-          : `手动上移 ↑${depthAfter}${batchNote}`,
+          ? `AI scroll ↑${depthAfter}${batchNote} · ${aiReason}`
+          : `Manual scroll ↑${depthAfter}${batchNote}`,
         'scroll',
       );
     } else {
-      gameLog.append(`卷轴上移 ↑${depthAfter}${batchNote}`, 'scroll');
+      gameLog.append(`Scroll ↑${depthAfter}${batchNote}`, 'scroll');
     }
 
     if (next.state.status === 'lost') {
@@ -119,7 +119,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
       stopScrollTimer();
       stopAiAuto();
       runtime.aiHint = null;
-      gameLog.append('失败', 'system');
+      gameLog.append('Defeat', 'system');
       render();
       return;
     }

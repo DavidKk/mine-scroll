@@ -61,13 +61,13 @@ export function formatEndlessScrollBadge(profile: EndlessScrollProfile): string 
   if (profile.nextStepKind === 'batch') {
     const nextBatch =
       SCROLL_BATCH_TIERS[Math.min(profile.batchTier + 1, SCROLL_BATCH_TIERS.length - 1)]!;
-    return `下一档 ${nextSec}s · 批量 → ×${nextBatch} 行`;
+    return `Next tier ${nextSec}s · batch → ×${nextBatch} rows`;
   }
   const nextInterval =
     SCROLL_INTERVAL_TIERS_MS[
       Math.min(profile.speedTier + 1, SCROLL_INTERVAL_TIERS_MS.length - 1)
     ]!;
-  return `下一档 ${nextSec}s · 加速 → ${(nextInterval / 1000).toFixed(1)}s`;
+  return `Next tier ${nextSec}s · faster → ${(nextInterval / 1000).toFixed(1)}s`;
 }
 
 /** @deprecated */

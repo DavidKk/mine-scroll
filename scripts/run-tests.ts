@@ -33,6 +33,7 @@ import {
   getComboFeedbackAnchor,
   getBottomFeedbackSlots,
 } from '../src/ui/game-stage-layout.ts';
+import { isLoopingGameFx, resolveFxFrameIndex } from '../src/ui/game-assets.ts';
 
 interface FakeCell extends SolverCell {
   mine?: boolean;
@@ -578,17 +579,17 @@ function testEndlessBreaksThroughFullyUnknownBoard(): void {
   const criticalMove = solveBoard(board, 1, undefined, 5).move;
   assert.equal(criticalMove?.kind, 'reveal');
   assert.equal(criticalMove?.confidence, 'guess');
-  assert.equal(criticalMove?.reason.startsWith('保命破局'), true);
+  assert.equal(criticalMove?.reason.startsWith('Emergency salvage'), true);
 
   const lowLifeMove = solveBoard(board, 2, undefined).move;
   assert.equal(lowLifeMove?.kind, 'reveal');
   assert.equal(lowLifeMove?.confidence, 'guess');
-  assert.equal(lowLifeMove?.reason.startsWith('破局 · 全未知'), true);
+  assert.equal(lowLifeMove?.reason.startsWith('Breakthrough · all unknown'), true);
 
   const { move } = solveBoard(board, 5, undefined);
   assert.equal(move?.kind, 'reveal');
   assert.equal(move?.confidence, 'guess');
-  assert.equal(move?.reason.startsWith('破局 · 全未知'), true);
+  assert.equal(move?.reason.startsWith('Breakthrough · all unknown'), true);
 }
 
 function testBlankBottomRowsDoNotTriggerAiScroll(): void {
@@ -675,9 +676,9 @@ function testComboFeedbackAnchorSitsBelowHudAndAboveBottomRail(): void {
   const viewportH = 800;
   const { stage, anchor } = comboAnchorInput(viewportW, viewportH);
 
-  assert.ok(anchor.y > stage.hudY + stage.hudH + 40, '连击锚点不应贴在顶栏');
-  assert.ok(anchor.y < stage.bottomRailRect.y - 8, '连击锚点应在底栏能量轨上方');
-  assert.ok(anchor.y > stage.boardY, '连击锚点应在棋盘区域内或下缘');
+  assert.ok(anchor.y > stage.hudY + stage.hudH + 40, 'combo anchor should sit below HUD');
+  assert.ok(anchor.y < stage.bottomRailRect.y - 8, 'combo anchor should sit above bottom rail');
+  assert.ok(anchor.y > stage.boardY, 'combo anchor should be within board band');
 }
 
 function testComboFeedbackAnchorFallbackWithoutLayout(): void {
@@ -705,11 +706,40 @@ function testBottomFeedbackSlotsSeparateScoreAndCombo(): void {
   const slots = getBottomFeedbackSlots(viewportW, viewportH, layout);
 
   assert.equal(slots.comboBurst.x, viewportW / 2);
-  assert.ok(slots.scorePop.y < slots.comboBurst.y, '得分飘字应在连击爆发上方');
+  assert.ok(slots.scorePop.y < slots.comboBurst.y, 'score pop should sit above combo burst');
   const minSep = 20 * stage.scale;
   const dx = Math.abs(slots.scorePop.x - slots.comboBurst.x);
   const dy = slots.comboBurst.y - slots.scorePop.y;
-  assert.ok(dy >= minSep || dx >= 60 * stage.scale, '得分与连击槽位应拉开间距');
+  assert.ok(dy >= minSep || dx >= 60 * stage.scale, 'score and combo slots should separate');
+}
+
+function testFxFrameIndexLoopAndOneshot(): void {
+  assert.equal(resolveFxFrameIndex(0, 8, true), 0);
+  assert.equal(resolveFxFrameIndex(0.999, 8, true), 7);
+  assert.equal(resolveFxFrameIndex(0, 8, false), 0);
+  assert.equal(resolveFxFrameIndex(1, 8, false), 7);
+  assert.equal(resolveFxFrameIndex(0.875, 8, false), 7);
+  assert.ok(isLoopingGameFx('digit-particles'));
+  assert.ok(!isLoopingGameFx('mine-explosion'));
+}
+
+function testOrbitParticlesSeamAtLoopWrap(): void {
+  const sample = (phase: number, i: number) => {
+    const spin = phase * Math.PI * 2;
+    const orbitDir = i % 2 === 0 ? 1 : -1;
+    const angle = i * 2.399 + spin * orbitDir;
+    const drift = Math.sin(spin + i * 1.7) * 0.035;
+    const radius = 0.3 + (i % 5) * 0.03 + drift;
+    return {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius * 0.72,
+    };
+  };
+  for (let i = 0; i < 12; i += 1) {
+    const a = sample(0, i);
+    const b = sample(1, i);
+    assert.ok(Math.abs(a.x - b.x) < 1e-10 && Math.abs(a.y - b.y) < 1e-10, `orbit ${i} should match at phase 0 and 1`);
+  }
 }
 
 const tests: Array<[string, () => void]> = [
@@ -739,6 +769,8 @@ const tests: Array<[string, () => void]> = [
   ['combo feedback anchor sits below hud and above bottom rail', testComboFeedbackAnchorSitsBelowHudAndAboveBottomRail],
   ['combo feedback anchor fallback without layout', testComboFeedbackAnchorFallbackWithoutLayout],
   ['bottom feedback slots separate score and combo', testBottomFeedbackSlotsSeparateScoreAndCombo],
+  ['fx frame index loops and completes oneshots', testFxFrameIndexLoopAndOneshot],
+  ['orbit particles match at loop wrap', testOrbitParticlesSeamAtLoopWrap],
 ];
 
 for (const [name, run] of tests) {

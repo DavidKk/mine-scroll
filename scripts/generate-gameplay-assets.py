@@ -198,7 +198,7 @@ def draw_flag_cutout(size: int = CUTOUT, phase: float = 0, danger: bool = False)
 def draw_mine_cutout(mode: str, size: int = CUTOUT) -> Image.Image:
     img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img, 'RGBA')
-    cx, cy = size / 2, size / 2 + 8
+    cx, cy = size / 2, size / 2
     r = size * 0.23
 
     if mode in {'exploded', 'flash'}:
@@ -239,7 +239,33 @@ def paste_center(base: Image.Image, overlay: Image.Image, scale: float) -> Image
     return base
 
 
+def draw_loop_particle_fx(color: tuple[int, int, int], frame: int, frames: int) -> Image.Image:
+    """Additive orbit particles; frame 0 and last frame share the same layout."""
+    img = Image.new('RGBA', (FX_W, FX_H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img, 'RGBA')
+    phase = frame / max(1, frames - 1)
+    spin = phase * math.tau
+    cx, cy = FX_W / 2, FX_H / 2
+    count = 16
+
+    for i in range(count):
+        orbit_dir = 1 if i % 2 == 0 else -1
+        angle = i * 2.399 + spin * orbit_dir
+        drift = math.sin(spin + i * 1.7) * 22
+        radius = 28 + (i % 5) * 4 + drift
+        p = (phase + i * 0.071) % 1
+        alpha = int(120 + math.sin(p * math.pi) * 100)
+        dot = 3 + (i % 3) * 1.5
+        x = cx + math.cos(angle) * radius
+        y = cy + math.sin(angle) * radius * 0.72
+        d.ellipse((x - dot, y - dot, x + dot, y + dot), fill=color + (max(0, alpha),))
+
+    return img.filter(ImageFilter.GaussianBlur(0.35))
+
+
 def draw_particle_fx(color: tuple[int, int, int], frame: int, frames: int, kind: str) -> Image.Image:
+    if kind in {'digit-particles', 'cell-breath', 'cell-hover'}:
+        return draw_loop_particle_fx(color, frame, frames)
     rng = random.Random(9300 + frame * 17 + len(kind))
     img = Image.new('RGBA', (FX_W, FX_H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img, 'RGBA')
@@ -329,7 +355,7 @@ def generate_effects() -> dict[str, object]:
         'digit-particles': lambda i, n: draw_particle_fx((125, 211, 252), i, n, 'digit-particles'),
         'cell-breath': lambda i, n: draw_particle_fx((129, 140, 248), i, n, 'cell-breath'),
         'cell-hover': lambda i, n: draw_particle_fx((56, 189, 248), i, n, 'cell-hover'),
-        'flag-wave': lambda i, n: draw_flag_cutout(192, i / n).resize((FX_W, FX_H), Image.Resampling.LANCZOS),
+        'flag-wave': lambda i, n: draw_flag_cutout(192, i / max(1, n - 1)).resize((FX_W, FX_H), Image.Resampling.LANCZOS),
     }
 
     for name, drawer in effect_defs.items():

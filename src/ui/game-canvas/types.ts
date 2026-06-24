@@ -39,7 +39,7 @@ export interface GameCanvasFullscreenOptions {
   getRecentLogs?: () => GameCanvasLogLine[];
   isLogOpen?: () => boolean;
   onStart?: () => void;
-  /** idle 时是否仍显示「开始」遮罩（false = 已点开始，等待玩家首击） */
+  /** Whether to show the start overlay while idle (false = started, waiting for first click). */
   showStartOverlay?: () => boolean;
   onRestart?: () => void;
   onSpace?: () => void;
@@ -54,19 +54,19 @@ export interface ViewportFitOptions {
 }
 
 export interface GameCanvasOptions {
-  /** 放宽棋盘最大像素，大格盘时格子更大 */
+  /** Looser max board pixels for larger cells on big grids. */
   maxGrid?: { width: number; height: number };
-  /** 固定格宽（无尽卷轴模式） */
+  /** Fixed cell width (endless scroll mode). */
   fixedCellSize?: number;
-  /** 固定棋盘行数（无尽卷轴：Canvas 高度不随缓冲变化） */
+  /** Fixed board row count (endless: canvas height ignores buffer rows). */
   fixedGridRows?: number;
-  /** 全屏时按视口拟合格子尺寸（竖长无尽盘） */
+  /** Fit cell size to viewport in fullscreen (tall endless board). */
   fitViewport?: ViewportFitOptions;
-  /** 无尽卷轴压迫感（准备上移倒数） */
+  /** Endless scroll pressure (pre-scroll countdown). */
   getScrollPressure?: () => ScrollPressureState | undefined;
-  /** 游戏页全屏 Canvas Shell（HUD、操作、日志都画在同一张 Canvas） */
+  /** Fullscreen canvas shell (HUD, input, log on one canvas). */
   fullscreen?: GameCanvasFullscreenOptions;
-  /** 无尽：棋盘顶缘预览带高度（行） */
+  /** Endless: top preview band height (rows). */
   endlessPreviewRows?: number;
 }
 
@@ -89,7 +89,7 @@ export interface GameCanvasController {
   startTimer(): void;
   stopTimer(): void;
   resetTimer(): void;
-  /** 仅重绘（卷轴倒数动画） */
+  /** Repaint only (scroll countdown animation). */
   repaint(): void;
   destroy(): void;
 }

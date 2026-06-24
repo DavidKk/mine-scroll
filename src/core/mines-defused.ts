@@ -6,15 +6,15 @@ import type {
   ModeSession,
 } from './types.ts';
 
-/** 消雷换 1 命（与 ENDLESS_LIVES 配套设计） */
+/** Defused mines traded for +1 life (paired with ENDLESS_LIVES design). */
 export const MINES_PER_LIFE = 4;
-/** 每颗消雷基础分；第 N 连击得分为 BASE_MINE_SCORE × N */
+/** Base score per defused mine; combo N pays BASE_MINE_SCORE × N. */
 export const BASE_MINE_SCORE = 10;
 
-/** 与 endless ENDLESS_LIVES 保持一致 */
+/** Matches endless ENDLESS_LIVES. */
 export const ENDLESS_MAX_LIVES = 5;
 
-/** 雷格唯一键（无尽用世界行号，经典用本地行号） */
+/** Unique mine cell key (world row in endless, local row in classic). */
 export function mineDefuseKey(board: Board, localRow: number, col: number): string {
   if (board.topology === 'endless' && board.minRow !== undefined) {
     return `${board.minRow + localRow},${col}`;
@@ -26,7 +26,7 @@ export function getMinesDefused(session: ModeSession): number {
   return session.minesDefused ?? 0;
 }
 
-/** 离屏底行上正确插旗的雷数（尚未入账） */
+/** Correctly flagged mines on a leaving bottom row (not yet banked). */
 export function countBankedMinesOnRow(board: Board, localRow: number): number {
   let count = 0;
   for (let col = 0; col < board.cols; col += 1) {
@@ -36,7 +36,7 @@ export function countBankedMinesOnRow(board: Board, localRow: number): number {
   return count;
 }
 
-/** 底行上移离屏：正确插旗的雷入账（同一世界格只计一次） */
+/** Bottom row scroll-off: bank correctly flagged mines (each world cell once). */
 export function applyMineDefuseOnRowScrollOff(
   session: ModeSession,
   board: Board,

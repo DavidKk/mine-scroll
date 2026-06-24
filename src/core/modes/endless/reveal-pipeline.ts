@@ -31,7 +31,7 @@ function visibleBounds(board: Board): RevealBounds {
   };
 }
 
-/** 玩家可操作的行范围（含顶缘半隐藏预览行） */
+/** Player-actionable row range (includes top half-hidden preview row). */
 export function actionableBounds(board: Board): RevealBounds {
   const startRow = visibleViewStart(board);
   const previewStart = Math.max(0, startRow - ENDLESS_PREVIEW_SOURCE_ROWS);
