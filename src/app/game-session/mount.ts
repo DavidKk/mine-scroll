@@ -18,6 +18,7 @@ import {
 import { getModeEntry } from '../../core/modes/catalog.ts';
 import type { ModeSession } from '../../core/types.ts';
 import { createGameCanvas, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts';
+import { createGameAudio, playFlagToggleAudio, playRevealAudio } from '../../ui/game-audio.ts';
 import { DEFAULT_CELL_SIZE } from '../../ui/theme.ts';
 import { createAiController } from './ai-loop.ts';
 import { applySessionUpdate, createGameLog, formatCell, logPlayerAction } from './logging.ts';
@@ -56,6 +57,7 @@ export function mountGameSession(
 ): () => void {
   const modeMeta = getModeEntry();
   const runtime = createInitialRuntime(createSession());
+  const gameAudio = createGameAudio();
 
   root.className = 'app';
   root.replaceChildren();
@@ -123,6 +125,7 @@ export function mountGameSession(
     runtime,
     gameLog,
     scroll,
+    gameAudio,
     applySession,
     afterSessionChange,
     render,
@@ -194,6 +197,7 @@ export function mountGameSession(
         if (runtime.session.state.status === 'playing') scroll.performScrollTick(true);
       },
       onDevAuto: () => ai.toggleAiAuto(startArcadeRun),
+      onUiHover: () => gameAudio.play('uiHover'),
     };
     const controller = createGameCanvas(
       canvasContainer,
@@ -207,8 +211,12 @@ export function mountGameSession(
           if (!isEndlessInteractiveScreenRow(row)) return;
           const wasIdle = runtime.session.state.status === 'idle';
           const beforeLives = runtime.session.lives;
+          const beforeBoard = runtime.session.state.board;
           logPlayerAction(gameLog, 'reveal', row, col);
           const next = revealAt(runtime.session, toBoardRow(row), col);
+          if (next !== runtime.session) {
+            playRevealAudio(gameAudio, beforeBoard, next.state.board);
+          }
           applySession(next, beforeLives, { trigger: `Player reveal ${formatCell(row, col)}` });
           if (wasIdle && next.state.status === 'playing') {
             gameLog.append('Game started', 'system');
@@ -227,8 +235,16 @@ export function mountGameSession(
         onToggleFlag(row, col) {
           if (runtime.session.state.status !== 'idle' && runtime.session.state.status !== 'playing') return;
           if (!isEndlessInteractiveScreenRow(row)) return;
+          const localRow = toBoardRow(row);
+          const cell = runtime.session.state.board.cells[localRow]?.[col];
+          if (!cell || cell.revealed) return;
+          const wasFlagged = cell.mark === 'flag';
           logPlayerAction(gameLog, 'flag', row, col);
-          applySession(toggleMarkAt(runtime.session, toBoardRow(row), col));
+          const next = toggleMarkAt(runtime.session, localRow, col);
+          if (next !== runtime.session) {
+            playFlagToggleAudio(gameAudio, !wasFlagged);
+          }
+          applySession(next);
           ai.refreshAiHint();
           render();
         },
@@ -236,8 +252,12 @@ export function mountGameSession(
           if (runtime.session.state.status !== 'playing') return;
           if (!isEndlessInteractiveScreenRow(row)) return;
           const beforeLives = runtime.session.lives;
+          const beforeBoard = runtime.session.state.board;
           logPlayerAction(gameLog, 'Chord', row, col);
           const next = chordAt(runtime.session, toBoardRow(row), col);
+          if (next !== runtime.session) {
+            playRevealAudio(gameAudio, beforeBoard, next.state.board);
+          }
           applySession(next, beforeLives, { trigger: `Player Chord ${formatCell(row, col)}` });
           if (next.state.status === 'won' || next.state.status === 'lost') {
             runtime.view?.stopTimer();
@@ -314,6 +334,7 @@ export function mountGameSession(
     ai.stopAiAuto();
     window.removeEventListener('keydown', onKeyDown);
     runtime.view?.destroy();
+    gameAudio.destroy();
   }
 
   mountCanvas();

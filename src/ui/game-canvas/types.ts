@@ -44,6 +44,7 @@ export interface GameCanvasFullscreenOptions {
   onRestart?: () => void;
   onSpace?: () => void;
   onDevAuto?: () => void;
+  onUiHover?: () => void;
 }
 
 export interface ViewportFitOptions {

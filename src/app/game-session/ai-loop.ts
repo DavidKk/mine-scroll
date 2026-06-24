@@ -2,6 +2,7 @@ import { applyAiMove, getAiAnalysis, MINES_PER_LIFE, toAiHintDisplay } from '../
 import { aiPersistCellKey, isAiPersistBlocked } from '../../core/ai/ai-blocked.ts';
 import { getEndlessAiStepMs } from '../../core/ai/solver.ts';
 import type { ModeSession } from '../../core/types.ts';
+import { playFlagToggleAudio, playRevealAudio, type GameAudioController } from '../../ui/game-audio.ts';
 import type { CanvasLogController, GameSessionRuntime, SessionApplyContext } from './types.ts';
 import { formatCell, logAiMove } from './logging.ts';
 import type { ScrollController } from './scroll.ts';
@@ -10,6 +11,7 @@ export interface AiControllerDeps {
   runtime: GameSessionRuntime;
   gameLog: CanvasLogController;
   scroll: ScrollController;
+  gameAudio: GameAudioController;
   applySession(next: ModeSession, beforeLives?: number, context?: SessionApplyContext): void;
   afterSessionChange(wasIdle?: boolean): void;
   render(): void;
@@ -24,7 +26,7 @@ export interface AiController {
 }
 
 export function createAiController(deps: AiControllerDeps): AiController {
-  const { runtime, gameLog, scroll, applySession, afterSessionChange, render } = deps;
+  const { runtime, gameLog, scroll, gameAudio, applySession, afterSessionChange, render } = deps;
 
   function stopAiAuto(): void {
     runtime.aiAutoActive = false;
@@ -147,12 +149,22 @@ export function createAiController(deps: AiControllerDeps): AiController {
               ? 'unflag'
               : 'reveal';
       const trigger = `AI ${triggerPrefix}${triggerKind} ${formatCell(screenRow, move.col)} · ${move.reason}`;
+      const beforeBoard = runtime.session.state.board;
       let next = applyAiMove(runtime.session, move);
       if (move.kind === 'unflag' && (move.reason.includes('contradiction') || move.reason.includes('wrong flag'))) {
         const k = aiPersistCellKey(next.state.board, move.row, move.col);
         const contradicted = new Set(next.aiContradictedFlags ?? []);
         contradicted.add(k);
         next = { ...next, aiContradictedFlags: [...contradicted] };
+      }
+      if (next !== runtime.session) {
+        if (move.kind === 'reveal' || move.kind === 'chord') {
+          playRevealAudio(gameAudio, beforeBoard, next.state.board);
+        } else if (move.kind === 'flag') {
+          playFlagToggleAudio(gameAudio, true);
+        } else if (move.kind === 'unflag') {
+          playFlagToggleAudio(gameAudio, false);
+        }
       }
       applySession(next, beforeLives, { trigger });
       afterSessionChange(wasIdle);

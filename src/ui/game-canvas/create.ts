@@ -162,6 +162,7 @@ export function createGameCanvas(
   let startRect: { x: number; y: number; w: number; h: number } | null = null;
   let retryRect: { x: number; y: number; w: number; h: number } | null = null;
   let devAutoRect: { x: number; y: number; w: number; h: number } | null = null;
+  let uiHoverTarget: string | null = null;
   applyCanvasSize(canvas, ctx, width, height);
 
   let elapsed = 0;
@@ -1817,10 +1818,43 @@ export function createGameCanvas(
     }
   }
 
+  function insideRect(
+    rect: { x: number; y: number; w: number; h: number },
+    x: number,
+    y: number,
+  ): boolean {
+    return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+  }
+
+  function hitInteractiveUi(x: number, y: number): string | null {
+    if (devAutoRect && insideRect(devAutoRect, x, y)) return 'dev-auto';
+    if (
+      currentStatus === 'idle' &&
+      startRect &&
+      (fullscreen?.showStartOverlay?.() ?? true) &&
+      insideRect(startRect, x, y)
+    ) {
+      return 'start';
+    }
+    if (currentStatus === 'lost' && retryRect && insideRect(retryRect, x, y)) return 'retry';
+    if (hitReset(x, y)) return 'reset';
+    return null;
+  }
+
+  function updateUiHover(x: number, y: number): void {
+    if (!fullscreen?.onUiHover) return;
+    const target = hitInteractiveUi(x, y);
+    if (target && target !== uiHoverTarget) {
+      fullscreen.onUiHover();
+    }
+    uiHoverTarget = target;
+  }
+
   function onMouseMove(event: MouseEvent): void {
     const { x, y } = canvasCoords(event);
     const pressed = (event.buttons & 1) !== 0;
     updateBoardPointer(x, y, pressed);
+    updateUiHover(x, y);
   }
 
   function onMouseUp(event: MouseEvent): void {
@@ -1832,6 +1866,7 @@ export function createGameCanvas(
 
   function onMouseLeave(): void {
     boardPointer = null;
+    uiHoverTarget = null;
   }
 
   canvas.addEventListener('mousedown', onMouseDown);
