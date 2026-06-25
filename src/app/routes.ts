@@ -5,11 +5,11 @@ export const ROUTES = {
   responsive: '/responsive',
 } as const;
 
-export type AssetLabSection = 'sprites' | 'animations' | 'background' | 'audio';
+export type AssetLabSection = 'sprites' | 'animations' | 'background' | 'audio' | 'game-ui';
 
 export type AppRoute = 'game' | 'assets' | 'lab' | 'responsive';
 
-const ASSET_SECTIONS: AssetLabSection[] = ['sprites', 'animations', 'background', 'audio'];
+const ASSET_SECTIONS: AssetLabSection[] = ['sprites', 'animations', 'background', 'audio', 'game-ui'];
 
 function normalizePath(pathname: string): string {
   const trimmed = pathname.replace(/\/+$/, '');

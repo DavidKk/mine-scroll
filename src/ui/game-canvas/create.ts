@@ -1020,7 +1020,10 @@ export function createGameCanvas(
       fillRounded(rectX, rectY, hitSize, hitSize, 8 * scale, 'rgba(59, 130, 246, 0.14)');
     }
     shellCtx.globalAlpha = hovered ? 1 : 0.82;
-    drawHudIcon(shellCtx, muted ? 'volume-off' : 'volume-on', cx - iconSize / 2, cy - iconSize / 2, {
+    const icon = muted
+      ? hovered ? 'volume-off-hover' : 'volume-off'
+      : hovered ? 'volume-on-hover' : 'volume-on';
+    drawHudIcon(shellCtx, icon, cx - iconSize / 2, cy - iconSize / 2, {
       size: iconSize,
     });
     shellCtx.restore();

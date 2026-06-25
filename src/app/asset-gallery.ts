@@ -11,6 +11,7 @@ import {
   type NavItem,
 } from './asset-gallery/editor-shell.ts';
 import { mountEffectPanels, type EffectPanelId } from './asset-gallery/cell-effects.ts';
+import { gameUiNavItems, mountGameUiPanels, type GameUiLabPanelId } from './asset-gallery/game-ui-lab.ts';
 
 const TILE_BASE = '/assets/tiles';
 
@@ -166,6 +167,7 @@ const FX_NAV: Array<{ id: EffectPanelId; label: string }> = [
 const FOOTER_NOTES: Record<AssetLabSection, string> = {
   sprites: 'Tile slices under public/assets/tiles · npm run assets:all for atlas rebuild',
   animations: 'Procedural cell FX previews · src/app/asset-gallery/cell-effects.ts',
+  'game-ui': 'Main-flow HUD v2 · public/assets/game · docs/NON-BOARD-UI-ASSET-INVENTORY.md',
   background: 'Live parallax backdrop · src/ui/ambient-backdrop.ts',
   audio: 'Game SFX & BGM · public/assets/game/audio · gains in game-audio.ts',
 };
@@ -206,6 +208,21 @@ export function mountAssetGallery(
       group: 'animations' as const,
       count: 8,
     })), (id) => effects.panels[id as EffectPanelId]));
+    return () => {
+      for (const dispose of disposers) dispose();
+      root.replaceChildren();
+    };
+  }
+
+  if (section === 'game-ui') {
+    const gameUi = mountGameUiPanels();
+    disposers.push(gameUi.dispose);
+    disposers.push(mountLabSection(root, section, onNavigate, gameUiNavItems().map((item) => ({
+      id: item.id,
+      label: item.label,
+      group: 'game-ui' as const,
+      count: item.count,
+    })), (id) => gameUi.panels[id as GameUiLabPanelId]));
     return () => {
       for (const dispose of disposers) dispose();
       root.replaceChildren();

@@ -10,6 +10,8 @@ export const HUD_ICON_NAMES = [
   'home',
   'volume-on',
   'volume-off',
+  'volume-on-hover',
+  'volume-off-hover',
   'info',
   'help',
   'trophy',

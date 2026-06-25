@@ -1,55 +1,43 @@
 {
-  "version": 1,
+  "version": 2,
+  "brief": "docs/NON-BOARD-UI-ASSET-INVENTORY.md",
   "cutouts": {
-    "source": "docs/design-assets/production/core-cutouts-production-v1.png",
+    "source": "docs/design-assets/production/core-cutouts-production-v2.png",
     "grid": {
-      "rows": 4,
-      "cols": 4,
-      "sourceCell": 313,
+      "rows": 1,
+      "cols": 3,
+      "sourceCell": 256,
       "outputSize": 256
     },
     "items": {
-      "mine-standard": "/assets/game/cutouts/mine-standard.png",
-      "mine-exploded": "/assets/game/cutouts/mine-exploded.png",
-      "mine-cracked": "/assets/game/cutouts/mine-cracked.png",
-      "mine-hit-flash": "/assets/game/cutouts/mine-hit-flash.png",
-      "flag-blue": "/assets/game/cutouts/flag-blue.png",
-      "flag-danger-red": "/assets/game/cutouts/flag-danger-red.png",
-      "flag-wrong-correction": "/assets/game/cutouts/flag-wrong-correction.png",
-      "flag-pole": "/assets/game/cutouts/flag-pole.png",
       "heart-full": "/assets/game/cutouts/heart-full.png",
       "heart-empty": "/assets/game/cutouts/heart-empty.png",
-      "heart-lost": "/assets/game/cutouts/heart-lost.png",
-      "heart-refill": "/assets/game/cutouts/heart-refill.png",
-      "warning-triangle": "/assets/game/cutouts/warning-triangle.png",
-      "danger-exclamation": "/assets/game/cutouts/danger-exclamation.png",
-      "shield-safe-zone": "/assets/game/cutouts/shield-safe-zone.png",
-      "chord-crosshair": "/assets/game/cutouts/chord-crosshair.png"
+      "heart-refill": "/assets/game/cutouts/heart-refill.png"
     }
   },
   "fx": {
-    "source": "docs/design-assets/production/fx-additive-sprites-production-v1.png",
+    "source": "docs/design-assets/production/fx-additive-sprites-production-v2.png",
     "grid": {
-      "rows": 8,
+      "rows": 5,
       "cols": 8,
       "frameWidth": 192,
       "frameHeight": 128
     },
     "effects": {
-      "mine-explosion": {
+      "score-pop": {
         "frameWidth": 192,
         "frameHeight": 128,
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/mine-explosion/frame-01.png",
-          "/assets/game/fx/mine-explosion/frame-02.png",
-          "/assets/game/fx/mine-explosion/frame-03.png",
-          "/assets/game/fx/mine-explosion/frame-04.png",
-          "/assets/game/fx/mine-explosion/frame-05.png",
-          "/assets/game/fx/mine-explosion/frame-06.png",
-          "/assets/game/fx/mine-explosion/frame-07.png",
-          "/assets/game/fx/mine-explosion/frame-08.png"
+          "/assets/game/fx/score-pop/frame-01.png",
+          "/assets/game/fx/score-pop/frame-02.png",
+          "/assets/game/fx/score-pop/frame-03.png",
+          "/assets/game/fx/score-pop/frame-04.png",
+          "/assets/game/fx/score-pop/frame-05.png",
+          "/assets/game/fx/score-pop/frame-06.png",
+          "/assets/game/fx/score-pop/frame-07.png",
+          "/assets/game/fx/score-pop/frame-08.png"
         ]
       },
       "combo-burst": {
@@ -68,38 +56,6 @@
           "/assets/game/fx/combo-burst/frame-08.png"
         ]
       },
-      "safe-reveal": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/safe-reveal/frame-01.png",
-          "/assets/game/fx/safe-reveal/frame-02.png",
-          "/assets/game/fx/safe-reveal/frame-03.png",
-          "/assets/game/fx/safe-reveal/frame-04.png",
-          "/assets/game/fx/safe-reveal/frame-05.png",
-          "/assets/game/fx/safe-reveal/frame-06.png",
-          "/assets/game/fx/safe-reveal/frame-07.png",
-          "/assets/game/fx/safe-reveal/frame-08.png"
-        ]
-      },
-      "flag-pop": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/flag-pop/frame-01.png",
-          "/assets/game/fx/flag-pop/frame-02.png",
-          "/assets/game/fx/flag-pop/frame-03.png",
-          "/assets/game/fx/flag-pop/frame-04.png",
-          "/assets/game/fx/flag-pop/frame-05.png",
-          "/assets/game/fx/flag-pop/frame-06.png",
-          "/assets/game/fx/flag-pop/frame-07.png",
-          "/assets/game/fx/flag-pop/frame-08.png"
-        ]
-      },
       "wrong-flag-break": {
         "frameWidth": 192,
         "frameHeight": 128,
@@ -114,22 +70,6 @@
           "/assets/game/fx/wrong-flag-break/frame-06.png",
           "/assets/game/fx/wrong-flag-break/frame-07.png",
           "/assets/game/fx/wrong-flag-break/frame-08.png"
-        ]
-      },
-      "heart-refill": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/heart-refill/frame-01.png",
-          "/assets/game/fx/heart-refill/frame-02.png",
-          "/assets/game/fx/heart-refill/frame-03.png",
-          "/assets/game/fx/heart-refill/frame-04.png",
-          "/assets/game/fx/heart-refill/frame-05.png",
-          "/assets/game/fx/heart-refill/frame-06.png",
-          "/assets/game/fx/heart-refill/frame-07.png",
-          "/assets/game/fx/heart-refill/frame-08.png"
         ]
       },
       "level-up": {
@@ -148,365 +88,101 @@
           "/assets/game/fx/level-up/frame-08.png"
         ]
       },
-      "score-pop": {
+      "heart-refill": {
         "frameWidth": 192,
         "frameHeight": 128,
         "frameCount": 8,
         "blendMode": "lighter",
         "frames": [
-          "/assets/game/fx/score-pop/frame-01.png",
-          "/assets/game/fx/score-pop/frame-02.png",
-          "/assets/game/fx/score-pop/frame-03.png",
-          "/assets/game/fx/score-pop/frame-04.png",
-          "/assets/game/fx/score-pop/frame-05.png",
-          "/assets/game/fx/score-pop/frame-06.png",
-          "/assets/game/fx/score-pop/frame-07.png",
-          "/assets/game/fx/score-pop/frame-08.png"
-        ]
-      },
-      "cell-breath": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/cell-breath/frame-01.png",
-          "/assets/game/fx/cell-breath/frame-02.png",
-          "/assets/game/fx/cell-breath/frame-03.png",
-          "/assets/game/fx/cell-breath/frame-04.png",
-          "/assets/game/fx/cell-breath/frame-05.png",
-          "/assets/game/fx/cell-breath/frame-06.png",
-          "/assets/game/fx/cell-breath/frame-07.png",
-          "/assets/game/fx/cell-breath/frame-08.png"
-        ]
-      },
-      "cell-hover": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/cell-hover/frame-01.png",
-          "/assets/game/fx/cell-hover/frame-02.png",
-          "/assets/game/fx/cell-hover/frame-03.png",
-          "/assets/game/fx/cell-hover/frame-04.png",
-          "/assets/game/fx/cell-hover/frame-05.png",
-          "/assets/game/fx/cell-hover/frame-06.png",
-          "/assets/game/fx/cell-hover/frame-07.png",
-          "/assets/game/fx/cell-hover/frame-08.png"
-        ]
-      },
-      "digit-particles": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/digit-particles/frame-01.png",
-          "/assets/game/fx/digit-particles/frame-02.png",
-          "/assets/game/fx/digit-particles/frame-03.png",
-          "/assets/game/fx/digit-particles/frame-04.png",
-          "/assets/game/fx/digit-particles/frame-05.png",
-          "/assets/game/fx/digit-particles/frame-06.png",
-          "/assets/game/fx/digit-particles/frame-07.png",
-          "/assets/game/fx/digit-particles/frame-08.png"
-        ]
-      },
-      "flag-wave": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/flag-wave/frame-01.png",
-          "/assets/game/fx/flag-wave/frame-02.png",
-          "/assets/game/fx/flag-wave/frame-03.png",
-          "/assets/game/fx/flag-wave/frame-04.png",
-          "/assets/game/fx/flag-wave/frame-05.png",
-          "/assets/game/fx/flag-wave/frame-06.png",
-          "/assets/game/fx/flag-wave/frame-07.png",
-          "/assets/game/fx/flag-wave/frame-08.png"
+          "/assets/game/fx/heart-refill/frame-01.png",
+          "/assets/game/fx/heart-refill/frame-02.png",
+          "/assets/game/fx/heart-refill/frame-03.png",
+          "/assets/game/fx/heart-refill/frame-04.png",
+          "/assets/game/fx/heart-refill/frame-05.png",
+          "/assets/game/fx/heart-refill/frame-06.png",
+          "/assets/game/fx/heart-refill/frame-07.png",
+          "/assets/game/fx/heart-refill/frame-08.png"
         ]
       }
     }
   },
   "uiPanels": {
-    "source": "docs/design-assets/production/ui-panels-production-v1.png",
+    "source": "docs/design-assets/production/ui-panels-production-v2.png",
     "items": {
-      "auto-off": {
-        "src": "/assets/game/ui/auto-off.png",
-        "width": 113,
-        "height": 117,
-        "sourceRect": {
-          "x": 712,
-          "y": 56,
-          "w": 113,
-          "h": 117
-        }
-      },
-      "auto-on": {
-        "src": "/assets/game/ui/auto-on.png",
-        "width": 116,
-        "height": 128,
-        "sourceRect": {
-          "x": 861,
-          "y": 54,
-          "w": 116,
-          "h": 128
-        }
-      },
       "start-panel": {
         "src": "/assets/game/ui/start-panel.png",
         "width": 364,
-        "height": 246,
-        "sourceRect": {
-          "x": 45,
-          "y": 208,
-          "w": 364,
-          "h": 246
-        }
-      },
-      "ready-panel": {
-        "src": "/assets/game/ui/ready-panel.png",
-        "width": 298,
-        "height": 244,
-        "sourceRect": {
-          "x": 435,
-          "y": 210,
-          "w": 298,
-          "h": 244
-        }
-      },
-      "retry-button": {
-        "src": "/assets/game/ui/retry-button.png",
-        "width": 218,
-        "height": 84,
-        "sourceRect": {
-          "x": 763,
-          "y": 369,
-          "w": 218,
-          "h": 84
-        }
+        "height": 246
       },
       "game-over-panel": {
         "src": "/assets/game/ui/game-over-panel.png",
         "width": 430,
-        "height": 269,
-        "sourceRect": {
-          "x": 45,
-          "y": 492,
-          "w": 430,
-          "h": 269
-        }
+        "height": 269
       },
-      "log-panel": {
-        "src": "/assets/game/ui/log-panel.png",
-        "width": 474,
-        "height": 280,
-        "sourceRect": {
-          "x": 506,
-          "y": 486,
-          "w": 474,
-          "h": 280
-        }
+      "retry-button": {
+        "src": "/assets/game/ui/retry-button.png",
+        "width": 218,
+        "height": 84
       },
-      "score-chip": {
-        "src": "/assets/game/ui/score-chip.png",
-        "width": 309,
-        "height": 132,
-        "sourceRect": {
-          "x": 45,
-          "y": 798,
-          "w": 309,
-          "h": 132
-        }
+      "auto-off": {
+        "src": "/assets/game/ui/auto-off.png",
+        "width": 113,
+        "height": 117
       },
-      "depth-chip": {
-        "src": "/assets/game/ui/depth-chip.png",
-        "width": 251,
-        "height": 132,
-        "sourceRect": {
-          "x": 372,
-          "y": 798,
-          "w": 251,
-          "h": 132
-        }
-      },
-      "lives-chip": {
-        "src": "/assets/game/ui/lives-chip.png",
-        "width": 344,
-        "height": 132,
-        "sourceRect": {
-          "x": 637,
-          "y": 798,
-          "w": 344,
-          "h": 132
-        }
-      },
-      "countdown-yellow": {
-        "src": "/assets/game/ui/countdown-yellow.png",
-        "width": 143,
-        "height": 144,
-        "sourceRect": {
-          "x": 47,
-          "y": 962,
-          "w": 143,
-          "h": 144
-        }
-      },
-      "countdown-orange": {
-        "src": "/assets/game/ui/countdown-orange.png",
-        "width": 143,
-        "height": 144,
-        "sourceRect": {
-          "x": 220,
-          "y": 962,
-          "w": 143,
-          "h": 144
-        }
-      },
-      "countdown-red": {
-        "src": "/assets/game/ui/countdown-red.png",
-        "width": 143,
-        "height": 144,
-        "sourceRect": {
-          "x": 388,
-          "y": 962,
-          "w": 143,
-          "h": 144
-        }
-      },
-      "defused-chip": {
-        "src": "/assets/game/ui/defused-chip.png",
-        "width": 150,
-        "height": 151,
-        "sourceRect": {
-          "x": 562,
-          "y": 966,
-          "w": 150,
-          "h": 151
-        }
-      },
-      "heal-chip": {
-        "src": "/assets/game/ui/heal-chip.png",
-        "width": 111,
-        "height": 151,
-        "sourceRect": {
-          "x": 736,
-          "y": 966,
-          "w": 111,
-          "h": 151
-        }
+      "auto-on": {
+        "src": "/assets/game/ui/auto-on.png",
+        "width": 116,
+        "height": 128
       },
       "break-chip": {
         "src": "/assets/game/ui/break-chip.png",
-        "width": 114,
-        "height": 151,
-        "sourceRect": {
-          "x": 867,
-          "y": 966,
-          "w": 114,
-          "h": 151
-        }
+        "width": 144,
+        "height": 48
       },
-      "full-life-panel": {
-        "src": "/assets/game/ui/full-life-panel.png",
-        "width": 379,
-        "height": 137,
-        "sourceRect": {
-          "x": 45,
-          "y": 1141,
-          "w": 379,
-          "h": 137
-        }
+      "heal-chip": {
+        "src": "/assets/game/ui/heal-chip.png",
+        "width": 144,
+        "height": 48
+      }
+    }
+  },
+  "hudIcons": {
+    "source": "docs/design-assets/production/hud-icons-production-v2.png",
+    "items": {
+      "play": {
+        "src": "/assets/hud/icons/play.png",
+        "width": 128,
+        "height": 128
       },
-      "row-one-chip": {
-        "src": "/assets/game/ui/row-one-chip.png",
-        "width": 141,
-        "height": 170,
-        "sourceRect": {
-          "x": 470,
-          "y": 1121,
-          "w": 141,
-          "h": 170
-        }
+      "skull": {
+        "src": "/assets/hud/icons/skull.png",
+        "width": 128,
+        "height": 128
       },
-      "row-two-chip": {
-        "src": "/assets/game/ui/row-two-chip.png",
-        "width": 141,
-        "height": 170,
-        "sourceRect": {
-          "x": 654,
-          "y": 1121,
-          "w": 141,
-          "h": 170
-        }
+      "refresh": {
+        "src": "/assets/hud/icons/refresh.png",
+        "width": 128,
+        "height": 128
       },
-      "row-five-chip": {
-        "src": "/assets/game/ui/row-five-chip.png",
-        "width": 143,
-        "height": 170,
-        "sourceRect": {
-          "x": 837,
-          "y": 1121,
-          "w": 143,
-          "h": 170
-        }
+      "volume-on": {
+        "src": "/assets/hud/icons/volume-on.png",
+        "width": 128,
+        "height": 128
       },
-      "safe-number-badge": {
-        "src": "/assets/game/ui/safe-number-badge.png",
-        "width": 151,
-        "height": 150,
-        "sourceRect": {
-          "x": 45,
-          "y": 1328,
-          "w": 151,
-          "h": 150
-        }
+      "volume-off": {
+        "src": "/assets/hud/icons/volume-off.png",
+        "width": 128,
+        "height": 128
       },
-      "flag-badge": {
-        "src": "/assets/game/ui/flag-badge.png",
-        "width": 151,
-        "height": 150,
-        "sourceRect": {
-          "x": 237,
-          "y": 1328,
-          "w": 151,
-          "h": 150
-        }
+      "volume-on-hover": {
+        "src": "/assets/hud/icons/volume-on-hover.png",
+        "width": 128,
+        "height": 128
       },
-      "target-yellow-badge": {
-        "src": "/assets/game/ui/target-yellow-badge.png",
-        "width": 151,
-        "height": 150,
-        "sourceRect": {
-          "x": 433,
-          "y": 1328,
-          "w": 151,
-          "h": 150
-        }
-      },
-      "target-purple-badge": {
-        "src": "/assets/game/ui/target-purple-badge.png",
-        "width": 151,
-        "height": 150,
-        "sourceRect": {
-          "x": 633,
-          "y": 1328,
-          "w": 151,
-          "h": 150
-        }
-      },
-      "warning-badge": {
-        "src": "/assets/game/ui/warning-badge.png",
-        "width": 151,
-        "height": 150,
-        "sourceRect": {
-          "x": 834,
-          "y": 1328,
-          "w": 151,
-          "h": 150
-        }
+      "volume-off-hover": {
+        "src": "/assets/hud/icons/volume-off-hover.png",
+        "width": 128,
+        "height": 128
       }
     }
   },

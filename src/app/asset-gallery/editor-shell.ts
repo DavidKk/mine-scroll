@@ -16,7 +16,7 @@ export function paintCheckerBg(ctx: CanvasRenderingContext2D, w: number, h: numb
 export interface NavItem {
   id: string;
   label: string;
-  group: 'sprites' | 'animations' | 'background' | 'audio';
+  group: 'sprites' | 'animations' | 'background' | 'audio' | 'game-ui';
   count?: number;
 }
 
@@ -47,6 +47,7 @@ export function createTopbar(
   const groups: Array<{ id: AssetLabSection; label: string }> = [
     { id: 'sprites', label: 'Sprites' },
     { id: 'animations', label: 'Animations' },
+    { id: 'game-ui', label: 'Game UI' },
     { id: 'background', label: 'Background' },
     { id: 'audio', label: 'Audio' },
   ];
