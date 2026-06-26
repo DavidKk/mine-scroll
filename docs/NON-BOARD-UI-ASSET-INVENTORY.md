@@ -1,28 +1,35 @@
 # Agent Brief：无尽扫雷 · 主流程游戏 UI（出图任务书）
 
 > **读者**：负责出图 / 切图 / 图集的 Agent。  
-> **范围**：仅 **开始游戏 → 对局 → 失败重试** 主流程里、运行时已经（或即将）贴图的游戏 UI。  
-> **本轮不要生成**：棋盘格内资产、音频、宇宙背景、**日志弹层及一切日志图标**、SPACE 提示、以及下文「程序绘制」所列项。
+> **完整资产生成总表**：[`VISUAL-ASSET-GENERATION-BRIEF.md`](./VISUAL-ASSET-GENERATION-BRIEF.md)（棋盘 + UI + FX，含 v1/v2 对照）  
+> **本文范围**：仅 **开始游戏 → 对局 → 失败重试** 主流程非棋盘 UI。  
+> **本轮不要生成**：棋盘格内资产、音频、宇宙背景、日志弹层及日志图标、SPACE 提示、程序绘制项；棋盘见总表 §3.1–3.3。
 
-**风格锚点**：`docs/design-assets/reference/endless-arcade-visual-target-v1.png`（§0）
+**风格锚点（以此为准）**：
+
+1. `docs/design-assets/generated/endless-static-states-v1.png`  
+2. `docs/design-assets/generated/endless-fx-sprite-concept-v1.png`  
+3. `docs/design-assets/generated/endless-hud-popups-v1.png`  
+
+详见总表 [`VISUAL-ASSET-GENERATION-BRIEF.md`](./VISUAL-ASSET-GENERATION-BRIEF.md) §2（Cyber-Arcade 霓虹 HUD，**非** zinc 扁平）
 
 ---
 
 ## 0. 整体视觉风格
 
-**定调**：深色太空街机 HUD — 深底、细霓虹描边、半透明磨砂 chip；连击/得分/升级反馈可更亮，但 **不能** 用厚重面板挡住棋盘中央。
+**定调**：与三张概念稿一致 — **Cyber-Arcade / Sci-Fi Neon**：深底、电蓝双线框、切角面板、**强 bloom**；START 金黄斜体、失败红框、连击/得分高亮粒子。
 
 | 角色 | 色值 | 用途 |
 |------|------|------|
-| 画布底 | `#09090b` | 与深空背景融合 |
-| 面板 | `#18181b` / `#1f1f23` | chip、弹层（可 80%～90% 透明） |
-| 主强调 | `#6366f1` | accent、AUTO 开启 |
-| 电青霓虹 | `#00f0ff` 系 | HUD 描边（与 indigo 二选一，**整套统一**） |
-| 成功 / 警告 / 危险 | `#22c55e` / `#f59e0b` / `#ef4444` | 安全、卷轴压迫、失败 |
-| 连击高档 | 金 → 橙 → 紫 | combo-burst、level-up |
+| 深底 | `#030408`～`#09090b` | 与深空融合 |
+| **电蓝（主）** | `#00A2FF`～`#00f0ff` | HUD 框、安全、音量开 |
+| **霓虹绿** | `#00FF42`～`#22c55e` | 连击、HEAL |
+| **亮红** | `#FF0000`～`#ef4444` | 失败、静音关、BREAK |
+| **琥珀金** | `#FF9900`～`#fbbf24` | START、score-pop |
+| 连击高档 | 橙 → 紫 | level-up、高 tier |
 
-- **形体**：圆角 8～12px chip；扁平矢量 sprite，非 3D、非 8-bit 像素。  
-- **光效**：克制霓虹；默认 HUD 少发光，激活态与 FX 可加 bloom。  
+- **形体**：切角 / 双线科技框（见 `endless-hud-popups-v1`）；非厚重 keycap。  
+- **光效**：概念稿级 bloom + 粒子；连击/FX 可更亮，默认 HUD 仍须发光描边（**不是** 哑光 chip）。  
 - **文字**：动态分数/连击 **不烘焙**；面板可烘焙 `START`、`GAME OVER`、`RETRY`、`AUTO`。  
 - **`SPACE`**：程序 Canvas 闪烁文字，**禁止出图**。  
 - **FX 序列帧**：`192×128`、纯黑底 `#000000`、固定 **8 帧**、additive 叠色。
@@ -160,7 +167,7 @@ idle（开始遮罩）→ playing（顶栏 HUD + 底栏轨 + 对局 FX）→ los
 - [ ] `start-panel`、`game-over-panel` 含烘焙文案与安全区；无 baked 动态分数/连击数  
 - [ ] FX 8 帧、等尺寸、黑底、主体不跳帧  
 - [ ] BGM 静音：`volume-on` / `volume-off` 及 hover 四张齐全、尺寸一致  
-- [ ] 风格符合 §0，对照 `endless-arcade-visual-target-v1.png`  
+- [ ] 风格符合 §0，与 **三张概念稿** 一致（尤其 `endless-hud-popups-v1` + `endless-fx-sprite-concept-v1`）  
 - [ ] 已更新 `manifest.json`  
 - [ ] **未**产出日志、SPACE、扩展图标池、未接入 HUD 装饰  
 

@@ -301,7 +301,6 @@ export function createGameCanvas(
     if (fullscreen) return 'ambient';
     if (currentStatus === 'idle') return 'ambient';
     if (currentStatus !== 'playing') return false;
-    if (fullscreen?.getStats?.()?.spaceEnabled) return 'ambient';
     if (boardPointer !== null) return 'ambient';
     if (getScrollPressureFn?.()) return 'ambient';
     return false;
@@ -327,7 +326,7 @@ export function createGameCanvas(
     ];
     for (const view of state.views) {
       parts.push(
-        `${view.row},${view.col}:${view.preview ? 'p' : ''}${view.revealed ? 1 : 0}${view.flagged ? 1 : 0}${view.adjacentMines ?? '-'}${view.isMine ?? '-'}`,
+        `${view.row},${view.col}:${view.preview ? 'p' : ''}${view.revealed ? 1 : 0}${view.flagged ? 1 : 0}${view.adjacentMines ?? '-'}${view.isMine ?? '-'}${view.mineHit ? 'h' : ''}`,
       );
     }
     if (state.aiHint) {
@@ -562,17 +561,19 @@ export function createGameCanvas(
           GAME_ASSET_TUNING.fx.flagPop.spriteAlpha,
         );
       } else if (fx.kind === 'explode') {
-        const blastFade = 1 - Math.max(0, (t - 0.42) / 0.58) ** 2;
-        drawFxSpriteFrame(
-          effectCtx,
-          'mine-explosion',
-          t,
-          cx,
-          cy,
-          grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteW,
-          grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteH,
-          GAME_ASSET_TUNING.fx.mineExplosion.spriteAlpha * blastFade,
-        );
+        if (!hasMineHitV3RuntimeAssets()) {
+          const blastFade = 1 - Math.max(0, (t - 0.42) / 0.58) ** 2;
+          drawFxSpriteFrame(
+            effectCtx,
+            'mine-explosion',
+            t,
+            cx,
+            cy,
+            grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteW,
+            grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteH,
+            GAME_ASSET_TUNING.fx.mineExplosion.spriteAlpha * blastFade,
+          );
+        }
       }
 
       if (fx.kind === 'reveal') {
@@ -647,11 +648,92 @@ export function createGameCanvas(
         }
 
         drawMineBurstSmoke(effectCtx, cx, cy, grid.cellSize, t, 0.88);
+        drawMineHitV3RuntimeOverlay(effectCtx, cx, cy, x, y, grid.cellSize, t);
       }
     }
     effectCtx.restore();
 
     if (cellEffects.length > 0) scheduleAnimationFrame();
+  }
+
+  function hasMineHitV3RuntimeAssets(): boolean {
+    return Boolean(getGameCutout('mine-cracked') ?? getGameCutout('mine-exploded') ?? getGameCutout('mine-hit-flash'));
+  }
+
+  function drawMineHitV3RuntimeOverlay(
+    effectCtx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    x: number,
+    y: number,
+    cellSize: number,
+    progress: number,
+  ): void {
+    const t = Math.max(0, Math.min(1, progress));
+    const shock = Math.max(0, Math.min(1, (t - 0.08) / 0.36));
+    if (shock > 0 && shock < 1) {
+      const alpha = (1 - shock) * 0.78;
+      effectCtx.save();
+      effectCtx.globalCompositeOperation = 'lighter';
+      effectCtx.strokeStyle = `rgba(255, 76, 86, ${alpha})`;
+      effectCtx.lineWidth = Math.max(1.5, cellSize * (0.12 - shock * 0.08));
+      effectCtx.beginPath();
+      effectCtx.arc(cx, cy, cellSize * (0.2 + shock * 0.95), 0, Math.PI * 2);
+      effectCtx.stroke();
+      effectCtx.restore();
+    }
+
+    const burst = Math.max(0, Math.min(1, (t - 0.16) / 0.38));
+    if (burst > 0 && burst < 1) {
+      const fade = Math.sin(burst * Math.PI);
+      effectCtx.save();
+      effectCtx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 12; i += 1) {
+        const angle = i * (Math.PI * 2 / 12) + burst * 0.45;
+        const inner = cellSize * (0.08 + burst * 0.12);
+        const outer = cellSize * (0.26 + burst * 0.72) * (i % 2 === 0 ? 1.08 : 0.82);
+        const width = cellSize * (0.12 - burst * 0.07);
+        const tipX = cx + Math.cos(angle) * outer;
+        const tipY = cy + Math.sin(angle) * outer;
+        const leftX = cx + Math.cos(angle - 0.55) * inner + Math.cos(angle + Math.PI / 2) * width;
+        const leftY = cy + Math.sin(angle - 0.55) * inner + Math.sin(angle + Math.PI / 2) * width;
+        const rightX = cx + Math.cos(angle + 0.55) * inner + Math.cos(angle - Math.PI / 2) * width;
+        const rightY = cy + Math.sin(angle + 0.55) * inner + Math.sin(angle - Math.PI / 2) * width;
+        const flame = effectCtx.createRadialGradient(cx, cy, cellSize * 0.02, tipX, tipY, outer * 0.42);
+        flame.addColorStop(0, `rgba(255, 252, 218, ${0.85 * fade})`);
+        flame.addColorStop(0.36, `rgba(255, 179, 48, ${0.78 * fade})`);
+        flame.addColorStop(0.72, `rgba(255, 65, 40, ${0.48 * fade})`);
+        flame.addColorStop(1, 'rgba(255, 65, 40, 0)');
+        effectCtx.fillStyle = flame;
+        effectCtx.beginPath();
+        effectCtx.moveTo(leftX, leftY);
+        effectCtx.quadraticCurveTo(cx + Math.cos(angle - 0.18) * cellSize * 0.3, cy + Math.sin(angle - 0.18) * cellSize * 0.3, tipX, tipY);
+        effectCtx.quadraticCurveTo(cx + Math.cos(angle + 0.18) * cellSize * 0.24, cy + Math.sin(angle + 0.18) * cellSize * 0.24, rightX, rightY);
+        effectCtx.closePath();
+        effectCtx.fill();
+      }
+
+      const core = effectCtx.createRadialGradient(cx, cy, 0, cx, cy, cellSize * (0.18 + burst * 0.36));
+      core.addColorStop(0, `rgba(255, 255, 238, ${0.95 * fade})`);
+      core.addColorStop(0.2, `rgba(255, 213, 92, ${0.86 * fade})`);
+      core.addColorStop(0.52, `rgba(255, 71, 82, ${0.58 * fade})`);
+      core.addColorStop(1, 'rgba(255, 71, 82, 0)');
+      effectCtx.fillStyle = core;
+      effectCtx.beginPath();
+      effectCtx.arc(cx, cy, cellSize * 0.58, 0, Math.PI * 2);
+      effectCtx.fill();
+      effectCtx.restore();
+    }
+
+    const cracked = t > 0.48 ? getGameCutout('mine-cracked') ?? getGameCutout('mine-exploded') : null;
+    if (cracked) {
+      const alpha = Math.min(1, (t - 0.48) / 0.18) * (1 - Math.max(0, (t - 0.86) / 0.14) * 0.35);
+      const pop = t < 0.65 ? 1.08 - (t - 0.48) * 0.28 : 1;
+      effectCtx.save();
+      effectCtx.globalAlpha = alpha;
+      drawGameMineCutout(effectCtx, cracked, x, y, cellSize, GAME_ASSET_TUNING.cutouts.mineScale * pop);
+      effectCtx.restore();
+    }
   }
 
   function cellPixelForFx(

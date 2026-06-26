@@ -4,11 +4,13 @@ Goal: turn the approved endless arcade visual direction into assets that can act
 
 ## Source References
 
-- **Agent 生成任务书（非棋盘 UI）**：[`NON-BOARD-UI-ASSET-INVENTORY.md`](./NON-BOARD-UI-ASSET-INVENTORY.md)
-- Main visual target: `docs/design-assets/reference/endless-arcade-visual-target-v1.png`
-- Static-state concept: `docs/design-assets/generated/endless-static-states-v1.png`
-- FX concept: `docs/design-assets/generated/endless-fx-sprite-concept-v1.png`
-- HUD/popup concept: `docs/design-assets/generated/endless-hud-popups-v1.png`
+- **风格真源（Agent 必看，以此为准）**  
+  - `docs/design-assets/generated/endless-static-states-v1.png`  
+  - `docs/design-assets/generated/endless-fx-sprite-concept-v1.png`  
+  - `docs/design-assets/generated/endless-hud-popups-v1.png`  
+- **全量生成总表**：[`VISUAL-ASSET-GENERATION-BRIEF.md`](./VISUAL-ASSET-GENERATION-BRIEF.md)  
+- **主流程非棋盘子集**：[`NON-BOARD-UI-ASSET-INVENTORY.md`](./NON-BOARD-UI-ASSET-INVENTORY.md)  
+- 全屏构图辅助：`docs/design-assets/reference/endless-arcade-visual-target-v1.png`
 
 ## Generated Production Sheets
 

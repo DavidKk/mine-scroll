@@ -13,10 +13,12 @@ function pushEndlessCellViewRow(
   screenRow: number,
   gameOver: boolean,
   preview: boolean,
+  hitMineKeys: Set<string>,
 ): void {
   for (let col = 0; col < board.cols; col += 1) {
     const cell = board.cells[localRow]![col]!;
     const showMine = (cell.revealed && cell.isMine) || (gameOver && cell.isMine);
+    const key = worldCellKey(board, localRow, col);
 
     views.push({
       row: screenRow,
@@ -25,8 +27,9 @@ function pushEndlessCellViewRow(
       flagged: cell.mark === 'flag',
       adjacentMines: cell.revealed && !cell.isMine ? cell.adjacentMines : null,
       isMine: showMine ? true : null,
+      mineHit: showMine && hitMineKeys.has(key),
       preview,
-      fxKey: worldCellKey(board, localRow, col),
+      fxKey: key,
     });
   }
 }
@@ -63,16 +66,17 @@ export function toEndlessCellViews(session: ModeSession): CellView[] {
   const viewStart = session.endlessViewStart ?? visibleViewStart(state.board);
   const viewEnd = Math.min(viewStart + ENDLESS_VISIBLE_ROWS, state.board.rows);
   const views: CellView[] = [];
+  const hitMineKeys = new Set(session.hitMineKeys ?? []);
 
   if (viewStart > 0) {
     const previewStart = Math.max(0, viewStart - ENDLESS_PREVIEW_SOURCE_ROWS);
     for (let row = previewStart; row < viewStart; row += 1) {
-      pushEndlessCellViewRow(views, state.board, row, row - viewStart, gameOver, true);
+      pushEndlessCellViewRow(views, state.board, row, row - viewStart, gameOver, true, hitMineKeys);
     }
   }
 
   for (let row = viewStart; row < viewEnd; row += 1) {
-    pushEndlessCellViewRow(views, state.board, row, row - viewStart, gameOver, false);
+    pushEndlessCellViewRow(views, state.board, row, row - viewStart, gameOver, false, hitMineKeys);
   }
 
   return views;

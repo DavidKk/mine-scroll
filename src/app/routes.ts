@@ -5,11 +5,11 @@ export const ROUTES = {
   responsive: '/responsive',
 } as const;
 
-export type AssetLabSection = 'sprites' | 'animations' | 'background' | 'audio' | 'game-ui';
+export type AssetLabSection = 'sources' | 'sprites' | 'animations' | 'game-ui' | 'background' | 'audio';
 
 export type AppRoute = 'game' | 'assets' | 'lab' | 'responsive';
 
-const ASSET_SECTIONS: AssetLabSection[] = ['sprites', 'animations', 'background', 'audio', 'game-ui'];
+const ASSET_SECTIONS: AssetLabSection[] = ['sources', 'sprites', 'animations', 'game-ui', 'background', 'audio'];
 
 function normalizePath(pathname: string): string {
   const trimmed = pathname.replace(/\/+$/, '');
@@ -24,10 +24,10 @@ export function isAssetLabSection(value: string): value is AssetLabSection {
   return (ASSET_SECTIONS as string[]).includes(value);
 }
 
-/** Resolve /assets and /assets/:section. Bare /assets maps to sprites. */
+/** Resolve /assets and /assets/:section. Bare /assets maps to source sheets. */
 export function resolveAssetLabSection(pathname = window.location.pathname): AssetLabSection | null {
   const path = normalizePath(pathname);
-  if (path === ROUTES.assets) return 'sprites';
+  if (path === ROUTES.assets) return 'sources';
   if (!path.startsWith(`${ROUTES.assets}/`)) return null;
 
   const segment = path.slice(`${ROUTES.assets}/`.length).split('/')[0] ?? '';
@@ -50,9 +50,9 @@ export function resolveRoute(pathname = window.location.pathname): AppRoute {
 /** Canonical URL for an asset lab section (redirect bare /assets here). */
 export function canonicalAssetLabPath(pathname = window.location.pathname): string | null {
   const path = normalizePath(pathname);
-  if (path === ROUTES.assets) return assetLabSectionPath('sprites');
+  if (path === ROUTES.assets) return assetLabSectionPath('sources');
   if (path.startsWith(`${ROUTES.assets}/`) && resolveAssetLabSection(path) === null) {
-    return assetLabSectionPath('sprites');
+    return assetLabSectionPath('sources');
   }
   return null;
 }

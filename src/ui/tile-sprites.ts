@@ -1,4 +1,5 @@
 const TILE_BASE = '/assets/tiles';
+const BOARD_V3_TILE_BASE = '/assets/candidates/board-v3-square/tiles';
 
 export interface TileSprites {
   hidden: HTMLImageElement;
@@ -27,11 +28,11 @@ export function loadTileSprites(): Promise<TileSprites | null> {
   loadPromise = (async () => {
     try {
       const [hidden, revealed, mine, flag, ...numbers] = await Promise.all([
-        loadImage(`${TILE_BASE}/cell-hidden.png`),
-        loadImage(`${TILE_BASE}/cell-revealed.png`),
+        loadImage(`${BOARD_V3_TILE_BASE}/cell-hidden.png`),
+        loadImage(`${BOARD_V3_TILE_BASE}/cell-revealed.png`),
         loadImage(`${TILE_BASE}/mine.png`),
         loadImage(`${TILE_BASE}/flag.png`),
-        ...Array.from({ length: 8 }, (_, i) => loadImage(`${TILE_BASE}/num-${i + 1}.png`)),
+        ...Array.from({ length: 8 }, (_, i) => loadImage(`${BOARD_V3_TILE_BASE}/num-${i + 1}.png`)),
       ]);
       cached = { hidden, revealed, mine, flag, numbers };
       return cached;
@@ -55,12 +56,15 @@ export function drawSpriteInCell(
   cellSize: number,
 ): void {
   const prevSmooth = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
+  const prevQuality = ctx.imageSmoothingQuality;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   const ix = Math.round(x);
   const iy = Math.round(y);
   const size = Math.round(cellSize);
   ctx.drawImage(img, ix, iy, size, size);
   ctx.imageSmoothingEnabled = prevSmooth;
+  ctx.imageSmoothingQuality = prevQuality;
 }
 
 /** cell-hidden.png is a frame — center is transparent; fill before drawing the sprite. */

@@ -49,7 +49,7 @@ function initCanvas(canvas: HTMLCanvasElement, w: number, h: number): CanvasRend
   return ctx;
 }
 
-function startLoop(canvas: HTMLCanvasElement, tick: () => void): () => void {
+function startLoop(_canvas: HTMLCanvasElement, tick: () => void): () => void {
   let raf = 0;
   const frame = (): void => {
     tick();

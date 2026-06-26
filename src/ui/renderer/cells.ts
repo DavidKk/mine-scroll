@@ -256,7 +256,7 @@ export function drawCell(
     drawRevealedCellSurface(ctx, x, y, g, sprites);
 
     if (view.isMine) {
-      const mineName = resolveMineCutout(status);
+      const mineName = resolveMineCutout(status, view.mineHit);
       const gameMine = getGameCutout(mineName) ?? getGameCutout('mine-standard');
       if (gameMine) {
         drawGameMineCutout(ctx, gameMine, x, y, g.cellSize);
@@ -291,7 +291,7 @@ export function drawCell(
   drawRevealedCellBg(ctx, x, y, g);
 
   if (view.isMine) {
-    const mineName = resolveMineCutout(status);
+    const mineName = resolveMineCutout(status, view.mineHit);
     const gameMine = getGameCutout(mineName) ?? getGameCutout('mine-standard');
     if (gameMine) {
       drawGameMineCutout(ctx, gameMine, x, y, g.cellSize);

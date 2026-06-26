@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "brief": "docs/NON-BOARD-UI-ASSET-INVENTORY.md",
+  "brief": "docs/VISUAL-ASSET-GENERATION-BRIEF.md",
   "cutouts": {
     "source": "docs/design-assets/production/core-cutouts-production-v2.png",
     "grid": {
@@ -10,6 +10,13 @@
       "outputSize": 256
     },
     "items": {
+      "mine-standard": "/assets/candidates/game-ui-v3/runtime-cutouts/mine-standard.png",
+      "mine-exploded": "/assets/candidates/game-ui-v3/runtime-cutouts/mine-exploded.png",
+      "mine-cracked": "/assets/candidates/game-ui-v3/runtime-cutouts/mine-cracked.png",
+      "mine-hit-flash": "/assets/candidates/game-ui-v3/runtime-cutouts/mine-hit-flash.png",
+      "flag-blue": "/assets/candidates/game-ui-v3/runtime-cutouts/flag-standard.png",
+      "flag-danger-red": "/assets/candidates/game-ui-v3/runtime-cutouts/flag-standard.png",
+      "flag-wrong-correction": "/assets/candidates/game-ui-v3/runtime-cutouts/flag-standard.png",
       "heart-full": "/assets/game/cutouts/heart-full.png",
       "heart-empty": "/assets/game/cutouts/heart-empty.png",
       "heart-refill": "/assets/game/cutouts/heart-refill.png"

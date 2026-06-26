@@ -89,6 +89,7 @@ export interface CellView {
   flagged: boolean;
   adjacentMines: number | null;
   isMine: boolean | null;
+  mineHit?: boolean;
   preview?: boolean;
   fxKey?: string;
 }
@@ -107,6 +108,7 @@ export interface ModeSession {
   pendingRevealKeys?: string[];
   defusedMineKeys?: string[];
   exemptScrollPenaltyKeys?: string[];
+  hitMineKeys?: string[];
   aiOscillationBlocked?: string[];
   aiContradictedFlags?: string[];
   lastLifeLoss?: LifeLossReport;

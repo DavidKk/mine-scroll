@@ -1,4 +1,4 @@
-import type { Board } from '../core/board.ts';
+import type { Board } from '../core/types.ts';
 import { countNewlyRevealed } from '../core/modes/endless/reveal-pipeline.ts';
 import type { ModeSession } from '../core/types.ts';
 

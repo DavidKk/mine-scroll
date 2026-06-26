@@ -622,6 +622,10 @@ body::-webkit-scrollbar {
   gap: 10px;
 }
 
+.asset-lab__frame-grid--wide {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
 .asset-lab__frame-cell {
   position: relative;
   display: flex;
@@ -647,6 +651,14 @@ body::-webkit-scrollbar {
   border: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
   min-height: 88px;
+}
+
+.asset-lab__thumb--black {
+  background: #000;
+}
+
+.asset-lab__thumb--dark {
+  background: #07080f;
 }
 
 .asset-lab__sprite-img {
@@ -736,6 +748,22 @@ body::-webkit-scrollbar {
   cursor: crosshair;
 }
 
+.asset-lab__motion-preview {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  background: #07080f;
+}
+
+.asset-lab__preview-canvas--motion {
+  width: 240px;
+  height: 240px;
+  image-rendering: auto;
+}
+
 .asset-lab__anim-controls {
   display: flex;
   flex-direction: column;
@@ -806,6 +834,66 @@ body::-webkit-scrollbar {
   font-size: 12px;
   color: #8b909e;
   line-height: 1.45;
+}
+
+.asset-lab__compare-list {
+  display: grid;
+  gap: 18px;
+}
+
+.asset-lab__compare-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.asset-lab__compare-row h3 {
+  margin: 0;
+  font-size: 13px;
+  color: #e8eaef;
+}
+
+.asset-lab__compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.asset-lab__compare-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #14161d;
+}
+
+.asset-lab__compare-thumb {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.asset-lab__compare-thumb--black {
+  background: #000;
+}
+
+.asset-lab__compare-thumb--dark {
+  background: #07080f;
+}
+
+.asset-lab__compare-thumb img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  width: auto;
+  height: auto;
+  image-rendering: auto;
 }
 
 .asset-lab__backdrop-workspace {
@@ -1177,7 +1265,17 @@ body::-webkit-scrollbar {
     grid-template-columns: 1fr;
   }
 
+  .asset-lab__compare-grid {
+    grid-template-columns: 1fr;
+  }
+
   .asset-lab__anim-preview {
+    width: 100%;
+    max-width: 280px;
+    justify-self: center;
+  }
+
+  .asset-lab__motion-preview {
     width: 100%;
     max-width: 280px;
     justify-self: center;

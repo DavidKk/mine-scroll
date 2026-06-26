@@ -16,7 +16,7 @@ export function paintCheckerBg(ctx: CanvasRenderingContext2D, w: number, h: numb
 export interface NavItem {
   id: string;
   label: string;
-  group: 'sprites' | 'animations' | 'background' | 'audio' | 'game-ui';
+  group: 'sources' | 'sprites' | 'animations' | 'game-ui' | 'background' | 'audio';
   count?: number;
 }
 
@@ -35,7 +35,7 @@ export function createTopbar(
     <div class="asset-lab__brand-mark" aria-hidden="true">◫</div>
     <div>
       <h1>Asset Lab</h1>
-      <p>Tile slices, animation frames, backdrop &amp; audio · 1:1 preview</p>
+      <p>Source sheets, sprites, motion previews, UI, environment &amp; audio</p>
     </div>
   `;
 
@@ -45,10 +45,11 @@ export function createTopbar(
   tabs.setAttribute('aria-label', 'Asset sections');
 
   const groups: Array<{ id: AssetLabSection; label: string }> = [
+    { id: 'sources', label: 'Sources' },
     { id: 'sprites', label: 'Sprites' },
     { id: 'animations', label: 'Animations' },
-    { id: 'game-ui', label: 'Game UI' },
-    { id: 'background', label: 'Background' },
+    { id: 'game-ui', label: 'UI' },
+    { id: 'background', label: 'Environment' },
     { id: 'audio', label: 'Audio' },
   ];
 

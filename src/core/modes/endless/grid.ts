@@ -192,6 +192,7 @@ export function createEndlessSession(): ModeSession {
     pendingRevealKeys: [],
     defusedMineKeys: [],
     exemptScrollPenaltyKeys: [],
+    hitMineKeys: [],
   };
 }
 

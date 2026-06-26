@@ -154,12 +154,19 @@ export function applyLifeLoss(
   lifeLoss?: import('../../types.ts').LifeLossReport,
 ): ModeSession {
   const lives = (session.lives ?? ENDLESS_LIVES) - damage;
+  const hitMineKeys = new Set(session.hitMineKeys ?? []);
+  if (damage > 0 && lifeLoss) {
+    for (const cell of lifeLoss.cells) {
+      if (cell.kind === 'mine-hit') hitMineKeys.add(worldCellKey(board, cell.localRow, cell.col));
+    }
+  }
   if (lives <= 0) {
     revealAllMines(board);
     return {
       ...session,
       state: { ...session.state, board, status: 'lost' },
       lives: 0,
+      hitMineKeys: [...hitMineKeys],
       lastLifeLoss: damage > 0 ? lifeLoss : undefined,
     };
   }
@@ -167,6 +174,7 @@ export function applyLifeLoss(
     ...session,
     state: { ...session.state, board, status },
     lives,
+    hitMineKeys: [...hitMineKeys],
     lastLifeLoss: damage > 0 ? lifeLoss : undefined,
   };
 }

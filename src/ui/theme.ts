@@ -74,10 +74,10 @@ export const THEME = {
     '#4ade80',
     '#f472b6',
     '#fbbf24',
+    '#c084fc',
+    '#22d3ee',
+    '#ec4899',
     '#fb923c',
-    '#a78bfa',
-    '#f87171',
-    '#94a3b8',
   ] as const,
 } as const;
 

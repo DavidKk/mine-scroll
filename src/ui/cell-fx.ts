@@ -8,7 +8,7 @@ import {
   type GameCutoutName,
 } from './game-assets.ts';
 import type { GridMetrics } from './theme.ts';
-import { drawHiddenCellSprite, drawSpriteInCell, getTileSprites } from './tile-sprites.ts';
+import { drawHiddenCellSprite, getTileSprites } from './tile-sprites.ts';
 
 export interface BoardPointerState {
   row: number;
@@ -20,11 +20,11 @@ const DIGIT_COLORS = [
   '#60a5fa',
   '#34d399',
   '#f87171',
-  '#a78bfa',
-  '#fb7185',
+  '#fbbf24',
+  '#c084fc',
   '#22d3ee',
-  '#facc15',
-  '#f8fafc',
+  '#ec4899',
+  '#fb923c',
 ];
 
 function roundedRectPath(
@@ -48,32 +48,6 @@ function roundedRectPath(
 function breathPhase(tMs: number): number {
   const cycle = GAME_ASSET_TUNING.fx.cellBreath.cycleMs;
   return Math.sin(((tMs % cycle) / cycle) * Math.PI * 2);
-}
-
-function drawWaveImage(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  tMs: number,
-  amplitude: number,
-): void {
-  const segments = 4;
-  const cycle = GAME_ASSET_TUNING.fx.flagWave.cycleMs;
-  const phase = (tMs % cycle) / cycle;
-  for (let i = 0; i < segments; i += 1) {
-    const sx = (img.naturalWidth / segments) * i;
-    const sw = img.naturalWidth / segments;
-    const dx = x + (w / segments) * i;
-    const dw = w / segments + 1;
-    const local = i / Math.max(1, segments - 1);
-    const wave = Math.sin(phase * Math.PI * 2 + local * Math.PI * 2.2);
-    const dy = y + wave * amplitude * local;
-    const dh = h * (1 + Math.cos(phase * Math.PI * 2 + local * Math.PI) * 0.02 * local);
-    ctx.drawImage(img, sx, 0, sw, img.naturalHeight, dx, dy, dw, dh);
-  }
 }
 
 export interface OrbitParticleStyle {
@@ -143,7 +117,17 @@ function drawProceduralDigitParticles(
 ): void {
   const cycle = GAME_ASSET_TUNING.fx.digitParticles.cycleMs;
   const phase = (tMs % cycle) / cycle;
-  drawProceduralOrbitParticles(ctx, cx, cy, size, color, phase, seed, 6);
+  const drawSize = Math.max(size * 1.45, 52);
+  drawProceduralOrbitParticles(ctx, cx, cy, drawSize, color, phase, seed, 14, {
+    radiusBase: 0.34,
+    radiusStep: 0.044,
+    dotBase: 0.024,
+    dotStep: 0.009,
+    alphaBase: 0.26,
+    alphaPulse: 0.74,
+    driftScale: 0.045,
+    shadow: true,
+  });
 }
 
 export function drawCellBreathOverlay(
@@ -239,14 +223,15 @@ export function drawDigitAmbientOverlay(
   const color = DIGIT_COLORS[digit - 1] ?? '#dbeafe';
   const tuning = GAME_ASSET_TUNING.fx.digitParticles;
   const progress = (nowMs % tuning.cycleMs) / tuning.cycleMs;
+  const fxSize = Math.max(g.cellSize, 34);
   const usedSprite = drawFxSpriteFrame(
     ctx,
     'digit-particles',
     progress,
     cx,
     cy,
-    g.cellSize * tuning.spriteW,
-    g.cellSize * tuning.spriteH,
+    fxSize * tuning.spriteW,
+    fxSize * tuning.spriteH,
     tuning.spriteAlpha,
     { loop: true },
   );
@@ -296,10 +281,21 @@ export function drawWavingFlagMark(
     { loop: true },
   );
 
-  const drawW = g.cellSize * 0.74;
-  const drawH = g.cellSize * 0.74;
   if (flag) {
-    drawWaveImage(ctx, flag, cx - drawW / 2, cy - drawH / 2, drawW, drawH, nowMs, g.cellSize * 0.02);
+    const sway = Math.sin(progress * Math.PI * 2) * 0.035;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(sway);
+    drawImageContained(
+      ctx,
+      flag,
+      -g.cellSize / 2,
+      -g.cellSize / 2,
+      g.cellSize,
+      g.cellSize,
+      GAME_ASSET_TUNING.cutouts.flagScale * 1.08,
+    );
+    ctx.restore();
   } else {
     drawImageContained(ctx, img, x, y, g.cellSize, g.cellSize, GAME_ASSET_TUNING.cutouts.flagScale);
   }
@@ -400,7 +396,7 @@ export function drawMineScorchMark(
 }
 
 export function resolveMineCutout(status: GameStatus, isHitMine = false): GameCutoutName {
-  if (status === 'lost' && isHitMine) return 'mine-hit-flash';
+  if (isHitMine) return 'mine-cracked';
   if (status === 'lost') return 'mine-exploded';
   return 'mine-standard';
 }

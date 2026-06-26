@@ -85,8 +85,8 @@ export type GameUiPanelName = (typeof GAME_UI_PANEL_NAMES)[number];
 
 export const GAME_ASSET_TUNING = {
   tiles: {
-    /** Render clue digits as sharp canvas text instead of downscaled glow sprites. */
-    crispDigits: true,
+    /** Render clue digits from the v3 glyph sprite set. */
+    crispDigits: false,
     digitShadowBlurRatio: 0.1,
   },
   cutouts: {
@@ -112,12 +112,12 @@ export const GAME_ASSET_TUNING = {
       ringAlpha: 0.62,
     },
     mineExplosion: {
-      durationMs: 620,
+      durationMs: 980,
       spriteW: 2.55,
       spriteH: 1.95,
       spriteAlpha: 0.56,
-      glowAlpha: 0.58,
-      streakAlpha: 0.56,
+      glowAlpha: 0.72,
+      streakAlpha: 0.72,
     },
     comboBurst: {
       durationMs: 700,
@@ -149,9 +149,9 @@ export const GAME_ASSET_TUNING = {
     },
     digitParticles: {
       cycleMs: 1800,
-      spriteW: 1.48,
-      spriteH: 1.48,
-      spriteAlpha: 0.34,
+      spriteW: 2.35,
+      spriteH: 2.35,
+      spriteAlpha: 0.72,
     },
     flagWave: {
       cycleMs: 1500,
