@@ -9,6 +9,7 @@ import {
 import {
   ENDLESS_PREVIEW_ROWS,
   ENDLESS_VISIBLE_ROWS,
+  endlessBeginRun,
   endlessScreenRowToLocal,
   getEndlessPreviewRows,
   getEndlessScrollProfile,
@@ -44,6 +45,7 @@ function createInitialRuntime(session: ModeSession): GameSessionRuntime {
       eventId: 0,
       scoreEvent: undefined,
       breakEvent: undefined,
+      lifeLossEvent: undefined,
     },
     recentLogLines: [],
     logOpen: false,
@@ -154,6 +156,7 @@ export function mountGameSession(
       combo: runtime.session.defuseCombo ?? 0,
       scoreEvent: runtime.presentation.scoreEvent,
       breakEvent: runtime.presentation.breakEvent,
+      lifeLossEvent: runtime.presentation.lifeLossEvent,
       lives: `${'♥'.repeat(lives)}${'♡'.repeat(Math.max(0, maxLives - lives))}`,
       spaceEnabled: playing,
       devAutoVisible: import.meta.env.DEV,
@@ -178,7 +181,12 @@ export function mountGameSession(
   function startArcadeRun(): void {
     if (runtime.session.state.status !== 'idle') return;
     runtime.startOverlayOpen = false;
-    gameLog.append('Click any cell to start', 'system');
+    const next = endlessBeginRun(runtime.session);
+    applySession(next, undefined, { trigger: 'Game run started' });
+    scroll.markGameClockStarted();
+    scroll.startScrollTimer();
+    gameLog.append('Game started', 'system');
+    ai.refreshAiHint();
     render();
   }
 
@@ -194,7 +202,7 @@ export function mountGameSession(
     runtime.aiWaitLogged = false;
     runtime.aiOscillationCell = null;
     runtime.aiOscillationCount = 0;
-    runtime.presentation = { eventId: 0, scoreEvent: undefined, breakEvent: undefined };
+    runtime.presentation = { eventId: 0, scoreEvent: undefined, breakEvent: undefined, lifeLossEvent: undefined };
     runtime.startOverlayOpen = true;
     mountCanvas();
     runtime.view?.resetTimer();
@@ -221,6 +229,15 @@ export function mountGameSession(
         if (!scroll.bumpScrollDifficultyForDebug()) return;
         gameLog.append('Debug · scroll tier +1', 'system');
       },
+      onManualScroll: () => {
+        if (runtime.session.state.status !== 'playing') return;
+        gameAudio.unlock();
+        scroll.performScrollTick(true);
+      },
+      onDifficultyAlert: (kind: 'speed-up' | 'danger-rise') => {
+        gameAudio.unlock();
+        gameAudio.play(kind === 'danger-rise' ? 'lifeWarning' : 'scrollUp');
+      },
       onUiHover: () => gameAudio.play('uiHover'),
       onUiClick: () => gameAudio.play('uiClick'),
       onPointerDown: () => gameAudio.unlock(),
@@ -241,7 +258,6 @@ export function mountGameSession(
         onReveal(row, col) {
           if (runtime.session.state.status !== 'idle' && runtime.session.state.status !== 'playing') return;
           if (!isEndlessInteractiveScreenRow(row)) return;
-          const wasIdle = runtime.session.state.status === 'idle';
           const beforeLives = runtime.session.lives;
           const beforeBoard = runtime.session.state.board;
           logPlayerAction(gameLog, 'reveal', row, col);
@@ -250,11 +266,6 @@ export function mountGameSession(
             playRevealAudio(gameAudio, beforeBoard, next.state.board);
           }
           applySession(next, beforeLives, { trigger: `Player reveal ${formatCell(row, col)}` });
-          if (wasIdle && next.state.status === 'playing') {
-            gameLog.append('Game started', 'system');
-            scroll.markGameClockStarted();
-            scroll.startScrollTimer();
-          }
           if (next.state.status === 'won' || next.state.status === 'lost') {
             runtime.view?.stopTimer();
             scroll.stopScrollTimer();

@@ -12,6 +12,7 @@ import {
   inLocalBounds,
   visibleViewStart,
 } from './grid.ts';
+import { ENDLESS_VISIBLE_ROWS } from './constants.ts';
 import {
   actionableBounds,
   applyLifeLoss,
@@ -22,6 +23,22 @@ import {
   toScreenRow,
 } from './reveal-pipeline.ts';
 import { isEndlessActionableLocalRow } from './views.ts';
+
+/** Start endless run from the title screen (mines + playing) without waiting for first reveal. */
+export function endlessBeginRun(session: ModeSession): ModeSession {
+  if (session.modeId !== 'endless' || session.state.status !== 'idle') return session;
+
+  const board = cloneBoard(session.state.board);
+  const viewStart = session.endlessViewStart ?? visibleViewStart(board);
+  const localRow = Math.min(board.rows - 1, viewStart + Math.floor(ENDLESS_VISIBLE_ROWS / 2));
+  const col = Math.floor(board.cols / 2);
+  applyMinesFromSeed(board, buildFirstClickSafeZone(board, localRow, col));
+
+  return {
+    ...session,
+    state: { ...session.state, board, status: 'playing' },
+  };
+}
 
 export function endlessRevealAt(session: ModeSession, row: number, col: number): ModeSession {
   const { state } = session;

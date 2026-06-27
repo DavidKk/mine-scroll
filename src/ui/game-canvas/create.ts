@@ -86,11 +86,14 @@ const hudFeedbackAssets = {
   comboBurstBase: loadRuntimeImage('/assets/candidates/hud-feedback-v3/runtime/combo-burst-energy-base-v3.png'),
   speedUpAlert: loadRuntimeImage('/assets/candidates/hud-alerts-v3/runtime/speed-up-alert-v3.png'),
   dangerRiseAlert: loadRuntimeImage('/assets/candidates/hud-alerts-v3/runtime/danger-rise-alert-v3.png'),
+  lifeLossPopupSheet: loadRuntimeImage('/assets/candidates/hud-damage-v3/runtime/life-loss-popup-v3-sheet.png'),
 };
 
 const scoreDigitAssets = Array.from({ length: 10 }, (_, digit) =>
   loadRuntimeImage(`/assets/candidates/hud-feedback-v3/runtime/score-digits-v1/digit-${digit}.png`),
 );
+
+const LIFE_LOSS_POPUP_V3_MS = 820;
 
 function loadRuntimeImage(src: string): HTMLImageElement {
   const image = new Image();
@@ -210,6 +213,7 @@ export function createGameCanvas(
   let retryRect: { x: number; y: number; w: number; h: number } | null = null;
   let devAutoRect: { x: number; y: number; w: number; h: number } | null = null;
   let devSpeedRect: { x: number; y: number; w: number; h: number } | null = null;
+  let spaceHintRect: { x: number; y: number; w: number; h: number } | null = null;
   let bgmMuteRect: { x: number; y: number; w: number; h: number } | null = null;
   let uiHoverTarget: string | null = null;
   let pendingPanelTransition:
@@ -239,6 +243,9 @@ export function createGameCanvas(
   let lastBreakEventId = 0;
   let breakFxStartedAt = 0;
   let activeBreakEvent: GameCanvasHudStats['breakEvent'] | null = null;
+  let lastLifeLossEventId = 0;
+  let lifeLossFxStartedAt = 0;
+  let activeLifeLossEvent: GameCanvasHudStats['lifeLossEvent'] | null = null;
   let lastDifficultySpeedTier: number | null = null;
   let lastDifficultyBatchTier: number | null = null;
   let activeDifficultyAlert: { kind: 'speed-up' | 'danger-rise'; startedAt: number } | null = null;
@@ -250,6 +257,115 @@ export function createGameCanvas(
   const AMBIENT_FRAME_MS = 1000 / 40;
   const PANEL_V3_MS = 1480;
   const DIFFICULTY_ALERT_MS = 1260;
+
+  function difficultyAlertProgress(
+    startedAt: number,
+  ): { t: number; alpha: number; impact: number; strobe: number } | null {
+    const elapsedMs = performance.now() - startedAt;
+    const t = Math.max(0, Math.min(1, elapsedMs / DIFFICULTY_ALERT_MS));
+    if (t >= 1) return null;
+    const enter = Math.min(1, t / 0.18);
+    const exit = t > 0.78 ? Math.min(1, (t - 0.78) / 0.22) : 0;
+    const alpha = Math.sin(enter * Math.PI * 0.5) * (1 - exit);
+    const impact = t < 0.25 ? 1 - t / 0.25 : 0;
+    const strobe = t < 0.42 ? Math.pow(Math.abs(Math.sin(t * Math.PI * 5)), 2) * 0.45 : 0;
+    return { t, alpha, impact, strobe };
+  }
+
+  function drawDifficultyAlertFullscreenFlash(
+    shellCtx: CanvasRenderingContext2D,
+    shellW: number,
+    shellH: number,
+  ): void {
+    if (!activeDifficultyAlert) return;
+    const progress = difficultyAlertProgress(activeDifficultyAlert.startedAt);
+    if (!progress) return;
+
+    const { t, alpha, impact, strobe } = progress;
+    const stageScale = stageLayout?.scale ?? 1;
+    const kind = activeDifficultyAlert.kind;
+    const isDanger = kind === 'danger-rise';
+    const main = isDanger ? '255, 76, 86' : '255, 190, 55';
+    const soft = isDanger ? '251, 113, 36' : '45, 236, 255';
+    const flash = alpha * (0.07 + strobe * 0.1 + impact * 0.08);
+    const cx = shellW / 2;
+    const cy = shellH / 2;
+    const maxDim = Math.max(shellW, shellH);
+
+    shellCtx.save();
+
+    const vignette = shellCtx.createRadialGradient(
+      cx,
+      cy,
+      maxDim * 0.32,
+      cx,
+      cy,
+      maxDim * 0.82,
+    );
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(0.62, `rgba(${main}, ${flash * 0.08})`);
+    vignette.addColorStop(1, `rgba(${main}, ${flash * 0.34})`);
+    shellCtx.fillStyle = vignette;
+    shellCtx.fillRect(0, 0, shellW, shellH);
+
+    const edgeDepth = Math.min(maxDim * 0.09, 52 * stageScale);
+    const edgeAlpha = flash * 0.28;
+    const topEdge = shellCtx.createLinearGradient(0, 0, 0, edgeDepth);
+    topEdge.addColorStop(0, `rgba(${main}, ${edgeAlpha})`);
+    topEdge.addColorStop(1, 'rgba(0,0,0,0)');
+    shellCtx.fillStyle = topEdge;
+    shellCtx.fillRect(0, 0, shellW, edgeDepth);
+
+    const bottomEdge = shellCtx.createLinearGradient(0, shellH - edgeDepth, 0, shellH);
+    bottomEdge.addColorStop(0, 'rgba(0,0,0,0)');
+    bottomEdge.addColorStop(1, `rgba(${isDanger ? main : soft}, ${edgeAlpha * (isDanger ? 1.15 : 0.85)})`);
+    shellCtx.fillStyle = bottomEdge;
+    shellCtx.fillRect(0, shellH - edgeDepth, shellW, edgeDepth);
+
+    if (isDanger) {
+      const sideEdge = shellCtx.createLinearGradient(0, 0, edgeDepth * 0.7, 0);
+      sideEdge.addColorStop(0, `rgba(${main}, ${edgeAlpha * 0.55})`);
+      sideEdge.addColorStop(1, 'rgba(0,0,0,0)');
+      shellCtx.fillStyle = sideEdge;
+      shellCtx.fillRect(0, 0, edgeDepth * 0.7, shellH);
+      shellCtx.save();
+      shellCtx.translate(shellW, 0);
+      shellCtx.scale(-1, 1);
+      shellCtx.fillRect(0, 0, edgeDepth * 0.7, shellH);
+      shellCtx.restore();
+    }
+
+    const moteCount = isDanger ? 16 : 20;
+    shellCtx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < moteCount; i += 1) {
+      const u = ((i * 9973 + 17) % 1000) / 1000;
+      const v = ((i * 7907 + 31) % 1000) / 1000;
+      const drift = (t * (isDanger ? 0.06 : 0.12) + i * 0.041) % 1;
+      let x: number;
+      let y: number;
+      if (isDanger) {
+        x = shellW * (0.06 + u * 0.88);
+        y = shellH * (0.58 + v * 0.34 - drift * 0.12);
+      } else {
+        x = shellW * (0.04 + (u + drift * 0.22) % 0.92);
+        y = shellH * (0.12 + v * 0.48);
+      }
+      const r = (10 + (i % 6) * 3.5) * stageScale;
+      const twinkle = 0.35 + 0.65 * (1 - Math.abs(((i * 0.17 + t * 1.4) % 1) * 2 - 1));
+      const moteAlpha = flash * twinkle * (isDanger ? 0.55 : 0.48);
+      const glow = shellCtx.createRadialGradient(x, y, 0, x, y, r);
+      glow.addColorStop(0, `rgba(${soft}, ${moteAlpha * 0.42})`);
+      glow.addColorStop(0.38, `rgba(${main}, ${moteAlpha * 0.18})`);
+      glow.addColorStop(1, `rgba(${main}, 0)`);
+      shellCtx.fillStyle = glow;
+      shellCtx.beginPath();
+      shellCtx.arc(x, y, r, 0, Math.PI * 2);
+      shellCtx.fill();
+    }
+
+    shellCtx.restore();
+    scheduleAnimationFrame();
+  }
   let boardLayerCache: HTMLCanvasElement | null = null;
   let boardLayerCacheCtx: CanvasRenderingContext2D | null = null;
   let boardLayerCacheKey = '';
@@ -360,6 +476,9 @@ export function createGameCanvas(
     if (activeDifficultyAlert && now - activeDifficultyAlert.startedAt < DIFFICULTY_ALERT_MS) return 'full';
     if (scoreFxStartedAt > 0 && now - scoreFxStartedAt < SCORE_HUD_PULSE_MS) return 'full';
     if (activeBreakEvent && breakFxStartedAt > 0) return 'full';
+    if (activeLifeLossEvent && lifeLossFxStartedAt > 0 && now - lifeLossFxStartedAt < LIFE_LOSS_POPUP_V3_MS) {
+      return 'full';
+    }
     if (lastCombo > 1 && comboFxStartedAt > 0) {
       const comboAge = now - comboFxStartedAt;
       if (comboAge < GAME_ASSET_TUNING.fx.comboBurst.durationMs) return 'full';
@@ -563,7 +682,7 @@ export function createGameCanvas(
   }
 
   function syncPressureRepaint(): void {
-    if (!getScrollPressureFn || currentStatus !== 'playing' || !getScrollPressureFn()) {
+    if (!getScrollPressureFn?.()) {
       stopPressureRepaint();
       return;
     }
@@ -1070,6 +1189,7 @@ export function createGameCanvas(
       retryRect = null;
       devAutoRect = null;
       devSpeedRect = null;
+      spaceHintRect = null;
       ctx.clearRect(0, 0, width, height);
       drawShellBackground(ctx);
       drawAmbientShellBackdrop(ctx, now);
@@ -1170,6 +1290,10 @@ export function createGameCanvas(
 
   function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
+  }
+
+  function easeOutCubic(t: number): number {
+    return 1 - (1 - clamp01(t)) ** 3;
   }
 
   function panelTransitionProgress(kind: 'start' | 'retry', now: number): number {
@@ -1380,6 +1504,89 @@ export function createGameCanvas(
     shellCtx.drawImage(image, x, y, w, h);
     shellCtx.restore();
     return { x, y, w, h };
+  }
+
+  function drawSheetFrameContained(
+    shellCtx: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    frameIndex: number,
+    frameCount: number,
+    cx: number,
+    cy: number,
+    maxW: number,
+    maxH: number,
+    scale = 1,
+    alpha = 1,
+  ): { x: number; y: number; w: number; h: number } | null {
+    if (!image.complete || image.naturalWidth === 0 || image.naturalHeight === 0 || frameCount <= 0) return null;
+    const frameW = image.naturalWidth / frameCount;
+    const frameH = image.naturalHeight;
+    const index = Math.min(frameCount - 1, Math.max(0, Math.floor(frameIndex)));
+    const fit = Math.min(maxW / frameW, maxH / frameH) * scale;
+    const w = frameW * fit;
+    const h = frameH * fit;
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    shellCtx.drawImage(image, index * frameW, 0, frameW, frameH, x, y, w, h);
+    shellCtx.restore();
+    return { x, y, w, h };
+  }
+
+  function drawLifeLossSlash(
+    shellCtx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    length: number,
+    progress: number,
+    alpha: number,
+    scale: number,
+  ): void {
+    if (progress <= 0 || progress >= 1 || alpha <= 0) return;
+    const slashT = easeOutCubic(progress);
+    const head = -length * 0.48 + length * 0.96 * slashT;
+    const tail = Math.max(-length * 0.48, head - length * (0.18 + slashT * 0.22));
+    const fade = Math.sin(progress * Math.PI);
+
+    shellCtx.save();
+    shellCtx.translate(cx, cy);
+    shellCtx.rotate(Math.PI * 0.18);
+    shellCtx.globalCompositeOperation = 'lighter';
+    shellCtx.lineCap = 'round';
+
+    const trail = shellCtx.createLinearGradient(tail, 0, head, 0);
+    trail.addColorStop(0, 'rgba(255, 38, 63, 0)');
+    trail.addColorStop(0.45, `rgba(255, 38, 63, ${alpha * fade * 0.78})`);
+    trail.addColorStop(0.72, `rgba(255, 218, 170, ${alpha * fade * 0.86})`);
+    trail.addColorStop(1, `rgba(255, 255, 255, ${alpha * fade})`);
+
+    shellCtx.shadowColor = 'rgba(255, 38, 63, 0.92)';
+    shellCtx.shadowBlur = 12 * scale;
+    shellCtx.strokeStyle = trail;
+    shellCtx.lineWidth = Math.max(3.5 * scale, length * 0.018);
+    shellCtx.beginPath();
+    shellCtx.moveTo(tail, 0);
+    shellCtx.lineTo(head, 0);
+    shellCtx.stroke();
+
+    shellCtx.shadowColor = 'rgba(255, 245, 220, 0.96)';
+    shellCtx.shadowBlur = 5 * scale;
+    shellCtx.strokeStyle = `rgba(255, 250, 232, ${alpha * fade})`;
+    shellCtx.lineWidth = Math.max(1.4 * scale, length * 0.006);
+    shellCtx.beginPath();
+    shellCtx.moveTo(tail + length * 0.04, 0);
+    shellCtx.lineTo(head, 0);
+    shellCtx.stroke();
+
+    for (let i = 0; i < 6; i += 1) {
+      const sparkT = (i + 1) / 7;
+      const sx = head - length * 0.05 * sparkT;
+      const sy = (i - 2.5) * 4.5 * scale;
+      shellCtx.fillStyle = i % 2 === 0 ? `rgba(255, 222, 132, ${alpha * fade})` : `rgba(255, 64, 82, ${alpha * fade})`;
+      shellCtx.fillRect(sx, sy, Math.max(1, 5 * scale * (1 - sparkT)), Math.max(1, 1.6 * scale));
+    }
+    shellCtx.restore();
   }
 
   function setFittedMonoFont(
@@ -2138,7 +2345,7 @@ export function createGameCanvas(
     shellW: number,
     shellH: number,
   ): void {
-    if (!pressure || currentStatus !== 'playing') return;
+    if (!pressure) return;
 
     const urgentPulse = pressure.urgent ? 0.5 + Math.sin(Date.now() / 90) * 0.5 : 0;
     const alpha = pressure.urgent
@@ -2197,6 +2404,133 @@ export function createGameCanvas(
     if (layer !== 'strip' && isScorePopFxVisible(progress)) scheduleAnimationFrame();
   }
 
+  function drawLifeLossEvent(
+    shellCtx: CanvasRenderingContext2D,
+    event: GameCanvasHudStats['lifeLossEvent'] | null,
+    startedAt: number,
+    shellW: number,
+    shellH: number,
+  ): void {
+    if (!event || startedAt <= 0) return;
+    const elapsedMs = performance.now() - startedAt;
+    const progress = clamp01(elapsedMs / LIFE_LOSS_POPUP_V3_MS);
+    if (progress >= 1) {
+      activeLifeLossEvent = null;
+      lifeLossFxStartedAt = 0;
+      return;
+    }
+
+    const stageScale = stageLayout?.scale ?? 1;
+    const popupProgress = clamp01((progress - 0.1) / 0.16);
+    const enter = easeOutCubic(popupProgress);
+    const exit = progress > 0.78 ? easeOutCubic((progress - 0.78) / 0.22) : 0;
+    const alpha = enter * (1 - exit);
+    const impact = progress < 0.34 ? 1 - easeOutCubic(progress / 0.34) : 0;
+    const frameIndex = Math.min(3, Math.floor(progress * 4));
+    const cx = shellW / 2 + Math.sin(progress * Math.PI * 30) * impact * Math.min(shellW, shellH) * 0.005;
+    const cy = Math.max(88 * stageScale, boardOffsetY - 4 * stageScale) - Math.sin(progress * Math.PI) * 8 * stageScale;
+
+    const flash = progress < 0.2 ? 1 - progress / 0.2 : 0;
+    if (flash > 0) {
+      shellCtx.save();
+      shellCtx.globalCompositeOperation = 'source-over';
+      shellCtx.globalAlpha = flash * (0.2 + impact * 0.1);
+      shellCtx.fillStyle = '#ff263f';
+      shellCtx.fillRect(0, 0, shellW, shellH);
+      shellCtx.globalCompositeOperation = 'lighter';
+      shellCtx.globalAlpha = flash * (0.28 + impact * 0.12);
+      const flashGlow = shellCtx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(shellW, shellH) * 0.5);
+      flashGlow.addColorStop(0, 'rgba(255, 240, 220, 0.58)');
+      flashGlow.addColorStop(0.32, 'rgba(255, 54, 72, 0.38)');
+      flashGlow.addColorStop(1, 'rgba(255, 54, 72, 0)');
+      shellCtx.fillStyle = flashGlow;
+      shellCtx.fillRect(0, 0, shellW, shellH);
+      shellCtx.restore();
+    }
+
+    const slashProgress = clamp01(progress / 0.36);
+    drawLifeLossSlash(
+      shellCtx,
+      cx,
+      cy,
+      Math.min(140 * stageScale, shellW * 0.2),
+      slashProgress,
+      0.78,
+      stageScale * 0.82,
+    );
+
+    const assetW = Math.min(260 * stageScale, shellW * 0.42);
+    const assetH = Math.min(86 * stageScale, shellH * 0.13);
+    const asset = drawSheetFrameContained(
+      shellCtx,
+      hudFeedbackAssets.lifeLossPopupSheet,
+      frameIndex,
+      4,
+      cx,
+      cy,
+      assetW,
+      assetH,
+      0.94 + enter * 0.04 + impact * 0.12,
+      alpha,
+    );
+
+    const bounds = asset ?? {
+      x: cx - assetW * 0.5,
+      y: cy - assetH * 0.5,
+      w: assetW,
+      h: assetH,
+    };
+
+    if (!asset) {
+      shellCtx.save();
+      shellCtx.globalAlpha = alpha;
+      shellCtx.shadowColor = 'rgba(255, 58, 74, 0.7)';
+      shellCtx.shadowBlur = 16 * stageScale;
+      shellCtx.beginPath();
+      shellCtx.roundRect(bounds.x, bounds.y, bounds.w, bounds.h, Math.min(14 * stageScale, bounds.h * 0.28));
+      shellCtx.fillStyle = 'rgba(30, 8, 14, 0.9)';
+      shellCtx.fill();
+      shellCtx.strokeStyle = 'rgba(255, 68, 86, 0.82)';
+      shellCtx.lineWidth = Math.max(1.2, 1.5 * stageScale);
+      shellCtx.stroke();
+      shellCtx.restore();
+    }
+
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    shellCtx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 12; i += 1) {
+      const seed = i * 1.913;
+      const t = (progress * 1.25 + i * 0.071) % 1;
+      const side = i % 2 === 0 ? -1 : 1;
+      const px = cx + side * (bounds.w * (0.2 + t * 0.42)) + Math.sin(seed) * bounds.w * 0.04;
+      const py = cy + Math.sin(seed * 2.1 + progress * 7) * bounds.h * 0.34;
+      const sparkAlpha = alpha * Math.sin(t * Math.PI) * 0.72;
+      shellCtx.fillStyle = i % 3 === 0 ? `rgba(255, 196, 86, ${sparkAlpha})` : `rgba(255, 64, 82, ${sparkAlpha})`;
+      shellCtx.beginPath();
+      shellCtx.arc(px, py, Math.max(1, 1.2 * stageScale), 0, Math.PI * 2);
+      shellCtx.fill();
+    }
+    shellCtx.restore();
+
+    const text = `LIFE -${Math.max(1, event.damage)}`;
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    shellCtx.textAlign = 'center';
+    shellCtx.textBaseline = 'middle';
+    setFittedMonoFont(shellCtx, text, bounds.w * 0.58, Math.min(26 * stageScale, bounds.h * 0.34), 13 * stageScale, 1000);
+    shellCtx.lineWidth = Math.max(2, bounds.h * 0.05);
+    shellCtx.strokeStyle = 'rgba(3, 7, 18, 0.94)';
+    shellCtx.shadowColor = 'rgba(255, 58, 74, 0.92)';
+    shellCtx.shadowBlur = 10 * stageScale + impact * 8 * stageScale;
+    shellCtx.strokeText(text, bounds.x + bounds.w * 0.5, bounds.y + bounds.h * 0.52);
+    shellCtx.fillStyle = '#ffe6e0';
+    shellCtx.fillText(text, bounds.x + bounds.w * 0.5, bounds.y + bounds.h * 0.52);
+    shellCtx.restore();
+
+    scheduleAnimationFrame();
+  }
+
   function drawBreakEvent(
     shellCtx: CanvasRenderingContext2D,
     event: GameCanvasHudStats['breakEvent'] | null,
@@ -2248,13 +2582,13 @@ export function createGameCanvas(
 
   function drawDifficultyAlert(shellCtx: CanvasRenderingContext2D, shellW: number): void {
     if (!activeDifficultyAlert) return;
-    const elapsedMs = performance.now() - activeDifficultyAlert.startedAt;
-    const t = Math.max(0, Math.min(1, elapsedMs / DIFFICULTY_ALERT_MS));
-    if (t >= 1) {
+    const progress = difficultyAlertProgress(activeDifficultyAlert.startedAt);
+    if (!progress) {
       activeDifficultyAlert = null;
       return;
     }
 
+    const { t, alpha, impact } = progress;
     const stageScale = stageLayout?.scale ?? 1;
     const kind = activeDifficultyAlert.kind;
     const isDanger = kind === 'danger-rise';
@@ -2263,10 +2597,6 @@ export function createGameCanvas(
     const main = isDanger ? '255, 76, 86' : '255, 190, 55';
     const soft = isDanger ? '251, 113, 36' : '45, 236, 255';
     const textColor = isDanger ? '#ffe4e6' : '#fef3c7';
-    const enter = Math.min(1, t / 0.18);
-    const exit = t > 0.78 ? Math.min(1, (t - 0.78) / 0.22) : 0;
-    const alpha = Math.sin(enter * Math.PI * 0.5) * (1 - exit);
-    const impact = t < 0.25 ? 1 - t / 0.25 : 0;
     const shake = isDanger ? Math.sin(t * Math.PI * 18) * impact * 3 * stageScale : 0;
     const alertAnchor = stageLayout ? getDifficultyAlertAnchor(stageLayout) : null;
     const cx = (alertAnchor?.x ?? shellW / 2) + shake;
@@ -2330,9 +2660,11 @@ export function createGameCanvas(
       } else {
         if (difficulty.batchTier > lastDifficultyBatchTier) {
           activeDifficultyAlert = { kind: 'danger-rise', startedAt: performance.now() };
+          shell.onDifficultyAlert?.('danger-rise');
           scheduleAnimationFrame();
         } else if (difficulty.speedTier > lastDifficultySpeedTier) {
           activeDifficultyAlert = { kind: 'speed-up', startedAt: performance.now() };
+          shell.onDifficultyAlert?.('speed-up');
           scheduleAnimationFrame();
         }
         lastDifficultySpeedTier = difficulty.speedTier;
@@ -2356,6 +2688,14 @@ export function createGameCanvas(
       breakFxStartedAt = performance.now();
       scheduleAnimationFrame();
     }
+    if (stats?.lifeLossEvent && stats.lifeLossEvent.id !== lastLifeLossEventId) {
+      lastLifeLossEventId = stats.lifeLossEvent.id;
+      activeLifeLossEvent = stats.lifeLossEvent;
+      lifeLossFxStartedAt = performance.now();
+      activeBreakEvent = null;
+      breakFxStartedAt = 0;
+      scheduleAnimationFrame();
+    }
 
     if (combo !== lastCombo) {
       if (combo > lastCombo && combo > 1) spawnComboParticles(combo);
@@ -2374,19 +2714,26 @@ export function createGameCanvas(
     drawHeartRefillFx(shellCtx, shellW, shellH);
     drawLevelUpFx(shellCtx, shellW, shellH);
 
+    drawDifficultyAlertFullscreenFlash(shellCtx, shellW, shellH);
     drawBottomEnergyRail(shellCtx, scrollPressure, shellW, shellH);
     drawFullscreenScrollWarning(shellCtx, scrollPressure, shellW, shellH);
 
     if (stats?.spaceEnabled) {
       const spaceRect = getSpaceHintRect(scrollPressure);
       if (spaceRect) {
+        spaceHintRect = spaceRect;
         drawSpaceHint(shellCtx, spaceRect, scrollPressure, stageLayout?.scale ?? 1);
+      } else {
+        spaceHintRect = null;
       }
+    } else {
+      spaceHintRect = null;
     }
 
     drawParticles(shellCtx, performance.now());
     drawDifficultyAlert(shellCtx, shellW);
-    drawBreakEvent(shellCtx, activeBreakEvent, breakFxStartedAt, shellW, shellH);
+    drawBreakEvent(shellCtx, activeLifeLossEvent ? null : activeBreakEvent, breakFxStartedAt, shellW, shellH);
+    drawLifeLossEvent(shellCtx, activeLifeLossEvent, lifeLossFxStartedAt, shellW, shellH);
 
     if (isScorePopFxEnabled()) drawScorePopV3Layer(shellCtx, shellW, shellH, 'strip');
 
@@ -2647,6 +2994,13 @@ export function createGameCanvas(
       return;
     }
 
+    if (fullscreen && spaceHintRect && insideRect(spaceHintRect, x, y)) {
+      event.preventDefault();
+      fullscreen.onUiClick?.();
+      fullscreen.onManualScroll?.();
+      return;
+    }
+
     if (fullscreen && devSpeedRect && currentStatus === 'playing' && insideRect(devSpeedRect, x, y)) {
       event.preventDefault();
       fullscreen.onUiClick?.();
@@ -2753,6 +3107,7 @@ export function createGameCanvas(
 
   function hitInteractiveUi(x: number, y: number): string | null {
     if (bgmMuteRect && insideRect(bgmMuteRect, x, y)) return 'bgm-mute';
+    if (spaceHintRect && insideRect(spaceHintRect, x, y)) return 'space';
     if (devSpeedRect && currentStatus === 'playing' && insideRect(devSpeedRect, x, y)) return 'dev-speed';
     if (devAutoRect && insideRect(devAutoRect, x, y)) return 'dev-auto';
     if (

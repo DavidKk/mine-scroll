@@ -13,6 +13,7 @@ import {
 import {
   collectScrollLeavingMineCells,
   createEndlessSession,
+  endlessBeginRun,
   endlessRevealAt,
   endlessScrollTick,
   ENDLESS_COLS,
@@ -615,6 +616,15 @@ function testBlankBottomRowsDoNotTriggerAiScroll(): void {
   assert.equal(move, null);
 }
 
+function testEndlessBeginRunStartsPlaying(): void {
+  let session = withSeed(createEndlessSession(), 1);
+  assert.equal(session.state.status, 'idle');
+  assert.equal(session.state.board.minesPlaced, false);
+  session = endlessBeginRun(session);
+  assert.equal(session.state.status, 'playing');
+  assert.equal(session.state.board.minesPlaced, true);
+}
+
 function testScrollLeavingMinesCollectedBeforeScroll(): void {
   let session = withSeed(createEndlessSession(), 1);
   session = endlessRevealAt(session, 16, 4);
@@ -814,6 +824,7 @@ const tests: Array<[string, () => void]> = [
   ['chord requires a visible reveal target', testChordRequiresVisibleRevealTarget],
   ['endless solver breaks through fully unknown board', testEndlessBreaksThroughFullyUnknownBoard],
   ['blank bottom rows do not trigger AI scroll', testBlankBottomRowsDoNotTriggerAiScroll],
+  ['endless begin run starts playing without reveal', testEndlessBeginRunStartsPlaying],
   ['scroll leaving mines collected before scroll', testScrollLeavingMinesCollectedBeforeScroll],
   ['scroll proceeds when bottom row is not safe', testScrollProceedsWhenBottomUnsafe],
   ['batch scroll moves multiple rows and caps damage', testBatchScrollMovesMultipleRowsAndCapsDamage],

@@ -2008,6 +2008,61 @@ function drawSheetFrameContained(
   return { x, y, w, h };
 }
 
+function drawLifeLossSlash(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  length: number,
+  progress: number,
+  alpha: number,
+  scale: number,
+): void {
+  if (progress <= 0 || progress >= 1 || alpha <= 0) return;
+  const slashT = easeOutCubic(progress);
+  const head = -length * 0.48 + length * 0.96 * slashT;
+  const tail = Math.max(-length * 0.48, head - length * (0.18 + slashT * 0.22));
+  const fade = Math.sin(progress * Math.PI);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(Math.PI * 0.18);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+
+  const trail = ctx.createLinearGradient(tail, 0, head, 0);
+  trail.addColorStop(0, 'rgba(255, 38, 63, 0)');
+  trail.addColorStop(0.45, `rgba(255, 38, 63, ${alpha * fade * 0.78})`);
+  trail.addColorStop(0.72, `rgba(255, 218, 170, ${alpha * fade * 0.86})`);
+  trail.addColorStop(1, `rgba(255, 255, 255, ${alpha * fade})`);
+
+  ctx.shadowColor = 'rgba(255, 38, 63, 0.92)';
+  ctx.shadowBlur = 12 * scale;
+  ctx.strokeStyle = trail;
+  ctx.lineWidth = Math.max(3.5 * scale, length * 0.018);
+  ctx.beginPath();
+  ctx.moveTo(tail, 0);
+  ctx.lineTo(head, 0);
+  ctx.stroke();
+
+  ctx.shadowColor = 'rgba(255, 245, 220, 0.96)';
+  ctx.shadowBlur = 5 * scale;
+  ctx.strokeStyle = `rgba(255, 250, 232, ${alpha * fade})`;
+  ctx.lineWidth = Math.max(1.4 * scale, length * 0.006);
+  ctx.beginPath();
+  ctx.moveTo(tail + length * 0.04, 0);
+  ctx.lineTo(head, 0);
+  ctx.stroke();
+
+  for (let i = 0; i < 6; i += 1) {
+    const sparkT = (i + 1) / 7;
+    const sx = head - length * 0.05 * sparkT;
+    const sy = (i - 2.5) * 4.5 * scale;
+    ctx.fillStyle = i % 2 === 0 ? `rgba(255, 222, 132, ${alpha * fade})` : `rgba(255, 64, 82, ${alpha * fade})`;
+    ctx.fillRect(sx, sy, Math.max(1, 5 * scale * (1 - sparkT)), Math.max(1, 1.6 * scale));
+  }
+  ctx.restore();
+}
+
 function drawHudText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -2247,26 +2302,37 @@ function drawComboBurstV3Scene(ctx: CanvasRenderingContext2D, w: number, h: numb
 function drawLifeLossPopupV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number): void {
   paintStageBg(ctx, w, h);
   const progress = (tMs % LIFE_LOSS_POPUP_V3_MS) / LIFE_LOSS_POPUP_V3_MS;
-  const enter = easeOutCubic(clamp01(progress / 0.14));
+  const popupProgress = clamp01((progress - 0.1) / 0.16);
+  const enter = easeOutCubic(popupProgress);
   const exit = progress > 0.78 ? easeOutCubic(clamp01((progress - 0.78) / 0.22)) : 0;
   const alpha = enter * (1 - exit);
-  const impact = progress < 0.24 ? 1 - easeOutCubic(progress / 0.24) : 0;
+  const impact = progress < 0.34 ? 1 - easeOutCubic(progress / 0.34) : 0;
   const frameIndex = Math.min(3, Math.floor(progress * 4));
   const shake = Math.sin(progress * Math.PI * 30) * impact * Math.min(w, h) * 0.012;
   const lift = Math.sin(clamp01(progress) * Math.PI) * h * 0.035;
   const cx = w / 2 + shake;
   const cy = h * 0.54 - lift;
 
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = alpha * (0.16 + impact * 0.1);
-  const warningGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.56);
-  warningGlow.addColorStop(0, 'rgba(255, 55, 75, 0.9)');
-  warningGlow.addColorStop(0.35, 'rgba(255, 133, 66, 0.24)');
-  warningGlow.addColorStop(1, 'rgba(255, 55, 75, 0)');
-  ctx.fillStyle = warningGlow;
-  ctx.fillRect(0, 0, w, h);
-  ctx.restore();
+  const flash = progress < 0.2 ? 1 - progress / 0.2 : 0;
+  if (flash > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = flash * (0.2 + impact * 0.1);
+    ctx.fillStyle = '#ff263f';
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = flash * (0.28 + impact * 0.12);
+    const flashGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.72);
+    flashGlow.addColorStop(0, 'rgba(255, 240, 220, 0.58)');
+    flashGlow.addColorStop(0.32, 'rgba(255, 54, 72, 0.38)');
+    flashGlow.addColorStop(1, 'rgba(255, 54, 72, 0)');
+    ctx.fillStyle = flashGlow;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  const slashProgress = clamp01(progress / 0.36);
+  drawLifeLossSlash(ctx, cx, cy, Math.min(w * 0.82, h * 2.4), slashProgress, 0.9, Math.min(w, h) / 220);
 
   const asset = drawSheetFrameContained(
     ctx,
@@ -2277,7 +2343,7 @@ function drawLifeLossPopupV3Scene(ctx: CanvasRenderingContext2D, w: number, h: n
     cy,
     w * 0.94,
     h * 0.52,
-    0.92 + impact * 0.04,
+    0.94 + enter * 0.04 + impact * 0.12,
     alpha,
   );
 
@@ -2309,17 +2375,6 @@ function drawLifeLossPopupV3Scene(ctx: CanvasRenderingContext2D, w: number, h: n
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.globalCompositeOperation = 'lighter';
-  const scanT = (progress * 1.55) % 1;
-  const scanX = bounds.x + bounds.w * scanT;
-  const scan = ctx.createLinearGradient(scanX - bounds.w * 0.2, 0, scanX + bounds.w * 0.12, 0);
-  scan.addColorStop(0, 'rgba(255,255,255,0)');
-  scan.addColorStop(0.45, `rgba(255, 86, 86, ${0.22 + impact * 0.16})`);
-  scan.addColorStop(0.62, `rgba(255, 211, 128, ${0.18 + impact * 0.12})`);
-  scan.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = scan;
-  roundedRectPath(ctx, bounds.x + bounds.w * 0.08, bounds.y + bounds.h * 0.2, bounds.w * 0.84, bounds.h * 0.56, bounds.h * 0.12);
-  ctx.fill();
-
   for (let i = 0; i < 14; i += 1) {
     const seed = i * 1.913;
     const t = (progress * 1.25 + i * 0.071) % 1;

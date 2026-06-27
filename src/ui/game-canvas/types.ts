@@ -28,6 +28,13 @@ export interface GameCanvasHudStats {
     comboCleared: number;
     minesCleared: number;
   };
+  lifeLossEvent?: {
+    id: number;
+    damage: number;
+    cause: 'mine-reveal' | 'chord-mine' | 'scroll-bottom';
+    comboCleared?: number;
+    minesCleared?: number;
+  };
   lives?: string;
   /** Player can press Space to manual scroll while playing (unsafe bottom rows cost a life). */
   spaceEnabled?: boolean;
@@ -57,6 +64,10 @@ export interface GameCanvasFullscreenOptions {
   onDevAuto?: () => void;
   /** DEV: advance scroll difficulty one tier (+50s elapsed). */
   onDevSpeedUp?: () => void;
+  /** Manual scroll (Space key or on-screen SPACE hint). */
+  onManualScroll?: () => void;
+  /** Difficulty tier escalated (speed or batch). */
+  onDifficultyAlert?: (kind: 'speed-up' | 'danger-rise') => void;
   onUiHover?: () => void;
   onUiClick?: () => void;
   /** First pointer on canvas — unlock audio context (browser autoplay policy). */

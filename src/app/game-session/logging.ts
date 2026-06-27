@@ -247,6 +247,19 @@ function logDefuseBreak(runtime: GameSessionRuntime, gameLog: CanvasLogControlle
   );
 }
 
+function recordLifeLossPopup(runtime: GameSessionRuntime, next: ModeSession): void {
+  const report = next.lastLifeLoss;
+  if (!report) return;
+  runtime.presentation.eventId += 1;
+  runtime.presentation.lifeLossEvent = {
+    id: runtime.presentation.eventId,
+    damage: report.damage,
+    cause: report.cause,
+    comboCleared: next.lastDefuseBreak?.comboCleared,
+    minesCleared: next.lastDefuseBreak?.minesCleared,
+  };
+}
+
 export function applySessionUpdate(deps: SessionApplyDeps, next: ModeSession, beforeLives?: number, context?: SessionApplyContext): void {
   const { runtime, gameLog, getScrollElapsedMs } = deps;
   const prev = runtime.session;
@@ -255,6 +268,7 @@ export function applySessionUpdate(deps: SessionApplyDeps, next: ModeSession, be
     logMinesDefusedChange(gameLog, prev.minesDefused, next.minesDefused);
   }
   logDefuseBreak(runtime, gameLog, next);
+  recordLifeLossPopup(runtime, next);
   logLifeChange(gameLog, beforeLives, next.lives, next.lastLifeLoss, context);
   if (prev.state.status !== 'lost' && next.state.status === 'lost') {
     appendDeathDebug(gameLog, next, getScrollElapsedMs, beforeLives, next.lastLifeLoss, context);

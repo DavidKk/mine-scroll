@@ -131,7 +131,7 @@ export function renderBoardDynamicFrame(
   const previewRows = state.previewRows ?? 0;
   const playableViews = previewRows > 0 ? state.views.filter((view) => !view.preview) : state.views;
 
-  if (state.scrollPressure && state.status === 'playing') {
+  if (state.scrollPressure) {
     drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
   }
 
@@ -212,7 +212,7 @@ export function renderFrame(
   const gridTop = HUD_HEIGHT + HUD_GAP;
   fillRoundRect(ctx, 0, gridTop, gridWidth, gridHeight, 12, THEME.panelBg);
 
-  if (state.scrollPressure && state.status === 'playing') {
+  if (state.scrollPressure) {
     drawScrollPressureBar(ctx, layout, state.scrollPressure);
   }
 
@@ -221,7 +221,7 @@ export function renderFrame(
     drawCell(ctx, x, y, view, grid, state.status);
   }
 
-  if (state.scrollPressure && state.status === 'playing') {
+  if (state.scrollPressure) {
     drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
   }
 

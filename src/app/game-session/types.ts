@@ -23,6 +23,7 @@ export interface PresentationState {
   eventId: number;
   scoreEvent: GameCanvasHudStats['scoreEvent'];
   breakEvent: GameCanvasHudStats['breakEvent'];
+  lifeLossEvent: GameCanvasHudStats['lifeLossEvent'];
 }
 
 export interface GameSessionRuntime {
