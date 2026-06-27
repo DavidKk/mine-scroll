@@ -1,4 +1,4 @@
-import { drawFeedbackFireflyOrbit, drawFeedbackStripLightWrap, type HudFxBudget } from './cell-fx.ts';
+import { drawFeedbackStripLightWrap, type HudFxBudget } from './cell-fx.ts';
 import { drawFxSpriteFrame, GAME_ASSET_TUNING } from './game-assets.ts';
 
 export const SCORE_POP_FX_MS = GAME_ASSET_TUNING.fx.scorePop.durationMs;
@@ -61,13 +61,11 @@ export interface ComboBurstFxDrawOptions {
   progress: ComboBurstFxProgress;
   stageScale: number;
   isMobile?: boolean;
-  comboBurstBase: HTMLImageElement | null;
   burstW: number;
   burstH: number;
   fontFamilyMono: string;
   fontFamilyDisplay: string;
   hudFxBudget?: HudFxBudget;
-  drawFallbackFx?: (ctx: CanvasRenderingContext2D, t: number) => void;
 }
 
 export type { HudFxBudget };
@@ -92,8 +90,8 @@ function comboBurstFadeAlpha(t: number, exitStart = 0.55): number {
   return 1 - easeOutCubic((t - exitStart) / (1 - exitStart));
 }
 
-/** Combo HUD v3 has four color states: cyan → gold → hot → purple (x50+). */
-export const COMBO_HUD_TIER_THRESHOLDS = [10, 20, 50] as const;
+/** Combo HUD v3 tier gates — wide spans so color does not flip at x10. */
+export const COMBO_HUD_TIER_THRESHOLDS = [25, 55, 100] as const;
 
 export function getComboHudTier(combo: number): 0 | 1 | 2 | 3 {
   if (combo >= COMBO_HUD_TIER_THRESHOLDS[2]) return 3;
@@ -162,6 +160,22 @@ export function comboHudGlowRgba(combo: number, alpha: number): string {
   return `rgba(${main}, ${alpha})`;
 }
 
+/** Legacy stroke/fill bundle — same tier colors as top COMBO HUD. */
+export function getComboHudAccentColors(combo: number): {
+  fill: string;
+  stroke: string;
+  glow: string;
+  text: string;
+} {
+  const palette = getComboFeedbackPalette(combo);
+  return {
+    fill: `rgba(${palette.main}, 0.92)`,
+    stroke: palette.stroke,
+    glow: palette.glow,
+    text: palette.digitColor,
+  };
+}
+
 export function getComboFireflyAccent(combo: number): string {
   const tier = getComboHudTier(combo);
   if (tier === 3) return 'rgba(254, 202, 202, 0.95)';
@@ -216,7 +230,7 @@ export function comboBurstPreviewProgress(
   const fade = comboBurstFadeAlpha(t);
   const burstScale = (0.82 + easeOutBack(hit) * 0.28) * (fade < 1 ? 0.9 + fade * 0.1 : 1);
   const shakeX =
-    combo >= 20 && t < 0.25 ? Math.sin(t * Math.PI * 32) * (1 - t / 0.25) * canvasMin * 0.012 : 0;
+    getComboHudTier(combo) >= 2 && t < 0.25 ? Math.sin(t * Math.PI * 32) * (1 - t / 0.25) * canvasMin * 0.012 : 0;
   return {
     t,
     alpha: fade,
@@ -226,6 +240,200 @@ export function comboBurstPreviewProgress(
     shakeX,
     fireflyFade: fade,
   };
+}
+
+function seededUnit(seed: number): number {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+interface FxPoint {
+  x: number;
+  y: number;
+}
+
+function buildLightningPath(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  depth: number,
+  displacement: number,
+  seed: number,
+): FxPoint[] {
+  if (depth <= 0 || displacement < 0.35) {
+    return [
+      { x: x1, y: y1 },
+      { x: x2, y: y2 },
+    ];
+  }
+  const mx = (x1 + x2) * 0.5;
+  const my = (y1 + y2) * 0.5;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const jitter = (seededUnit(seed + depth * 17.3) - 0.5) * 2 * displacement;
+  const midX = mx + nx * jitter;
+  const midY = my + ny * jitter;
+  const left = buildLightningPath(x1, y1, midX, midY, depth - 1, displacement * 0.56, seed + 2.1);
+  const right = buildLightningPath(midX, midY, x2, y2, depth - 1, displacement * 0.56, seed + 5.7);
+  return left.slice(0, -1).concat(right);
+}
+
+function strokeLightningPath(
+  ctx: CanvasRenderingContext2D,
+  points: FxPoint[],
+  palette: ComboFeedbackPalette,
+  alpha: number,
+  lineWidth: number,
+  hot = false,
+): void {
+  if (points.length < 2 || alpha <= 0.012) return;
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i += 1) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.strokeStyle = hot ? `rgba(255, 245, 190, ${alpha * 0.28})` : `rgba(${palette.main}, ${alpha * 0.32})`;
+  ctx.lineWidth = lineWidth * 2.8;
+  ctx.stroke();
+
+  ctx.strokeStyle = hot ? `rgba(255, 221, 100, ${alpha * 0.72})` : `rgba(${palette.soft}, ${alpha * 0.58})`;
+  ctx.lineWidth = lineWidth * 1.35;
+  ctx.stroke();
+
+  ctx.strokeStyle = hot ? `rgba(255, 255, 255, ${alpha * 0.82})` : `rgba(255, 255, 255, ${alpha * 0.46})`;
+  ctx.lineWidth = Math.max(0.75, lineWidth * 0.55);
+  ctx.stroke();
+}
+
+function drawElectricBolt(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  palette: ComboFeedbackPalette,
+  alpha: number,
+  stageScale: number,
+  seed: number,
+  depth: number,
+  branch: boolean,
+): void {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 2 || alpha <= 0.012) return;
+
+  const displacement = len * (0.16 + seededUnit(seed + 11.2) * 0.1);
+  const points = buildLightningPath(x1, y1, x2, y2, depth, displacement, seed);
+  const hot = seededUnit(seed + 19.4) > 0.68;
+  strokeLightningPath(ctx, points, palette, alpha, Math.max(1, 1.25 * stageScale), hot);
+
+  if (!branch || len < stageScale * 10 || depth <= 2) return;
+
+  const branchIndex = Math.min(
+    points.length - 2,
+    Math.max(1, Math.floor(points.length * (0.34 + seededUnit(seed + 23.6) * 0.22))),
+  );
+  const origin = points[branchIndex];
+  const baseAngle = Math.atan2(dy, dx);
+  const branchAngle = baseAngle + (seededUnit(seed + 29.1) - 0.5) * 1.35;
+  const branchLen = len * (0.24 + seededUnit(seed + 31.8) * 0.2);
+  drawElectricBolt(
+    ctx,
+    origin.x,
+    origin.y,
+    origin.x + Math.cos(branchAngle) * branchLen,
+    origin.y + Math.sin(branchAngle) * branchLen,
+    palette,
+    alpha * 0.62,
+    stageScale,
+    seed + 37.5,
+    depth - 1,
+    false,
+  );
+}
+
+function drawComboBurstElectricField(
+  ctx: CanvasRenderingContext2D,
+  burstW: number,
+  burstH: number,
+  combo: number,
+  progress: ComboBurstFxProgress,
+  palette: ComboFeedbackPalette,
+  stageScale: number,
+  budget: HudFxBudget = 'normal',
+): void {
+  const flicker = 0.68 + Math.abs(Math.sin((progress.t + combo * 0.011) * Math.PI * 9)) * 0.32;
+  const alpha = progress.fade * flicker;
+  const boltCount = budget === 'lite'
+    ? combo >= 50 ? 8 : combo >= 20 ? 6 : 5
+    : combo >= 50 ? 14 : combo >= 20 ? 11 : 9;
+  const depth = budget === 'lite' ? 3 : combo >= 20 ? 5 : 4;
+  const timeSeed = progress.t * 96 + combo * 0.17;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  for (let i = 0; i < boltCount; i += 1) {
+    const p = (progress.t * 1.18 + i * 0.083) % 1;
+    if (p > 0.86) continue;
+    const lifeAlpha = Math.sin(p * Math.PI) * alpha;
+    const seed = combo + i * 3.41 + timeSeed;
+
+    if (i % 3 !== 2) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const baseX = side * burstW * (0.14 + p * 0.3);
+      const baseY = (seededUnit(combo + i * 1.7 + timeSeed) - 0.5) * burstH * 0.48;
+      const reach = burstW * (0.1 + seededUnit(combo + i * 3.4 + timeSeed) * 0.12) * (1 - p * 0.28);
+      const endY = baseY + (seededUnit(combo + i * 5.6 + timeSeed) - 0.5) * burstH * 0.22;
+      drawElectricBolt(
+        ctx,
+        baseX,
+        baseY,
+        baseX + side * reach,
+        endY,
+        palette,
+        lifeAlpha * 0.82,
+        stageScale,
+        seed,
+        depth,
+        budget === 'normal' && getComboHudTier(combo) >= 1,
+      );
+    }
+
+    const angle =
+      seededUnit(combo + i * 2.13 + timeSeed * 0.31) * Math.PI * 2 + progress.t * Math.PI * 3.4;
+    const startR = burstW * (0.03 + seededUnit(seed + 4.2) * 0.07);
+    const endR = burstW * (0.24 + p * 0.36) * (0.78 + seededUnit(seed + 8.6) * 0.28);
+    const yScale = burstH / Math.max(burstW, 1);
+    const drift = (seededUnit(seed + 14.8) - 0.5) * 0.42;
+    const x1 = Math.cos(angle) * startR;
+    const y1 = Math.sin(angle) * startR * yScale;
+    const x2 = Math.cos(angle + drift) * endR;
+    const y2 = Math.sin(angle + drift) * endR * yScale;
+    drawElectricBolt(
+      ctx,
+      x1,
+      y1,
+      x2,
+      y2,
+      palette,
+      lifeAlpha * 0.74,
+      stageScale,
+      seed + 51.2,
+      depth,
+      budget === 'normal' && i % 2 === 0,
+    );
+  }
+  ctx.restore();
 }
 
 export function measureContainedAsset(
@@ -258,6 +466,27 @@ export function drawContainedFeedbackAsset(
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.drawImage(image, bounds.x, bounds.y, bounds.w, bounds.h);
+  ctx.restore();
+  return bounds;
+}
+
+function drawFilteredContainedFeedbackAsset(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  cx: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+  filter: string,
+  scale = 1,
+  alpha = 1,
+): { x: number; y: number; w: number; h: number } | null {
+  if (!image || filter === 'none') {
+    return drawContainedFeedbackAsset(ctx, image, cx, cy, maxW, maxH, scale, alpha);
+  }
+  ctx.save();
+  ctx.filter = filter;
+  const bounds = drawContainedFeedbackAsset(ctx, image, cx, cy, maxW, maxH, scale, alpha);
   ctx.restore();
   return bounds;
 }
@@ -297,16 +526,15 @@ export function drawScorePopStripOrbit(
   layer: 'all' | 'behind' | 'front' = 'all',
   budget: HudFxBudget = 'normal',
 ): void {
-  const wrapPrimary =
-    comboTier >= 50 ? 'rgba(248, 113, 113, 0.95)' : comboTier >= 10 ? 'rgba(255, 213, 92, 0.95)' : 'rgba(125, 211, 252, 0.95)';
+  const palette = getComboFeedbackPalette(comboTier);
   drawFeedbackStripLightWrap(
     ctx,
     strip.cx,
     strip.cy,
     strip.width,
     strip.height,
-    wrapPrimary,
-    'rgba(45, 236, 255, 0.92)',
+    `rgba(${palette.soft}, 0.95)`,
+    `rgba(${palette.main}, 0.92)`,
     progress.t,
     progress.fireflyFade,
     3.7,
@@ -338,7 +566,17 @@ export function drawScorePopBottomStrip(
   const stripCy = stripTopY + stripDrawH / 2;
   const stripBounds = resolveStripWrapBounds(stripCx, stripCy, chipW, stripDrawH, scoreStrip);
   drawScorePopStripOrbit(ctx, stripBounds, comboTier, progress, 'behind', budget);
-  drawContainedFeedbackAsset(ctx, scoreStrip, stripCx, stripCy, chipW, stripDrawH, 1, progress.alpha);
+  drawFilteredContainedFeedbackAsset(
+    ctx,
+    scoreStrip,
+    stripCx,
+    stripCy,
+    chipW,
+    stripDrawH,
+    getComboRailFilter(comboTier),
+    1,
+    progress.alpha,
+  );
   drawScorePopStripOrbit(ctx, stripBounds, comboTier, progress, 'front', budget);
 }
 
@@ -364,13 +602,15 @@ export function drawScorePopFx(ctx: CanvasRenderingContext2D, opts: ScorePopFxDr
   ctx.scale(progress.pop, progress.pop);
 
   const assetAlpha = Math.min(0.92, progress.alpha);
-  const drawn = drawContainedFeedbackAsset(
+  const tierFilter = getComboRailFilter(comboTier);
+  const drawn = drawFilteredContainedFeedbackAsset(
     ctx,
     scorePopBase,
     0,
     assetCyOffset,
     assetMaxW,
     assetMaxH,
+    tierFilter,
     0.92,
     assetAlpha,
   );
@@ -379,10 +619,14 @@ export function drawScorePopFx(ctx: CanvasRenderingContext2D, opts: ScorePopFxDr
   const palette = getComboFeedbackPalette(comboTier);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = palette.stroke;
+  ctx.shadowColor = palette.digitColor;
   ctx.shadowBlur = 10 * stageScale;
   ctx.font = `900 ${opts.fontPx ?? 22 * stageScale}px ${fontFamily}`;
-  ctx.fillStyle = comboTier >= 10 ? '#fef08a' : '#dbeafe';
+  ctx.fillStyle = palette.digitColor;
+  ctx.fillText(scoreText, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = progress.alpha * 0.42;
+  ctx.fillStyle = palette.hot;
   ctx.fillText(scoreText, 0, 0);
   ctx.restore();
 }
@@ -394,78 +638,40 @@ export function drawComboBurstFx(ctx: CanvasRenderingContext2D, opts: ComboBurst
     combo,
     progress,
     stageScale,
-    comboBurstBase,
     burstW,
     burstH,
     fontFamilyMono,
-    fontFamilyDisplay,
-    drawFallbackFx,
   } = opts;
   if (progress.alpha <= 0.008) return;
 
   const palette = getComboFeedbackPalette(combo);
   const isMobile = opts.isMobile ?? false;
-  const spriteW = burstW * GAME_ASSET_TUNING.fx.comboBurst.spriteW;
-  const spriteH = burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH;
-  const fireflySize = Math.max(burstW, burstH) * 0.62;
-  const budget = opts.hudFxBudget ?? 'normal';
   const fade = progress.alpha;
 
   ctx.save();
   ctx.translate(cx + progress.shakeX, cy);
-
-  drawFeedbackFireflyOrbit(
-    ctx,
-    0,
-    0,
-    fireflySize,
-    palette.stroke,
-    getComboFireflyAccent(combo),
-    progress.t,
-    fade,
-    combo * 0.37,
-    combo >= 20 ? 16 : 14,
-    budget,
-  );
-
-  ctx.globalAlpha = fade;
   ctx.scale(progress.burstScale, progress.burstScale);
 
-  const drawn = drawContainedFeedbackAsset(
-    ctx,
-    comboBurstBase,
-    0,
-    0,
-    spriteW,
-    spriteH,
-    1,
-    Math.min(0.9, fade),
-  );
-  if (!drawn && drawFallbackFx) {
-    ctx.save();
-    ctx.globalAlpha = fade;
-    drawFallbackFx(ctx, progress.t);
-    ctx.restore();
-  }
-
-  const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, burstW * 0.52);
-  glow.addColorStop(0, palette.glow.replace(/[\d.]+\)$/u, `${0.25 * fade})`));
-  glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(-burstW / 2, -burstH / 2, burstW, burstH);
+  drawComboBurstElectricField(ctx, burstW, burstH, combo, progress, palette, stageScale, opts.hudFxBudget);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = Math.max(3, 5 * stageScale);
+  const fontSize = Math.min(isMobile ? 46 : 64, (isMobile ? 38 : 50) + String(combo).length * 3) * stageScale;
+  ctx.font = `1000 ${fontSize}px ${fontFamilyMono}`;
+  ctx.lineWidth = Math.max(3, fontSize * 0.11);
   ctx.strokeStyle = `rgba(15, 23, 42, ${0.86 * fade})`;
+  ctx.shadowColor = palette.digitColor;
+  ctx.shadowBlur = fontSize * (getComboHudTier(combo) >= 2 ? 0.34 : 0.25);
+  ctx.strokeText(`x${combo}`, 0, 0);
   ctx.fillStyle = palette.digitColor;
-  ctx.font = `900 ${Math.min(isMobile ? 42 : 56, (isMobile ? 34 : 44) + String(combo).length * 3) * stageScale}px ${fontFamilyMono}`;
-  ctx.strokeText(`x${combo}`, 0, -4 * stageScale);
-  ctx.fillText(`x${combo}`, 0, -4 * stageScale);
-  ctx.font = `900 ${11 * stageScale}px ${fontFamilyDisplay}`;
-  ctx.fillStyle = palette.text;
-  ctx.globalAlpha = fade * 0.76;
-  ctx.fillText('COMBO', 0, 28 * stageScale);
+  ctx.globalAlpha = fade;
+  ctx.fillText(`x${combo}`, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.shadowColor = palette.stroke;
+  ctx.shadowBlur = fontSize * 0.18;
+  ctx.fillStyle = palette.hot;
+  ctx.globalAlpha = fade * 0.44;
+  ctx.fillText(`x${combo}`, 0, 0);
   ctx.restore();
 }
 
@@ -485,24 +691,38 @@ export function drawComboBurstPreviewDecorations(
 ): void {
   const palette = getComboFeedbackPalette(combo);
   const { t, fade } = progress;
+  const timeSeed = t * 88 + combo * 0.23;
+  const boltCount = getComboHudTier(combo) >= 2 ? 7 : 5;
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, effectRadius);
-  core.addColorStop(0, `rgba(${palette.main}, ${0.34 * fade})`);
-  core.addColorStop(0.32, `rgba(${palette.soft}, ${0.22 * fade})`);
-  core.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = core;
-  ctx.fillRect(0, 0, w, h);
 
-  for (let i = 0; i < (combo >= 50 ? 3 : combo >= 20 ? 2 : 1); i += 1) {
-    const ringT = clamp01((t - i * 0.1) / 0.62);
-    if (ringT <= 0 || ringT >= 1) continue;
-    ctx.strokeStyle = `rgba(${i % 2 ? palette.soft : palette.main}, ${(1 - ringT) * 0.78})`;
-    ctx.lineWidth = effectRadius * 0.028 * (1 - ringT) + 1.2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, effectRadius * (0.25 + 0.75 * ringT ** 0.5), 0, Math.PI * 2);
-    ctx.stroke();
+  for (let i = 0; i < boltCount; i += 1) {
+    const p = (t * 1.08 + i * 0.117) % 1;
+    if (p > 0.78) continue;
+    const lifeAlpha = Math.sin(p * Math.PI) * fade * (getComboHudTier(combo) >= 2 ? 0.34 : 0.26);
+    const seed = combo * 0.41 + i * 7.3 + timeSeed;
+    const angle = seededUnit(seed) * Math.PI * 2 + t * Math.PI * 2.6;
+    const startR = effectRadius * (0.04 + seededUnit(seed + 1.4) * 0.08);
+    const endR = effectRadius * (0.22 + p * 0.34);
+    const drift = (seededUnit(seed + 2.8) - 0.5) * 0.55;
+    const x1 = cx + Math.cos(angle) * startR;
+    const y1 = cy + Math.sin(angle) * startR;
+    const x2 = cx + Math.cos(angle + drift) * endR;
+    const y2 = cy + Math.sin(angle + drift) * endR;
+    drawElectricBolt(
+      ctx,
+      x1,
+      y1,
+      x2,
+      y2,
+      palette,
+      lifeAlpha,
+      Math.max(1, effectRadius * 0.0065),
+      seed + 18.6,
+      getComboHudTier(combo) >= 2 ? 4 : 3,
+      i % 2 === 0,
+    );
   }
   ctx.restore();
 }
@@ -514,15 +734,45 @@ export function drawScorePopPreviewDecorations(
   w: number,
   h: number,
   progress: ScorePopFxProgress,
+  comboTier = 0,
 ): void {
+  const palette = getComboFeedbackPalette(Math.max(1, comboTier));
+  const timeSeed = progress.t * 72;
+  const radius = Math.min(w, h) * 0.11;
+
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.22);
-  glow.addColorStop(0, `rgba(255, 213, 92, ${0.22 * progress.alpha})`);
-  glow.addColorStop(0.45, `rgba(45, 236, 255, ${0.12 * progress.alpha})`);
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 2.4);
+  glow.addColorStop(0, `rgba(255, 213, 92, ${0.26 * progress.alpha})`);
+  glow.addColorStop(0.45, `rgba(${palette.main}, ${0.14 * progress.alpha})`);
   glow.addColorStop(1, 'rgba(45, 236, 255, 0)');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, w, h);
+
+  const boltCount = getComboHudTier(comboTier) >= 1 ? 6 : 4;
+  for (let i = 0; i < boltCount; i += 1) {
+    const p = (progress.t * 1.22 + i * 0.19) % 1;
+    if (p > 0.82) continue;
+    const lifeAlpha = Math.sin(p * Math.PI) * progress.alpha * 0.58;
+    const seed = comboTier + i * 5.9 + timeSeed;
+    const angle = seededUnit(seed) * Math.PI * 2 + progress.t * Math.PI * 4.2;
+    const startR = radius * (0.08 + seededUnit(seed + 2.1) * 0.12);
+    const endR = radius * (0.55 + p * 0.75);
+    const drift = (seededUnit(seed + 4.4) - 0.5) * 0.62;
+    drawElectricBolt(
+      ctx,
+      cx + Math.cos(angle) * startR,
+      cy + Math.sin(angle) * startR,
+      cx + Math.cos(angle + drift) * endR,
+      cy + Math.sin(angle + drift) * endR,
+      palette,
+      lifeAlpha,
+      Math.max(1, radius * 0.045),
+      seed + 11.7,
+      3,
+      i % 2 === 0,
+    );
+  }
   ctx.restore();
 }
 
@@ -625,7 +875,7 @@ export function drawScorePopV3(ctx: CanvasRenderingContext2D, opts: ScorePopV3Dr
   }
 
   if (layer === 'all' || layer === 'pop') {
-    drawScorePopPreviewDecorations(ctx, layout.popCx, layout.popCy, canvasW, canvasH, progress);
+    drawScorePopPreviewDecorations(ctx, layout.popCx, layout.popCy, canvasW, canvasH, progress, comboTier);
     drawScorePopFx(ctx, {
       cx: layout.popCx,
       cy: layout.popCy,
@@ -659,11 +909,9 @@ export interface ComboBurstV3DrawOptions {
   combo: number;
   progress: ComboBurstFxProgress;
   layout: ComboBurstV3Layout;
-  comboBurstBase: HTMLImageElement | null;
   fontFamilyMono: string;
   fontFamilyDisplay: string;
   hudFxBudget?: HudFxBudget;
-  drawFallbackFx?: (ctx: CanvasRenderingContext2D, t: number) => void;
 }
 
 export function resolveComboBurstV3PreviewLayout(canvasW: number, canvasH: number): ComboBurstV3Layout {
@@ -699,7 +947,7 @@ export function resolveComboBurstV3RuntimeLayout(
   };
 }
 
-/** Combo burst v3 stack: ambient rings/glow + burst body. */
+/** Combo burst v3 — jagged electric arcs + combo digits (no energy base disc). */
 export function drawComboBurstV3(ctx: CanvasRenderingContext2D, opts: ComboBurstV3DrawOptions): void {
   const { layout, combo, progress, canvasW, canvasH } = opts;
   const effectRadius = resolveComboBurstAmbientRadius(layout.burstW, layout.burstH);
@@ -711,13 +959,11 @@ export function drawComboBurstV3(ctx: CanvasRenderingContext2D, opts: ComboBurst
     progress,
     stageScale: layout.stageScale,
     isMobile: layout.isMobile,
-    comboBurstBase: opts.comboBurstBase,
     burstW: layout.burstW,
     burstH: layout.burstH,
     fontFamilyMono: opts.fontFamilyMono,
     fontFamilyDisplay: opts.fontFamilyDisplay,
     hudFxBudget: opts.hudFxBudget,
-    drawFallbackFx: opts.drawFallbackFx,
   });
 }
 
@@ -732,20 +978,5 @@ export function isComboBurstFxVisible(progress: ComboBurstFxProgress): boolean {
 export function createScorePopFallbackDrawer(stageScale: number) {
   return (ctx: CanvasRenderingContext2D, t: number): void => {
     drawFxSpriteFrame(ctx, 'score-pop', t, 0, 0, 132 * stageScale, 56 * stageScale, GAME_ASSET_TUNING.fx.scorePop.spriteAlpha);
-  };
-}
-
-export function createComboBurstFallbackDrawer(burstW: number, burstH: number) {
-  return (ctx: CanvasRenderingContext2D, t: number): void => {
-    drawFxSpriteFrame(
-      ctx,
-      'combo-burst',
-      t,
-      0,
-      0,
-      burstW * GAME_ASSET_TUNING.fx.comboBurst.spriteW,
-      burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH,
-      GAME_ASSET_TUNING.fx.comboBurst.spriteAlpha,
-    );
   };
 }

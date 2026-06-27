@@ -823,18 +823,18 @@ function testOrbitParticlesSeamAtLoopWrap(): void {
 
 function testComboHudV3TierColors(): void {
   assert.equal(getComboHudTier(3), 0);
-  assert.equal(getComboHudTier(9), 0);
-  assert.equal(getComboHudTier(10), 1);
-  assert.equal(getComboHudTier(19), 1);
-  assert.equal(getComboHudTier(20), 2);
-  assert.equal(getComboHudTier(49), 2);
-  assert.equal(getComboHudTier(50), 3);
+  assert.equal(getComboHudTier(24), 0);
+  assert.equal(getComboHudTier(25), 1);
+  assert.equal(getComboHudTier(54), 1);
+  assert.equal(getComboHudTier(55), 2);
+  assert.equal(getComboHudTier(99), 2);
+  assert.equal(getComboHudTier(100), 3);
   assert.equal(getComboFeedbackPalette(8).digitColor, '#93c5fd');
-  assert.equal(getComboFeedbackPalette(12).digitColor, '#facc15');
-  assert.equal(getComboFeedbackPalette(24).digitColor, '#fb923c');
-  assert.equal(getComboFeedbackPalette(50).digitColor, '#ef4444');
-  assert.equal(getComboFeedbackPalette(50).text, '#fca5a5');
-  assert.notEqual(getComboFeedbackPalette(20).digitColor, '#ef4444');
+  assert.equal(getComboFeedbackPalette(30).digitColor, '#facc15');
+  assert.equal(getComboFeedbackPalette(60).digitColor, '#fb923c');
+  assert.equal(getComboFeedbackPalette(100).digitColor, '#ef4444');
+  assert.equal(getComboFeedbackPalette(100).text, '#fca5a5');
+  assert.notEqual(getComboFeedbackPalette(60).digitColor, '#ef4444');
 }
 
 function testDifficultyAlertAnchorSitsAboveBoard(): void {

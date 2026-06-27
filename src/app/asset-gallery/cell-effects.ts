@@ -2293,7 +2293,6 @@ function drawComboBurstV3Scene(ctx: CanvasRenderingContext2D, w: number, h: numb
     combo,
     progress,
     layout,
-    comboBurstBase: hudFeedbackImages.comboBurstBase,
     fontFamilyMono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
     fontFamilyDisplay: 'system-ui, sans-serif',
   });

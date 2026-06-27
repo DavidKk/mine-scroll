@@ -28,13 +28,14 @@ import {
 import { drawCellRevealTransitionOverlay, drawMineBurstSmoke, drawPanelV3ScanBeams, type BoardPointerState } from '../cell-fx.ts';
 import { drawHiddenCellUnderlay } from '../tile-sprites.ts';
 import {
+  COMBO_HUD_TIER_THRESHOLDS,
   comboBurstRuntimeProgress,
   comboHudGlowRgba,
-  createComboBurstFallbackDrawer,
   createScorePopFallbackDrawer,
   drawComboBurstV3,
   drawScorePopV3,
   getComboFeedbackPalette,
+  getComboHudAccentColors,
   getComboRailFilter,
   isComboBurstFxVisible,
   isScorePopFxVisible,
@@ -2381,36 +2382,7 @@ export function createGameCanvas(
   }
 
   function comboColor(combo: number): { fill: string; stroke: string; glow: string; text: string } {
-    if (combo >= 50) {
-      return {
-        fill: 'rgba(239, 68, 68, 0.92)',
-        stroke: 'rgba(248, 113, 113, 0.6)',
-        glow: 'rgba(239, 68, 68, 0.28)',
-        text: '#fecaca',
-      };
-    }
-    if (combo >= 20) {
-      return {
-        fill: 'rgba(245, 158, 11, 0.92)',
-        stroke: 'rgba(251, 191, 36, 0.5)',
-        glow: 'rgba(245, 158, 11, 0.2)',
-        text: '#ffffff',
-      };
-    }
-    if (combo >= 10) {
-      return {
-        fill: 'rgba(34, 197, 94, 0.88)',
-        stroke: 'rgba(74, 222, 128, 0.45)',
-        glow: 'rgba(34, 197, 94, 0.18)',
-        text: '#ffffff',
-      };
-    }
-    return {
-      fill: 'rgba(39, 39, 42, 0.92)',
-      stroke: THEME.panelBorder,
-      glow: 'rgba(99, 102, 241, 0.12)',
-      text: THEME.hudText,
-    };
+    return getComboHudAccentColors(combo);
   }
 
   function logIcon(kind: GameCanvasLogLine['kind']): HudIconName {
@@ -2844,7 +2816,7 @@ export function createGameCanvas(
 
     if (combo !== lastCombo) {
       if (combo > lastCombo && combo > 1) spawnComboParticles(combo);
-      const levelThresholds = [10, 20, 50];
+      const levelThresholds = [...COMBO_HUD_TIER_THRESHOLDS];
       for (const threshold of levelThresholds) {
         if (lastCombo < threshold && combo >= threshold) {
           levelUpFxStartedAt = performance.now();
@@ -2897,11 +2869,9 @@ export function createGameCanvas(
         combo,
         progress,
         layout,
-        comboBurstBase: hudFeedbackAssets.comboBurstBase,
         fontFamilyMono: FONTS.mono,
         fontFamilyDisplay: FONTS.display,
         hudFxBudget: hudFxBudget(),
-        drawFallbackFx: createComboBurstFallbackDrawer(layout.burstW, layout.burstH),
       });
 
       if (isComboBurstFxVisible(progress)) scheduleAnimationFrame();

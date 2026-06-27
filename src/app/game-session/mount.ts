@@ -63,7 +63,7 @@ export function mountGameSession(
   const gameAudio = createGameAudio();
 
   function syncIdleBgm(): void {
-    gameAudio.setIdleBgm(runtime.session.state.status === 'idle');
+    gameAudio.setIdleBgm(true);
   }
 
   root.className = 'app';

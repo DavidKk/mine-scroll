@@ -56,8 +56,8 @@ export function getEffectiveSfxVolume(id: GameAudioId): number {
 export const GAME_AUDIO_MASTER_VOLUME = MASTER_VOLUME;
 export const GAME_AUDIO_SFX_GAIN = SFX_GAIN;
 
-/** Idle-menu loop — source peaks around −26 dBFS. */
-const BGM_IDLE_VOLUME = 0.58;
+/** BGM loop — source peaks near 0 dBFS, keep it under gameplay SFX. */
+const BGM_IDLE_VOLUME = 0.24;
 
 export const GAME_AUDIO_BGM_IDLE_VOLUME = BGM_IDLE_VOLUME;
 
@@ -137,7 +137,7 @@ export function createGameAudio(): GameAudioController {
   const clips = new Map<GameAudioId, HTMLAudioElement>();
   let unlocked = false;
   let idleBgmSceneActive = false;
-  let idleBgmMuted = true;
+  let idleBgmMuted = false;
   let idleBgmPlayPending = false;
 
   const idleBgm = new Audio(BGM_IDLE_SRC);
