@@ -260,16 +260,30 @@ export function createGameCanvas(
 
   function difficultyAlertProgress(
     startedAt: number,
-  ): { t: number; alpha: number; impact: number; strobe: number } | null {
+  ): { t: number; alpha: number; impact: number; strobe: number; pulse: number } | null {
     const elapsedMs = performance.now() - startedAt;
     const t = Math.max(0, Math.min(1, elapsedMs / DIFFICULTY_ALERT_MS));
     if (t >= 1) return null;
-    const enter = Math.min(1, t / 0.18);
-    const exit = t > 0.78 ? Math.min(1, (t - 0.78) / 0.22) : 0;
+    const enter = Math.min(1, t / 0.16);
+    const exit = t > 0.76 ? Math.min(1, (t - 0.76) / 0.24) : 0;
     const alpha = Math.sin(enter * Math.PI * 0.5) * (1 - exit);
-    const impact = t < 0.25 ? 1 - t / 0.25 : 0;
-    const strobe = t < 0.42 ? Math.pow(Math.abs(Math.sin(t * Math.PI * 5)), 2) * 0.45 : 0;
-    return { t, alpha, impact, strobe };
+    const impact = t < 0.22 ? 1 - t / 0.22 : 0;
+    const strobe = t < 0.58 ? Math.pow(Math.abs(Math.sin(t * Math.PI * 6.5)), 1.55) * 0.72 : 0;
+    const pulse = Math.pow(Math.sin(t * Math.PI), 0.85);
+    return { t, alpha, impact, strobe, pulse };
+  }
+
+  function resolveDifficultyAlertOrigin(
+    shellW: number,
+    shellH: number,
+  ): { ox: number; oy: number; reach: number } {
+    const stageScale = stageLayout?.scale ?? 1;
+    const alertAnchor = stageLayout ? getDifficultyAlertAnchor(stageLayout) : null;
+    const ox = alertAnchor?.x ?? shellW / 2;
+    const oy = alertAnchor?.y ?? 92 * stageScale;
+    const reach =
+      Math.hypot(Math.max(ox, shellW - ox), Math.max(oy, shellH - oy)) * 1.12;
+    return { ox, oy, reach };
   }
 
   function drawDifficultyAlertFullscreenFlash(
@@ -281,81 +295,98 @@ export function createGameCanvas(
     const progress = difficultyAlertProgress(activeDifficultyAlert.startedAt);
     if (!progress) return;
 
-    const { t, alpha, impact, strobe } = progress;
+    const { t, alpha, impact, strobe, pulse } = progress;
     const stageScale = stageLayout?.scale ?? 1;
     const kind = activeDifficultyAlert.kind;
     const isDanger = kind === 'danger-rise';
     const main = isDanger ? '255, 76, 86' : '255, 190, 55';
     const soft = isDanger ? '251, 113, 36' : '45, 236, 255';
-    const flash = alpha * (0.07 + strobe * 0.1 + impact * 0.08);
-    const cx = shellW / 2;
-    const cy = shellH / 2;
-    const maxDim = Math.max(shellW, shellH);
+    const flash = alpha * (0.11 + strobe * 0.22 + impact * 0.16);
+    const { ox, oy, reach } = resolveDifficultyAlertOrigin(shellW, shellH);
+    const coreR = Math.max(18, 28 * stageScale);
 
     shellCtx.save();
 
-    const vignette = shellCtx.createRadialGradient(
-      cx,
-      cy,
-      maxDim * 0.32,
-      cx,
-      cy,
-      maxDim * 0.82,
-    );
-    vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(0.62, `rgba(${main}, ${flash * 0.08})`);
-    vignette.addColorStop(1, `rgba(${main}, ${flash * 0.34})`);
-    shellCtx.fillStyle = vignette;
-    shellCtx.fillRect(0, 0, shellW, shellH);
-
-    const edgeDepth = Math.min(maxDim * 0.09, 52 * stageScale);
-    const edgeAlpha = flash * 0.28;
-    const topEdge = shellCtx.createLinearGradient(0, 0, 0, edgeDepth);
-    topEdge.addColorStop(0, `rgba(${main}, ${edgeAlpha})`);
-    topEdge.addColorStop(1, 'rgba(0,0,0,0)');
-    shellCtx.fillStyle = topEdge;
-    shellCtx.fillRect(0, 0, shellW, edgeDepth);
-
-    const bottomEdge = shellCtx.createLinearGradient(0, shellH - edgeDepth, 0, shellH);
-    bottomEdge.addColorStop(0, 'rgba(0,0,0,0)');
-    bottomEdge.addColorStop(1, `rgba(${isDanger ? main : soft}, ${edgeAlpha * (isDanger ? 1.15 : 0.85)})`);
-    shellCtx.fillStyle = bottomEdge;
-    shellCtx.fillRect(0, shellH - edgeDepth, shellW, edgeDepth);
-
-    if (isDanger) {
-      const sideEdge = shellCtx.createLinearGradient(0, 0, edgeDepth * 0.7, 0);
-      sideEdge.addColorStop(0, `rgba(${main}, ${edgeAlpha * 0.55})`);
-      sideEdge.addColorStop(1, 'rgba(0,0,0,0)');
-      shellCtx.fillStyle = sideEdge;
-      shellCtx.fillRect(0, 0, edgeDepth * 0.7, shellH);
-      shellCtx.save();
-      shellCtx.translate(shellW, 0);
-      shellCtx.scale(-1, 1);
-      shellCtx.fillRect(0, 0, edgeDepth * 0.7, shellH);
-      shellCtx.restore();
+    if (impact > 0.05) {
+      const burst = shellCtx.createRadialGradient(ox, oy, 0, ox, oy, coreR * (1.4 + impact * 0.8));
+      burst.addColorStop(0, `rgba(${soft}, ${flash * (0.55 + impact * 0.35)})`);
+      burst.addColorStop(0.45, `rgba(${main}, ${flash * (0.32 + impact * 0.22)})`);
+      burst.addColorStop(1, 'rgba(0,0,0,0)');
+      shellCtx.fillStyle = burst;
+      shellCtx.fillRect(0, 0, shellW, shellH);
     }
 
-    const moteCount = isDanger ? 16 : 20;
+    if (strobe > 0.28) {
+      const washR = coreR + reach * (0.35 + strobe * 0.55);
+      const wash = shellCtx.createRadialGradient(ox, oy, coreR * 0.4, ox, oy, washR);
+      wash.addColorStop(0, `rgba(${soft}, ${(strobe - 0.28) * alpha * 0.16})`);
+      wash.addColorStop(0.55, `rgba(${main}, ${(strobe - 0.28) * alpha * (isDanger ? 0.12 : 0.09)})`);
+      wash.addColorStop(1, 'rgba(0,0,0,0)');
+      shellCtx.fillStyle = wash;
+      shellCtx.fillRect(0, 0, shellW, shellH);
+    }
+
+    shellCtx.globalCompositeOperation = 'lighter';
+    for (let wave = 0; wave < 3; wave += 1) {
+      const wp = (t * 1.45 + wave * 0.28) % 1;
+      const ringR = coreR + reach * wp;
+      const ringAlpha = flash * (1 - wp) * 0.48;
+      if (ringAlpha <= 0.004) continue;
+      const ringInner = Math.max(coreR * 0.5, ringR - reach * 0.07);
+      const ring = shellCtx.createRadialGradient(ox, oy, ringInner, ox, oy, ringR);
+      ring.addColorStop(0, 'rgba(0,0,0,0)');
+      ring.addColorStop(0.62, `rgba(${soft}, ${ringAlpha * 0.42})`);
+      ring.addColorStop(0.88, `rgba(${main}, ${ringAlpha})`);
+      ring.addColorStop(1, 'rgba(0,0,0,0)');
+      shellCtx.fillStyle = ring;
+      shellCtx.fillRect(0, 0, shellW, shellH);
+    }
+
+    const edgeGlow = shellCtx.createRadialGradient(ox, oy, reach * 0.52, ox, oy, reach);
+    edgeGlow.addColorStop(0, 'rgba(0,0,0,0)');
+    edgeGlow.addColorStop(0.72, `rgba(${main}, ${flash * 0.08 * pulse})`);
+    edgeGlow.addColorStop(1, `rgba(${main}, ${flash * 0.38 * pulse})`);
+    shellCtx.fillStyle = edgeGlow;
+    shellCtx.fillRect(0, 0, shellW, shellH);
+    shellCtx.globalCompositeOperation = 'source-over';
+
+    const rayCount = isDanger ? 14 : 12;
+    for (let i = 0; i < rayCount; i += 1) {
+      const baseAngle = isDanger
+        ? -Math.PI / 2 + ((i / rayCount) - 0.5) * Math.PI * 1.35
+        : (i / rayCount) * Math.PI * 2;
+      const travel = (t * 1.5 + i * 0.07) % 1;
+      const dist = coreR * 0.6 + reach * travel * 0.92;
+      const bx = ox + Math.cos(baseAngle) * dist;
+      const by = oy + Math.sin(baseAngle) * dist;
+      const blobR = Math.max(reach * 0.11, 56 * stageScale) * (0.72 + (1 - travel) * 0.35);
+      const blobAlpha = flash * (0.18 + (1 - travel) * 0.34);
+      const blob = shellCtx.createRadialGradient(bx, by, 0, bx, by, blobR);
+      blob.addColorStop(0, `rgba(${soft}, ${blobAlpha * 0.5})`);
+      blob.addColorStop(0.4, `rgba(${main}, ${blobAlpha * 0.24})`);
+      blob.addColorStop(1, 'rgba(0,0,0,0)');
+      shellCtx.fillStyle = blob;
+      shellCtx.beginPath();
+      shellCtx.arc(bx, by, blobR, 0, Math.PI * 2);
+      shellCtx.fill();
+    }
+
+    const moteCount = isDanger ? 22 : 26;
     shellCtx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < moteCount; i += 1) {
-      const u = ((i * 9973 + 17) % 1000) / 1000;
-      const v = ((i * 7907 + 31) % 1000) / 1000;
-      const drift = (t * (isDanger ? 0.06 : 0.12) + i * 0.041) % 1;
-      let x: number;
-      let y: number;
-      if (isDanger) {
-        x = shellW * (0.06 + u * 0.88);
-        y = shellH * (0.58 + v * 0.34 - drift * 0.12);
-      } else {
-        x = shellW * (0.04 + (u + drift * 0.22) % 0.92);
-        y = shellH * (0.12 + v * 0.48);
-      }
-      const r = (10 + (i % 6) * 3.5) * stageScale;
-      const twinkle = 0.35 + 0.65 * (1 - Math.abs(((i * 0.17 + t * 1.4) % 1) * 2 - 1));
-      const moteAlpha = flash * twinkle * (isDanger ? 0.55 : 0.48);
+      const angle =
+        ((i * 9973 + (isDanger ? 90 : 0)) % 360) / 360 * Math.PI * 2 +
+        Math.sin(i * 1.7) * 0.18;
+      const drift = (t * (isDanger ? 0.95 : 1.15) + i * 0.041) % 1;
+      const dist = coreR * 0.35 + reach * drift * 0.96;
+      const x = ox + Math.cos(angle) * dist;
+      const y = oy + Math.sin(angle) * dist;
+      const r = (10 + (i % 7) * 3.5) * stageScale;
+      const twinkle = 0.4 + 0.6 * (1 - Math.abs(((i * 0.17 + t * 1.6) % 1) * 2 - 1));
+      const moteAlpha = flash * twinkle * (isDanger ? 0.72 : 0.62) * (1 - drift * 0.35);
       const glow = shellCtx.createRadialGradient(x, y, 0, x, y, r);
-      glow.addColorStop(0, `rgba(${soft}, ${moteAlpha * 0.42})`);
-      glow.addColorStop(0.38, `rgba(${main}, ${moteAlpha * 0.18})`);
+      glow.addColorStop(0, `rgba(${soft}, ${moteAlpha * 0.55})`);
+      glow.addColorStop(0.35, `rgba(${main}, ${moteAlpha * 0.28})`);
       glow.addColorStop(1, `rgba(${main}, 0)`);
       shellCtx.fillStyle = glow;
       shellCtx.beginPath();
