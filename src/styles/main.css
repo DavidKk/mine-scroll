@@ -653,6 +653,10 @@ body::-webkit-scrollbar {
   min-height: 88px;
 }
 
+.asset-lab__frame-thumb--wide {
+  aspect-ratio: 2 / 1;
+}
+
 .asset-lab__thumb--black {
   background: #000;
 }

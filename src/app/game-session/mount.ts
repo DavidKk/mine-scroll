@@ -144,7 +144,8 @@ export function mountGameSession(
     const maxLives = 5;
     const scrollElapsed =
       runtime.scrollGameStartedAt > 0 ? Date.now() - runtime.scrollGameStartedAt : 0;
-    const batchRows = getEndlessScrollProfile(scrollElapsed).batchRows;
+    const scrollProfile = getEndlessScrollProfile(scrollElapsed);
+    const batchRows = scrollProfile.batchRows;
     const playing = runtime.session.state.status === 'playing';
     return {
       score: runtime.session.score ?? 0,
@@ -160,6 +161,10 @@ export function mountGameSession(
         scrollDepth: runtime.backdropScrollDepth,
         livesCurrent: lives,
         livesMax: maxLives,
+      },
+      difficulty: {
+        speedTier: scrollProfile.speedTier,
+        batchTier: scrollProfile.batchTier,
       },
     };
   }

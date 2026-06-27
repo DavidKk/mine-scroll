@@ -17,9 +17,9 @@
       "flag-blue": "/assets/candidates/game-ui-v3/runtime-cutouts/flag-standard.png",
       "flag-danger-red": "/assets/candidates/game-ui-v3/runtime-cutouts/flag-standard.png",
       "flag-wrong-correction": "/assets/candidates/game-ui-v3/runtime-cutouts/flag-standard.png",
-      "heart-full": "/assets/game/cutouts/heart-full.png",
-      "heart-empty": "/assets/game/cutouts/heart-empty.png",
-      "heart-refill": "/assets/game/cutouts/heart-refill.png"
+      "heart-full": "/assets/candidates/game-ui-v3/cutouts/heart-full.png",
+      "heart-empty": "/assets/candidates/game-ui-v3/cutouts/heart-empty.png",
+      "heart-refill": "/assets/candidates/game-ui-v3/cutouts/heart-full.png"
     }
   },
   "fx": {
@@ -117,19 +117,19 @@
     "source": "docs/design-assets/production/ui-panels-production-v2.png",
     "items": {
       "start-panel": {
-        "src": "/assets/game/ui/start-panel.png",
-        "width": 364,
-        "height": 246
+        "src": "/assets/candidates/game-ui-v3/panels/runtime/start-panel-v3.png",
+        "width": 1536,
+        "height": 1024
       },
       "game-over-panel": {
-        "src": "/assets/game/ui/game-over-panel.png",
-        "width": 430,
-        "height": 269
+        "src": "/assets/candidates/game-ui-v3/panels/runtime/game-over-panel-v3.png",
+        "width": 1448,
+        "height": 1086
       },
       "retry-button": {
-        "src": "/assets/game/ui/retry-button.png",
-        "width": 218,
-        "height": 84
+        "src": "/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png",
+        "width": 1895,
+        "height": 830
       },
       "auto-off": {
         "src": "/assets/game/ui/auto-off.png",

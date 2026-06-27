@@ -7,6 +7,7 @@ import {
   drawLivesRow,
   parseLivesDisplay,
   type HudIconName,
+  type LivesDisplay,
 } from '../hud-sprites.ts';
 import {
   getCanvasPointerCoords,
@@ -24,7 +25,7 @@ import {
   type ScrollPressureState,
   type RenderState,
 } from '../renderer/index.ts';
-import { drawMineBurstSmoke, type BoardPointerState } from '../cell-fx.ts';
+import { drawCellRevealTransitionOverlay, drawMineBurstSmoke, type BoardPointerState } from '../cell-fx.ts';
 import { FpsMeter, drawFpsHud } from '../fps-meter.ts';
 import {
   GAME_ASSET_TUNING,
@@ -56,6 +57,26 @@ import {
   type GameCanvasLogLine,
   type GameCanvasOptions,
 } from './types.ts';
+
+const hudFeedbackAssets = {
+  scoreStrip: loadRuntimeImage('/assets/candidates/hud-feedback-v3/runtime/score-energy-strip-v3.png'),
+  scorePanelV6: loadRuntimeImage('/assets/candidates/hud-feedback-v3/runtime/score-energy-panel-v6.png'),
+  comboRail: loadRuntimeImage('/assets/candidates/hud-feedback-v3/runtime/combo-energy-rail-v3.png'),
+  scorePopBase: loadRuntimeImage('/assets/candidates/hud-feedback-v3/runtime/score-pop-energy-base-v3.png'),
+  comboBurstBase: loadRuntimeImage('/assets/candidates/hud-feedback-v3/runtime/combo-burst-energy-base-v3.png'),
+  speedUpAlert: loadRuntimeImage('/assets/candidates/hud-alerts-v3/runtime/speed-up-alert-v3.png'),
+  dangerRiseAlert: loadRuntimeImage('/assets/candidates/hud-alerts-v3/runtime/danger-rise-alert-v3.png'),
+};
+
+const scoreDigitAssets = Array.from({ length: 10 }, (_, digit) =>
+  loadRuntimeImage(`/assets/candidates/hud-feedback-v3/runtime/score-digits-v1/digit-${digit}.png`),
+);
+
+function loadRuntimeImage(src: string): HTMLImageElement {
+  const image = new Image();
+  image.src = src;
+  return image;
+}
 
 export type {
   GameCanvasCallbacks,
@@ -170,6 +191,14 @@ export function createGameCanvas(
   let devAutoRect: { x: number; y: number; w: number; h: number } | null = null;
   let bgmMuteRect: { x: number; y: number; w: number; h: number } | null = null;
   let uiHoverTarget: string | null = null;
+  let pendingPanelTransition:
+    | {
+        kind: 'start' | 'retry';
+        startedAt: number;
+        durationMs: number;
+        timerId: number;
+      }
+    | null = null;
   applyCanvasSize(canvas, ctx, width, height);
 
   let elapsed = 0;
@@ -189,12 +218,17 @@ export function createGameCanvas(
   let lastBreakEventId = 0;
   let breakFxStartedAt = 0;
   let activeBreakEvent: GameCanvasHudStats['breakEvent'] | null = null;
+  let lastDifficultySpeedTier: number | null = null;
+  let lastDifficultyBatchTier: number | null = null;
+  let activeDifficultyAlert: { kind: 'speed-up' | 'danger-rise'; startedAt: number } | null = null;
   let animationFrameId: number | null = null;
   let ambientDelayId: number | null = null;
   let lastPaintAt = 0;
   const fpsMeter = new FpsMeter();
   /** Live wallpaper target rate (~40 FPS). */
   const AMBIENT_FRAME_MS = 1000 / 40;
+  const PANEL_V3_MS = 1480;
+  const DIFFICULTY_ALERT_MS = 1260;
   let boardLayerCache: HTMLCanvasElement | null = null;
   let boardLayerCacheCtx: CanvasRenderingContext2D | null = null;
   let boardLayerCacheKey = '';
@@ -204,6 +238,8 @@ export function createGameCanvas(
   let boardPointer: BoardPointerState | null = null;
   let lastLivesCurrent = -1;
   let heartRefillFxStartedAt = 0;
+  let heartRefillTargetIndex = 0;
+  let heartRefillMax = 5;
   let levelUpFxStartedAt = 0;
   let backdropMood: BackdropMood = { heat: 0.15, energy: 0.88, intensity: 0 };
   let lastBackdropSampleAt = 0;
@@ -230,6 +266,7 @@ export function createGameCanvas(
 
   const cellEffects: CellFx[] = [];
   const particles: ParticleFx[] = [];
+  const SCORE_HUD_PULSE_MS = 420;
 
   function syncFullscreenCanvasSize(): void {
     if (!fullscreen) return;
@@ -292,6 +329,8 @@ export function createGameCanvas(
     if (levelUpFxStartedAt > 0 && now - levelUpFxStartedAt < GAME_ASSET_TUNING.fx.levelUp.durationMs) {
       return 'full';
     }
+    if (pendingPanelTransition) return 'full';
+    if (activeDifficultyAlert && now - activeDifficultyAlert.startedAt < DIFFICULTY_ALERT_MS) return 'full';
     if (activeScoreEvent && scoreFxStartedAt > 0) return 'full';
     if (activeBreakEvent && breakFxStartedAt > 0) return 'full';
     if (lastCombo > 1 && comboFxStartedAt > 0) {
@@ -539,6 +578,7 @@ export function createGameCanvas(
       const cy = y + grid.cellSize / 2;
 
       if (fx.kind === 'reveal') {
+        drawCellRevealTransitionOverlay(effectCtx, x, y, grid, t);
         drawFxSpriteFrame(
           effectCtx,
           'safe-reveal',
@@ -796,6 +836,44 @@ export function createGameCanvas(
     scheduleAnimationFrame();
   }
 
+  function spawnScoreHudParticles(): void {
+    if (!stageLayout) return;
+    const now = performance.now();
+    const scale = stageLayout.scale;
+    const hudY = stageLayout.hudY + 7 * scale;
+    const panelCx = stageLayout.scoreAnchor.x + 118 * scale;
+    const panelCy = hudY + 27 * scale;
+    const maxW = 248 * scale;
+    const maxH = 80 * scale;
+    const fit =
+      hudFeedbackAssets.scorePanelV6.complete && hudFeedbackAssets.scorePanelV6.naturalWidth > 0
+        ? Math.min(maxW / hudFeedbackAssets.scorePanelV6.naturalWidth, maxH / hudFeedbackAssets.scorePanelV6.naturalHeight)
+        : 1;
+    const panelW = hudFeedbackAssets.scorePanelV6.complete ? hudFeedbackAssets.scorePanelV6.naturalWidth * fit : maxW;
+    const panelH = hudFeedbackAssets.scorePanelV6.complete ? hudFeedbackAssets.scorePanelV6.naturalHeight * fit : maxH;
+    const left = panelCx - panelW / 2 + panelW * 0.34;
+    const right = left + panelW * 0.52;
+    const cy = panelCy - panelH / 2 + panelH * 0.475;
+    const count = Math.max(8, Math.round(12 * scale));
+
+    for (let i = 0; i < count; i += 1) {
+      const angle = -Math.PI * (0.18 + Math.random() * 0.64);
+      const speed = 0.8 + Math.random() * 1.8;
+      particles.push({
+        x: left + Math.random() * Math.max(8, right - left),
+        y: cy + (Math.random() - 0.5) * 10 * scale,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.3,
+        size: (1.2 + Math.random() * 2.1) * scale,
+        color: Math.random() > 0.78 ? 'rgba(255, 190, 55, 0.95)' : 'rgba(76, 232, 255, 0.95)',
+        startedAt: now,
+        durationMs: 360 + Math.random() * 180,
+      });
+    }
+    while (particles.length > 140) particles.shift();
+    scheduleAnimationFrame();
+  }
+
   function drawParticles(particleCtx: CanvasRenderingContext2D, now: number): void {
     if (particles.length === 0) return;
     particleCtx.save();
@@ -907,7 +985,15 @@ export function createGameCanvas(
     ctx.fill();
   }
 
-  function strokeRounded(x: number, y: number, w: number, h: number, r: number, stroke: string, lineWidth = 1): void {
+  function strokeRounded(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number,
+    stroke: string | CanvasGradient,
+    lineWidth = 1,
+  ): void {
     roundedPath(x, y, w, h, r);
     ctx.strokeStyle = stroke;
     ctx.lineWidth = lineWidth;
@@ -933,6 +1019,172 @@ export function createGameCanvas(
     shellCtx.restore();
   }
 
+  function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function panelTransitionProgress(kind: 'start' | 'retry', now: number): number {
+    if (!pendingPanelTransition || pendingPanelTransition.kind !== kind) return 0;
+    return clamp01((now - pendingPanelTransition.startedAt) / pendingPanelTransition.durationMs);
+  }
+
+  function clearPendingPanelTransition(): void {
+    if (!pendingPanelTransition) return;
+    window.clearTimeout(pendingPanelTransition.timerId);
+    pendingPanelTransition = null;
+  }
+
+  function beginPanelTransition(kind: 'start' | 'retry', action: () => void): void {
+    if (pendingPanelTransition) return;
+    const durationMs = 420;
+    const startedAt = performance.now();
+    const timerId = window.setTimeout(() => {
+      if (!pendingPanelTransition || pendingPanelTransition.startedAt !== startedAt) return;
+      pendingPanelTransition = null;
+      action();
+      scheduleAnimationFrame();
+    }, durationMs);
+    pendingPanelTransition = { kind, startedAt, durationMs, timerId };
+    scheduleAnimationFrame();
+  }
+
+  function drawRuntimePanelV3Fx(
+    shellCtx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    kind: 'start' | 'game-over',
+    nowMs: number,
+    actionProgress = 0,
+  ): void {
+    const color = kind === 'start' ? '45, 236, 255' : '255, 76, 86';
+    const accent = kind === 'start' ? '255, 213, 92' : '251, 146, 60';
+    const phase = (nowMs % PANEL_V3_MS) / PANEL_V3_MS;
+    const pulse = 0.5 + Math.sin(phase * Math.PI * 2) * 0.5;
+
+    shellCtx.save();
+    shellCtx.globalCompositeOperation = 'lighter';
+    const glow = shellCtx.createRadialGradient(
+      x + w / 2,
+      y + h / 2,
+      w * 0.05,
+      x + w / 2,
+      y + h / 2,
+      w * 0.62,
+    );
+    glow.addColorStop(0, `rgba(${color}, ${0.08 + pulse * 0.05})`);
+    glow.addColorStop(1, `rgba(${color}, 0)`);
+    shellCtx.fillStyle = glow;
+    shellCtx.fillRect(x - w * 0.08, y - h * 0.12, w * 1.16, h * 1.24);
+
+    const scanX = x + ((phase * 1.35) % 1) * w;
+    const scan = shellCtx.createLinearGradient(scanX - w * 0.12, 0, scanX + w * 0.12, 0);
+    scan.addColorStop(0, 'rgba(255,255,255,0)');
+    scan.addColorStop(0.5, `rgba(${color}, ${0.34 + pulse * 0.12})`);
+    scan.addColorStop(1, 'rgba(255,255,255,0)');
+    shellCtx.strokeStyle = scan;
+    shellCtx.lineWidth = Math.max(1.5, h * 0.012);
+    shellCtx.beginPath();
+    shellCtx.moveTo(scanX - w * 0.22, y + h * 0.18);
+    shellCtx.lineTo(scanX + w * 0.22, y + h * 0.18);
+    shellCtx.moveTo(scanX - w * 0.18, y + h * 0.82);
+    shellCtx.lineTo(scanX + w * 0.18, y + h * 0.82);
+    shellCtx.stroke();
+
+    for (let i = 0; i < 8; i += 1) {
+      const side = i % 4;
+      const local = (phase + i * 0.137) % 1;
+      const sparkX =
+        side === 0
+          ? x + w * local
+          : side === 1
+            ? x + w
+            : side === 2
+              ? x + w * (1 - local)
+              : x;
+      const sparkY =
+        side === 0
+          ? y
+          : side === 1
+            ? y + h * local
+            : side === 2
+              ? y + h
+              : y + h * (1 - local);
+      shellCtx.fillStyle = `rgba(${i % 3 === 0 ? accent : color}, ${0.26 + pulse * 0.18})`;
+      shellCtx.beginPath();
+      shellCtx.arc(sparkX, sparkY, Math.max(1.2, h * 0.008), 0, Math.PI * 2);
+      shellCtx.fill();
+    }
+
+    if (kind === 'game-over') {
+      shellCtx.globalAlpha = 0.22 + pulse * 0.08;
+      shellCtx.strokeStyle = `rgba(${color}, 0.42)`;
+      shellCtx.lineWidth = Math.max(1, h * 0.006);
+      for (let i = 0; i < 6; i += 1) {
+        const lineY = y + h * (0.2 + i * 0.11 + phase * 0.05);
+        shellCtx.beginPath();
+        shellCtx.moveTo(x + w * 0.08, lineY);
+        shellCtx.lineTo(x + w * 0.92, lineY);
+        shellCtx.stroke();
+      }
+    }
+
+    if (actionProgress > 0) {
+      const t = clamp01(actionProgress);
+      const fade = 1 - t;
+      const centerY = y + h * (kind === 'start' ? 0.5 : 0.68);
+      const burst = shellCtx.createRadialGradient(
+        x + w / 2,
+        centerY,
+        h * (0.08 + t * 0.1),
+        x + w / 2,
+        centerY,
+        h * (0.32 + t * 0.62),
+      );
+      burst.addColorStop(0, `rgba(${kind === 'start' ? color : accent}, ${0.42 * fade})`);
+      burst.addColorStop(0.42, `rgba(${kind === 'start' ? color : accent}, ${0.18 * fade})`);
+      burst.addColorStop(1, 'rgba(255,255,255,0)');
+      shellCtx.globalAlpha = 1;
+      shellCtx.fillStyle = burst;
+      shellCtx.fillRect(x, y, w, h);
+    }
+
+    shellCtx.restore();
+  }
+
+  function containedImageRect(
+    img: CanvasImageSource,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    scale = 1,
+  ): { x: number; y: number; w: number; h: number } {
+    const sourceW = 'naturalWidth' in img ? img.naturalWidth : 'width' in img ? Number(img.width) : w;
+    const sourceH = 'naturalHeight' in img ? img.naturalHeight : 'height' in img ? Number(img.height) : h;
+    const fit = Math.min(w / sourceW, h / sourceH) * scale;
+    const drawW = sourceW * fit;
+    const drawH = sourceH * fit;
+    return { x: x + (w - drawW) / 2, y: y + (h - drawH) / 2, w: drawW, h: drawH };
+  }
+
+  function drawUiPanelImageBounds(
+    shellCtx: CanvasRenderingContext2D,
+    name: GameUiPanelName,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    scale = 1,
+  ): { x: number; y: number; w: number; h: number } | null {
+    const img = getGameUiPanel(name);
+    if (!img) return null;
+    const rect = containedImageRect(img, x, y, w, h, scale);
+    shellCtx.drawImage(img, rect.x, rect.y, rect.w, rect.h);
+    return rect;
+  }
+
   function drawUiPanelImage(
     shellCtx: CanvasRenderingContext2D,
     name: GameUiPanelName,
@@ -942,9 +1194,104 @@ export function createGameCanvas(
     h: number,
     scale = 1,
   ): boolean {
-    const img = getGameUiPanel(name);
-    if (!img) return false;
-    drawImageContained(shellCtx, img, x, y, w, h, scale);
+    return drawUiPanelImageBounds(shellCtx, name, x, y, w, h, scale) !== null;
+  }
+
+  function drawFeedbackAsset(
+    shellCtx: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    cx: number,
+    cy: number,
+    maxW: number,
+    maxH: number,
+    scale = 1,
+    alpha = 1,
+  ): { x: number; y: number; w: number; h: number } | null {
+    if (!image.complete || image.naturalWidth === 0 || image.naturalHeight === 0) return null;
+    const fit = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight) * scale;
+    const w = image.naturalWidth * fit;
+    const h = image.naturalHeight * fit;
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    shellCtx.drawImage(image, x, y, w, h);
+    shellCtx.restore();
+    return { x, y, w, h };
+  }
+
+  function drawFilteredFeedbackAsset(
+    shellCtx: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    cx: number,
+    cy: number,
+    maxW: number,
+    maxH: number,
+    filter: string,
+    scale = 1,
+    alpha = 1,
+  ): { x: number; y: number; w: number; h: number } | null {
+    if (!image.complete || image.naturalWidth === 0 || image.naturalHeight === 0) return null;
+    const fit = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight) * scale;
+    const w = image.naturalWidth * fit;
+    const h = image.naturalHeight * fit;
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    shellCtx.filter = filter;
+    shellCtx.drawImage(image, x, y, w, h);
+    shellCtx.restore();
+    return { x, y, w, h };
+  }
+
+  function setFittedMonoFont(
+    shellCtx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number,
+    startPx: number,
+    minPx: number,
+    weight = 900,
+  ): number {
+    let size = startPx;
+    do {
+      shellCtx.font = `${weight} ${size}px ${FONTS.mono}`;
+      if (shellCtx.measureText(text).width <= maxWidth || size <= minPx) return size;
+      size -= 1;
+    } while (size > minPx);
+    return size;
+  }
+
+  function drawScoreDigits(
+    shellCtx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    cy: number,
+    maxW: number,
+    maxH: number,
+  ): boolean {
+    const digits: HTMLImageElement[] = [];
+    for (const ch of text) {
+      const image = scoreDigitAssets[Number(ch)];
+      if (!image || !image.complete || image.naturalWidth === 0 || image.naturalHeight === 0) return false;
+      digits.push(image);
+    }
+
+    const baseW = digits.reduce((sum, image) => sum + image.naturalWidth, 0);
+    const baseH = Math.max(...digits.map((image) => image.naturalHeight));
+    const gap = baseH * 0.015;
+    const totalBaseW = baseW + gap * Math.max(0, digits.length - 1);
+    const fit = Math.min(maxW / totalBaseW, maxH / baseH);
+    let cursorX = x;
+
+    shellCtx.save();
+    for (const image of digits) {
+      const w = image.naturalWidth * fit;
+      const h = image.naturalHeight * fit;
+      shellCtx.drawImage(image, cursorX, cy - h / 2, w, h);
+      cursorX += w + gap * fit;
+    }
+    shellCtx.restore();
     return true;
   }
 
@@ -983,6 +1330,70 @@ export function createGameCanvas(
     return `rgba(147, 197, 253, ${alpha})`;
   }
 
+  function comboRailFilter(combo: number): string {
+    if (combo >= 50) return 'hue-rotate(145deg) saturate(1.55) brightness(1.08)';
+    if (combo >= 20) return 'hue-rotate(-150deg) saturate(1.45) brightness(1.08)';
+    if (combo >= 10) return 'hue-rotate(-118deg) saturate(1.45) brightness(1.08)';
+    if (combo >= 5) return 'hue-rotate(-58deg) saturate(1.32) brightness(1.05)';
+    return 'none';
+  }
+
+  function drawComboRailGlow(
+    shellCtx: CanvasRenderingContext2D,
+    asset: { x: number; y: number; w: number; h: number },
+    combo: number,
+    alpha: number,
+  ): void {
+    const cx = asset.x + asset.w / 2;
+    const cy = asset.y + asset.h * 0.54;
+    shellCtx.save();
+    shellCtx.globalCompositeOperation = 'lighter';
+    const glow = shellCtx.createRadialGradient(cx, cy, 0, cx, cy, asset.w * 0.58);
+    glow.addColorStop(0, comboHudGlow(combo, alpha * 0.34));
+    glow.addColorStop(0.42, comboHudGlow(combo, alpha * 0.16));
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    shellCtx.fillStyle = glow;
+    shellCtx.fillRect(asset.x, asset.y, asset.w, asset.h);
+    shellCtx.restore();
+  }
+
+  function drawTopHudChip(
+    shellCtx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    color: string,
+    align: 'left' | 'right' | 'center' = 'left',
+  ): void {
+    const pulse = 0.5 + Math.sin(Date.now() / 900) * 0.5;
+    const radius = Math.min(10 * (stageLayout?.scale ?? 1), h * 0.24);
+    const cx = align === 'right' ? x + w : align === 'center' ? x + w / 2 : x;
+    shellCtx.save();
+    shellCtx.shadowColor = color;
+    shellCtx.shadowBlur = 7 + pulse * 5;
+
+    const bg = shellCtx.createLinearGradient(x, y, x, y + h);
+    bg.addColorStop(0, 'rgba(15, 23, 42, 0.72)');
+    bg.addColorStop(0.55, 'rgba(3, 7, 18, 0.78)');
+    bg.addColorStop(1, 'rgba(2, 6, 23, 0.62)');
+    fillRounded(x, y, w, h, radius, bg);
+
+    const border = shellCtx.createLinearGradient(x, y, x + w, y);
+    border.addColorStop(0, align === 'right' ? 'rgba(45, 236, 255, 0)' : color);
+    border.addColorStop(0.5, 'rgba(45, 236, 255, 0.46)');
+    border.addColorStop(1, align === 'left' ? 'rgba(45, 236, 255, 0)' : color);
+    strokeRounded(x + 0.5, y + 0.5, w - 1, h - 1, radius, border, 1.15);
+
+    shellCtx.globalCompositeOperation = 'lighter';
+    const glow = shellCtx.createRadialGradient(cx, y + h * 0.55, 0, cx, y + h * 0.55, w * 0.65);
+    glow.addColorStop(0, color.replace('0.68', `${0.12 + pulse * 0.06}`));
+    glow.addColorStop(1, 'rgba(45, 236, 255, 0)');
+    shellCtx.fillStyle = glow;
+    shellCtx.fillRect(x, y, w, h);
+    shellCtx.restore();
+  }
+
   function drawScoreHud(
     shellCtx: CanvasRenderingContext2D,
     x: number,
@@ -990,18 +1401,56 @@ export function createGameCanvas(
     score: number,
     scale: number,
   ): void {
+    const pulseElapsed = scoreFxStartedAt > 0 ? performance.now() - scoreFxStartedAt : SCORE_HUD_PULSE_MS;
+    const pulseT = Math.max(0, Math.min(1, pulseElapsed / SCORE_HUD_PULSE_MS));
+    const pulse = pulseElapsed < SCORE_HUD_PULSE_MS ? Math.sin(pulseT * Math.PI) * (1 - pulseT * 0.35) : 0;
+    const asset = drawFeedbackAsset(
+      shellCtx,
+      hudFeedbackAssets.scorePanelV6,
+      x + 118 * scale,
+      y + 27 * scale,
+      248 * scale,
+      80 * scale,
+      1 + pulse * 0.018,
+      0.92,
+    );
+    if (!asset) {
+      drawTopHudChip(shellCtx, x - 10 * scale, y - 4 * scale, 116 * scale, 46 * scale, 'rgba(96, 165, 250, 0.68)', 'left');
+      shellCtx.save();
+      shellCtx.textAlign = 'left';
+      shellCtx.textBaseline = 'top';
+      shellCtx.fillStyle = '#7dd3fc';
+      shellCtx.font = `800 ${7.5 * scale}px ${FONTS.display}`;
+      shellCtx.fillText('SCORE', x - 2 * scale, y);
+      shellCtx.shadowColor = 'rgba(45, 236, 255, 0.42)';
+      shellCtx.shadowBlur = 7 * scale;
+      shellCtx.fillStyle = THEME.hudText;
+      const fallbackText = String(score).padStart(5, '0');
+      setFittedMonoFont(shellCtx, fallbackText, 86 * scale, 15 * scale, 10 * scale, 850);
+      shellCtx.fillText(fallbackText, x - 2 * scale, y + 15 * scale);
+      shellCtx.restore();
+      return;
+    }
+
+    const text = String(score).padStart(5, '0');
+    const drewDigits = drawScoreDigits(
+      shellCtx,
+      text,
+      asset.x + asset.w * 0.34,
+      asset.y + asset.h * 0.475,
+      asset.w * 0.52,
+      Math.min(asset.h * (0.16 + pulse * 0.018), 15 * scale * (1 + pulse * 0.12)),
+    );
+    if (drewDigits) return;
+
     shellCtx.save();
     shellCtx.textAlign = 'left';
-    shellCtx.textBaseline = 'top';
-    shellCtx.fillStyle = THEME.hudMuted;
-    shellCtx.font = `700 ${9 * scale}px ${FONTS.display}`;
-    shellCtx.fillText('SCORE', x, y);
-
-    shellCtx.shadowColor = 'rgba(59, 130, 246, 0.42)';
-    shellCtx.shadowBlur = 9 * scale;
-    shellCtx.fillStyle = THEME.hudText;
-    shellCtx.font = `800 ${22 * scale}px ${FONTS.mono}`;
-    shellCtx.fillText(String(score).padStart(5, '0'), x, y + 15 * scale);
+    shellCtx.textBaseline = 'middle';
+    shellCtx.shadowColor = 'rgba(45, 236, 255, 0.42)';
+    shellCtx.shadowBlur = 7 * scale;
+    shellCtx.fillStyle = '#d8fbff';
+    setFittedMonoFont(shellCtx, text, asset.w * 0.52, 15 * scale, 10 * scale, 850);
+    shellCtx.fillText(text, asset.x + asset.w * 0.34, asset.y + asset.h * 0.475);
     shellCtx.restore();
   }
 
@@ -1026,11 +1475,27 @@ export function createGameCanvas(
     shellCtx.shadowColor = color;
     shellCtx.shadowBlur = 14 * scale;
 
-    const glow = shellCtx.createRadialGradient(cx, y + 25 * scale, 2 * scale, cx, y + 25 * scale, 64 * scale);
-    glow.addColorStop(0, comboHudGlow(displayCombo, glowAlpha));
-    glow.addColorStop(1, 'rgba(0,0,0,0)');
-    shellCtx.fillStyle = glow;
-    shellCtx.fillRect(cx - 76 * scale, y - 4 * scale, 152 * scale, 58 * scale);
+    const asset = drawFilteredFeedbackAsset(
+      shellCtx,
+      hudFeedbackAssets.comboRail,
+      cx,
+      y + 28 * scale,
+      180 * scale,
+      48 * scale,
+      comboRailFilter(displayCombo),
+      1,
+      0.9,
+    );
+    if (asset) {
+      drawComboRailGlow(shellCtx, asset, displayCombo, glowAlpha);
+    }
+    if (!asset) {
+      const glow = shellCtx.createRadialGradient(cx, y + 25 * scale, 2 * scale, cx, y + 25 * scale, 64 * scale);
+      glow.addColorStop(0, comboHudGlow(displayCombo, glowAlpha));
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      shellCtx.fillStyle = glow;
+      shellCtx.fillRect(cx - 76 * scale, y - 4 * scale, 152 * scale, 58 * scale);
+    }
 
     shellCtx.fillStyle = color;
     shellCtx.font = `900 ${10 * scale}px ${FONTS.display}`;
@@ -1038,15 +1503,18 @@ export function createGameCanvas(
     shellCtx.fillText(label, cx, y);
 
     shellCtx.globalAlpha = 1;
-    shellCtx.font = `900 ${28 * scale}px ${FONTS.mono}`;
-    shellCtx.lineWidth = Math.max(2, 3 * scale);
+    const maxTextW = (asset?.w ?? 168 * scale) * 0.58;
+    const fontSize = setFittedMonoFont(shellCtx, text, maxTextW, 21 * scale, 12 * scale, 900);
+    shellCtx.lineWidth = Math.max(1.5, fontSize * 0.09);
     shellCtx.strokeStyle = 'rgba(2, 6, 23, 0.88)';
-    shellCtx.strokeText(text, cx, y + 14 * scale);
+    shellCtx.textBaseline = 'middle';
+    const comboTextY = asset ? asset.y + asset.h * 0.54 : y + 29 * scale;
+    shellCtx.strokeText(text, cx, comboTextY);
     shellCtx.fillStyle = color;
-    shellCtx.fillText(text, cx, y + 14 * scale);
+    shellCtx.fillText(text, cx, comboTextY);
 
     const underlineW = Math.min(96 * scale, 32 * scale + String(displayCombo).length * 15 * scale);
-    const lineY = y + 48 * scale;
+    const lineY = asset ? asset.y + asset.h * 0.8 : y + 48 * scale;
     const gradient = shellCtx.createLinearGradient(cx - underlineW / 2, lineY, cx + underlineW / 2, lineY);
     gradient.addColorStop(0, 'rgba(0,0,0,0)');
     gradient.addColorStop(0.5, color);
@@ -1060,20 +1528,44 @@ export function createGameCanvas(
   function drawLivesHud(shellCtx: CanvasRenderingContext2D, x: number, y: number, raw: string | undefined, scale: number): void {
     const lives = parseLivesDisplay(raw);
     if (!lives) return;
-    const iconSize = Math.max(15, Math.min(20, 18 * scale));
-    const gap = 3 * scale;
-    const rowW = lives.max * iconSize + (lives.max - 1) * gap;
+    const metrics = hudHeartRowMetrics(x, y, lives, scale);
     shellCtx.save();
-    shellCtx.shadowColor = 'rgba(239, 68, 68, 0.36)';
-    shellCtx.shadowBlur = 8 * scale;
-    if (!drawLivesRow(shellCtx, x - rowW, y + 28 * scale, lives, iconSize, gap)) {
+    shellCtx.shadowColor = 'rgba(248, 113, 113, 0.44)';
+    shellCtx.shadowBlur = 12 * scale;
+    if (!drawLivesRow(shellCtx, metrics.x, metrics.cy, lives, metrics.iconSize, metrics.gap)) {
       shellCtx.fillStyle = '#ef4444';
       shellCtx.font = `700 ${16 * scale}px ${FONTS.mono}`;
       shellCtx.textAlign = 'right';
       shellCtx.textBaseline = 'middle';
-      shellCtx.fillText(raw ?? '', x, y + 28 * scale);
+      shellCtx.fillText(raw ?? '', x, metrics.cy);
     }
     shellCtx.restore();
+  }
+
+  function hudHeartIconSize(scale: number): number {
+    return Math.max(28, Math.min(38, 34 * scale));
+  }
+
+  function hudHeartGap(scale: number): number {
+    return Math.max(5, 7 * scale);
+  }
+
+  function hudHeartRowMetrics(
+    anchorX: number,
+    hudY: number,
+    lives: LivesDisplay,
+    scale: number,
+  ): { x: number; cy: number; iconSize: number; gap: number; rowW: number } {
+    const iconSize = hudHeartIconSize(scale);
+    const gap = hudHeartGap(scale);
+    const rowW = lives.max * iconSize + (lives.max - 1) * gap;
+    return {
+      x: anchorX - rowW,
+      cy: hudY + 31 * scale,
+      iconSize,
+      gap,
+      rowW,
+    };
   }
 
   function drawBgmMuteHud(
@@ -1086,12 +1578,12 @@ export function createGameCanvas(
     hovered: boolean,
   ): void {
     const lives = parseLivesDisplay(livesRaw);
-    const heartIconSize = Math.max(15, Math.min(20, 18 * scale));
+    const heartIconSize = hudHeartIconSize(scale);
     const iconSize = Math.max(14, Math.min(18, 16 * scale));
     const hitSize = Math.max(26, 28 * scale);
-    const heartRowY = hudY + 28 * scale;
+    const heartRowY = hudY + 31 * scale;
     const rectX = anchorX - hitSize;
-    const rectY = heartRowY + (lives ? heartIconSize : 12 * scale) + 4 * scale;
+    const rectY = heartRowY + (lives ? heartIconSize / 2 : 12 * scale) + 6 * scale;
     const cx = rectX + hitSize / 2;
     const cy = rectY + hitSize / 2;
 
@@ -1279,6 +1771,8 @@ export function createGameCanvas(
     if (livesParsed) {
       if (lastLivesCurrent >= 0 && livesParsed.current > lastLivesCurrent) {
         heartRefillFxStartedAt = performance.now();
+        heartRefillTargetIndex = Math.max(0, Math.min(livesParsed.max - 1, livesParsed.current - 1));
+        heartRefillMax = livesParsed.max;
         scheduleAnimationFrame();
       }
       lastLivesCurrent = livesParsed.current;
@@ -1294,6 +1788,15 @@ export function createGameCanvas(
     drawFpsHud(shellCtx, shellW - 10 * scale, barY + 2 * scale, fps, frameMs, scale);
   }
 
+  function heartCutoutVisualOffset(iconSize: number, containerScale = 1): { x: number; y: number } {
+    const drawW = iconSize * containerScale * 1.18 * (320 / 471);
+    const drawH = iconSize * containerScale * 1.18;
+    return {
+      x: (0.503125 - 0.5) * drawW,
+      y: (0.382166 - 0.5) * drawH,
+    };
+  }
+
   function drawHeartRefillFx(shellCtx: CanvasRenderingContext2D, _shellW: number, _shellH: number): void {
     if (heartRefillFxStartedAt <= 0 || !stageLayout) return;
     const durationMs = GAME_ASSET_TUNING.fx.heartRefillHud.durationMs;
@@ -1302,28 +1805,58 @@ export function createGameCanvas(
       heartRefillFxStartedAt = 0;
       return;
     }
-    const alpha = Math.max(0, 1 - t);
     const stageScale = stageLayout.scale;
-    const anchor = stageLayout.livesAnchor;
-    const cx = anchor.x - 28 * stageScale;
-    const cy = anchor.y + 34 * stageScale;
+    const hudY = stageLayout.hudY + 7 * stageScale;
+    const lives: LivesDisplay = { current: heartRefillTargetIndex + 1, max: heartRefillMax };
+    const metrics = hudHeartRowMetrics(stageLayout.livesAnchor.x, hudY, lives, stageScale);
+    const slotCx = metrics.x + heartRefillTargetIndex * (metrics.iconSize + metrics.gap) + metrics.iconSize / 2;
+    const slotCy = metrics.cy;
+    const burst = Math.max(0, Math.min(1, t / 0.68));
+    const popIn = Math.max(0, Math.min(1, (t - 0.08) / 0.38));
+    const settle = Math.max(0, Math.min(1, (t - 0.5) / 0.26));
+    const popScale = settle > 0
+      ? 1.12 - 0.12 * (1 - (1 - settle) ** 3)
+      : 0.72 + Math.sin(popIn * Math.PI * 0.5) * 0.4;
+    const iconSize = metrics.iconSize;
+    const drawScale = Math.max(0.72, popScale);
+    const visualOffset = heartCutoutVisualOffset(iconSize, drawScale);
+    const cx = slotCx + visualOffset.x;
+    const cy = slotCy + visualOffset.y;
 
     shellCtx.save();
-    shellCtx.globalAlpha = alpha;
-    drawFxSpriteFrame(
-      shellCtx,
-      'heart-refill',
-      t,
-      cx,
-      cy,
-      52 * stageScale * GAME_ASSET_TUNING.fx.heartRefillHud.spriteW,
-      52 * stageScale * GAME_ASSET_TUNING.fx.heartRefillHud.spriteH,
-      GAME_ASSET_TUNING.fx.heartRefillHud.spriteAlpha,
-    );
-    drawUiPanelImage(shellCtx, 'heal-chip', cx - 36 * stageScale, cy - 52 * stageScale, 72 * stageScale, 28 * stageScale, 1);
+    shellCtx.globalCompositeOperation = 'lighter';
+    const ringAlpha = (1 - burst) * 0.72;
+    if (ringAlpha > 0) {
+      shellCtx.strokeStyle = `rgba(255, 213, 92, ${ringAlpha})`;
+      shellCtx.lineWidth = Math.max(1.2, 2.5 * stageScale * (1 - burst * 0.55));
+      shellCtx.beginPath();
+      shellCtx.arc(cx, cy, iconSize * (0.42 + burst * 0.72), 0, Math.PI * 2);
+      shellCtx.stroke();
+      shellCtx.strokeStyle = `rgba(45, 236, 255, ${ringAlpha * 0.55})`;
+      shellCtx.lineWidth = Math.max(1, 1.7 * stageScale * (1 - burst * 0.4));
+      shellCtx.beginPath();
+      shellCtx.arc(cx, cy, iconSize * (0.28 + burst * 0.52), 0, Math.PI * 2);
+      shellCtx.stroke();
+    }
+
+    for (let i = 0; i < 10; i += 1) {
+      const angle = i * (Math.PI * 2 / 10) - Math.PI / 2;
+      const dist = iconSize * (0.28 + burst * 0.82) * (i % 2 === 0 ? 1 : 0.72);
+      const alpha = (1 - burst) * 0.72;
+      shellCtx.fillStyle = i % 3 === 0 ? `rgba(255, 213, 92, ${alpha})` : `rgba(45, 236, 255, ${alpha})`;
+      shellCtx.beginPath();
+      shellCtx.arc(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist * 0.82, Math.max(1.1, iconSize * (0.065 - burst * 0.035)), 0, Math.PI * 2);
+      shellCtx.fill();
+    }
+
+    shellCtx.globalCompositeOperation = 'source-over';
     const refillCutout = getGameCutout('heart-refill');
     if (refillCutout) {
-      drawImageContained(shellCtx, refillCutout, cx - 20 * stageScale, cy - 20 * stageScale, 40 * stageScale, 40 * stageScale, 1);
+      const drawSize = iconSize * drawScale;
+      shellCtx.globalAlpha = Math.min(1, 0.35 + popIn * 0.9);
+      shellCtx.shadowColor = 'rgba(255, 213, 92, 0.5)';
+      shellCtx.shadowBlur = iconSize * 0.34;
+      drawImageContained(shellCtx, refillCutout, slotCx - drawSize / 2, slotCy - drawSize / 2, drawSize, drawSize, 1.18);
     }
     shellCtx.restore();
 
@@ -1510,7 +2043,19 @@ export function createGameCanvas(
     shellCtx.globalAlpha = alpha;
     shellCtx.translate(x, y);
     shellCtx.scale(pop, pop);
-    drawFxSpriteFrame(shellCtx, 'score-pop', t, 0, 0, 132 * stageScale, 56 * stageScale, GAME_ASSET_TUNING.fx.scorePop.spriteAlpha);
+    const scorePopAsset = drawFeedbackAsset(
+      shellCtx,
+      hudFeedbackAssets.scorePopBase,
+      0,
+      8 * stageScale,
+      152 * stageScale,
+      92 * stageScale,
+      0.92,
+      Math.min(0.92, alpha),
+    );
+    if (!scorePopAsset) {
+      drawFxSpriteFrame(shellCtx, 'score-pop', t, 0, 0, 132 * stageScale, 56 * stageScale, GAME_ASSET_TUNING.fx.scorePop.spriteAlpha);
+    }
     shellCtx.textAlign = 'center';
     shellCtx.textBaseline = 'middle';
     shellCtx.shadowColor = palette.stroke;
@@ -1572,6 +2117,71 @@ export function createGameCanvas(
     if (t < 1) scheduleAnimationFrame();
   }
 
+  function drawDifficultyAlert(shellCtx: CanvasRenderingContext2D, shellW: number): void {
+    if (!activeDifficultyAlert) return;
+    const elapsedMs = performance.now() - activeDifficultyAlert.startedAt;
+    const t = Math.max(0, Math.min(1, elapsedMs / DIFFICULTY_ALERT_MS));
+    if (t >= 1) {
+      activeDifficultyAlert = null;
+      return;
+    }
+
+    const stageScale = stageLayout?.scale ?? 1;
+    const kind = activeDifficultyAlert.kind;
+    const isDanger = kind === 'danger-rise';
+    const image = isDanger ? hudFeedbackAssets.dangerRiseAlert : hudFeedbackAssets.speedUpAlert;
+    const label = isDanger ? 'DANGER RISE' : 'SPEED UP';
+    const main = isDanger ? '255, 76, 86' : '255, 190, 55';
+    const soft = isDanger ? '251, 113, 36' : '45, 236, 255';
+    const textColor = isDanger ? '#ffe4e6' : '#fef3c7';
+    const enter = Math.min(1, t / 0.18);
+    const exit = t > 0.78 ? Math.min(1, (t - 0.78) / 0.22) : 0;
+    const alpha = Math.sin(enter * Math.PI * 0.5) * (1 - exit);
+    const impact = t < 0.25 ? 1 - t / 0.25 : 0;
+    const shake = isDanger ? Math.sin(t * Math.PI * 18) * impact * 3 * stageScale : 0;
+    const cx = shellW / 2 + shake;
+    const cy = stageLayout ? Math.max(stageLayout.hudH + 18 * stageScale, stageLayout.boardY - 14 * stageScale) : 92 * stageScale;
+    const maxW = Math.min(shellW * 0.58, 300 * stageScale);
+    const maxH = 60 * stageScale;
+    const asset = drawFeedbackAsset(shellCtx, image, cx, cy, maxW, maxH, 0.98 + impact * 0.035, alpha);
+    if (!asset) return;
+
+    shellCtx.save();
+    shellCtx.globalAlpha = alpha;
+    shellCtx.globalCompositeOperation = 'lighter';
+    const scanX = asset.x + ((t * 1.35) % 1) * asset.w;
+    const scan = shellCtx.createLinearGradient(scanX - asset.w * 0.12, 0, scanX + asset.w * 0.12, 0);
+    scan.addColorStop(0, 'rgba(255,255,255,0)');
+    scan.addColorStop(0.5, `rgba(${soft}, ${0.2 + impact * 0.16})`);
+    scan.addColorStop(1, 'rgba(255,255,255,0)');
+    shellCtx.fillStyle = scan;
+    shellCtx.fillRect(asset.x + asset.w * 0.1, asset.y + asset.h * 0.24, asset.w * 0.8, asset.h * 0.52);
+
+    for (let i = 0; i < 10; i += 1) {
+      const p = (t + i * 0.083) % 1;
+      const px = asset.x + asset.w * (0.2 + p * 0.6);
+      const py = asset.y + asset.h * (isDanger ? 0.74 - p * 0.44 : 0.38 + Math.sin(i) * 0.1);
+      shellCtx.fillStyle = i % 3 === 0 ? `rgba(${main}, ${alpha * (1 - p)})` : `rgba(${soft}, ${alpha * 0.7 * (1 - p)})`;
+      shellCtx.fillRect(px, py, Math.max(1, 1.4 * stageScale), Math.max(1, 1.3 * stageScale + (isDanger ? p * 7 * stageScale : 0)));
+      if (!isDanger) shellCtx.fillRect(px - 10 * stageScale, py, 9 * stageScale, Math.max(1, 1.2 * stageScale));
+    }
+
+    shellCtx.globalCompositeOperation = 'source-over';
+    shellCtx.textAlign = 'center';
+    shellCtx.textBaseline = 'middle';
+    shellCtx.font = `1000 ${Math.min(19 * stageScale, asset.h * 0.28)}px ${FONTS.mono}`;
+    shellCtx.lineWidth = Math.max(2, asset.h * 0.04);
+    shellCtx.strokeStyle = 'rgba(2, 6, 23, 0.92)';
+    shellCtx.shadowColor = `rgba(${main}, ${0.72 + impact * 0.18})`;
+    shellCtx.shadowBlur = asset.h * (0.12 + impact * 0.07);
+    shellCtx.strokeText(label, asset.x + asset.w / 2, asset.y + asset.h * 0.52);
+    shellCtx.fillStyle = textColor;
+    shellCtx.fillText(label, asset.x + asset.w / 2, asset.y + asset.h * 0.52);
+    shellCtx.restore();
+
+    scheduleAnimationFrame();
+  }
+
   function drawFullscreenOverlay(
     shellCtx: CanvasRenderingContext2D,
     shell: GameCanvasFullscreenOptions,
@@ -1581,11 +2191,30 @@ export function createGameCanvas(
     const stats = shell.getStats?.();
     const combo = stats?.combo ?? 0;
     const scrollPressure = getScrollPressureFn?.();
+    const difficulty = stats?.difficulty;
+
+    if (difficulty) {
+      if (lastDifficultySpeedTier === null || lastDifficultyBatchTier === null) {
+        lastDifficultySpeedTier = difficulty.speedTier;
+        lastDifficultyBatchTier = difficulty.batchTier;
+      } else {
+        if (difficulty.batchTier > lastDifficultyBatchTier) {
+          activeDifficultyAlert = { kind: 'danger-rise', startedAt: performance.now() };
+          scheduleAnimationFrame();
+        } else if (difficulty.speedTier > lastDifficultySpeedTier) {
+          activeDifficultyAlert = { kind: 'speed-up', startedAt: performance.now() };
+          scheduleAnimationFrame();
+        }
+        lastDifficultySpeedTier = difficulty.speedTier;
+        lastDifficultyBatchTier = difficulty.batchTier;
+      }
+    }
 
     if (stats?.scoreEvent && stats.scoreEvent.id !== lastScoreEventId) {
       lastScoreEventId = stats.scoreEvent.id;
       activeScoreEvent = stats.scoreEvent;
       scoreFxStartedAt = performance.now();
+      spawnScoreHudParticles();
       scheduleAnimationFrame();
     }
     if (stats?.breakEvent && stats.breakEvent.id !== lastBreakEventId) {
@@ -1623,6 +2252,7 @@ export function createGameCanvas(
     }
 
     drawParticles(shellCtx, performance.now());
+    drawDifficultyAlert(shellCtx, shellW);
     drawScoreEvent(shellCtx, activeScoreEvent, scoreFxStartedAt, shellW);
     drawBreakEvent(shellCtx, activeBreakEvent, breakFxStartedAt, shellW, shellH);
 
@@ -1653,16 +2283,28 @@ export function createGameCanvas(
       shellCtx.translate(cx, cy);
       shellCtx.scale(burstScale, burstScale);
 
-      drawFxSpriteFrame(
+      const comboBurstAsset = drawFeedbackAsset(
         shellCtx,
-        'combo-burst',
-        t,
+        hudFeedbackAssets.comboBurstBase,
         0,
         0,
         burstW * GAME_ASSET_TUNING.fx.comboBurst.spriteW,
         burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH,
-        GAME_ASSET_TUNING.fx.comboBurst.spriteAlpha,
+        1,
+        Math.min(0.9, alpha),
       );
+      if (!comboBurstAsset) {
+        drawFxSpriteFrame(
+          shellCtx,
+          'combo-burst',
+          t,
+          0,
+          0,
+          burstW * GAME_ASSET_TUNING.fx.comboBurst.spriteW,
+          burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH,
+          GAME_ASSET_TUNING.fx.comboBurst.spriteAlpha,
+        );
+      }
 
       const glow = shellCtx.createRadialGradient(0, 0, 10, 0, 0, burstW * 0.52);
       glow.addColorStop(0, palette.glow);
@@ -1726,9 +2368,13 @@ export function createGameCanvas(
       const h = Math.round(w * (246 / 364));
       const x = (shellW - w) / 2;
       const y = Math.max(120, boardOffsetY + boardHeight * 0.46 - h / 2);
+      const now = performance.now();
+      const action = panelTransitionProgress('start', now);
+      const pop = action > 0 ? 1 - Math.sin(action * Math.PI) * 0.025 : 1;
       startRect = { x, y, w, h };
       shellCtx.save();
-      if (!drawUiPanelImage(shellCtx, 'start-panel', x, y, w, h, 1.03)) {
+      const panelBounds = drawUiPanelImageBounds(shellCtx, 'start-panel', x, y, w, h, 1.03 * pop);
+      if (!panelBounds) {
         drawArcadePanel(shellCtx, x, y, w, h, 'rgba(59, 130, 246, 0.78)', 'rgba(3, 8, 20, 0.95)');
         drawHudIcon(shellCtx, 'play', shellW / 2 - 12, y + 32, { size: 24 });
         shellCtx.fillStyle = '#fde047';
@@ -1737,7 +2383,7 @@ export function createGameCanvas(
         shellCtx.textBaseline = 'middle';
         shellCtx.fillText('START', shellW / 2, y + h / 2 + 8);
       }
-      drawArcadeGlow(shellCtx, x + 8, y + 8, w - 16, h - 16, 'rgba(59, 130, 246, 0.62)', 0.9);
+      drawRuntimePanelV3Fx(shellCtx, panelBounds?.x ?? x, panelBounds?.y ?? y, panelBounds?.w ?? w, panelBounds?.h ?? h, 'start', now, action);
       shellCtx.restore();
     }
 
@@ -1746,6 +2392,11 @@ export function createGameCanvas(
       const panelH = Math.round(panelW * (269 / 430));
       const panelX = (shellW - panelW) / 2;
       const panelY = Math.max(96, boardOffsetY + boardHeight * 0.42 - panelH / 2);
+      const now = performance.now();
+      const action = panelTransitionProgress('retry', now);
+      const shake =
+        action > 0 && action < 0.55 ? Math.sin(action * Math.PI * 18) * (1 - action) * Math.min(panelW, panelH) * 0.012 : 0;
+      const pop = action > 0 ? 1 - Math.sin(action * Math.PI) * 0.025 : 1;
       const retryW = panelW * 0.52;
       const retryH = panelH * 0.2;
       const retryX = panelX + (panelW - retryW) / 2;
@@ -1755,7 +2406,8 @@ export function createGameCanvas(
       shellCtx.save();
       shellCtx.fillStyle = THEME.overlayScrim;
       shellCtx.fillRect(0, 0, shellW, shellH);
-      if (!drawUiPanelImage(shellCtx, 'game-over-panel', panelX, panelY, panelW, panelH, 1.03)) {
+      const panelBounds = drawUiPanelImageBounds(shellCtx, 'game-over-panel', panelX + shake, panelY, panelW, panelH, 1.03 * pop);
+      if (!panelBounds) {
         drawArcadePanel(shellCtx, panelX, panelY, panelW, panelH, 'rgba(239, 68, 68, 0.8)', 'rgba(24, 3, 5, 0.95)');
         drawHudIcon(shellCtx, 'skull', shellW / 2 - 16, panelY + 26, { size: 32 });
         shellCtx.fillStyle = '#ff453a';
@@ -1775,7 +2427,16 @@ export function createGameCanvas(
           shellCtx.fillText('RETRY', shellW / 2, retryY + retryH / 2 + 1);
         }
       }
-      drawArcadeGlow(shellCtx, panelX + 8, panelY + 8, panelW - 16, panelH - 16, 'rgba(239, 68, 68, 0.72)', 1);
+      drawRuntimePanelV3Fx(
+        shellCtx,
+        panelBounds?.x ?? panelX,
+        panelBounds?.y ?? panelY,
+        panelBounds?.w ?? panelW,
+        panelBounds?.h ?? panelH,
+        'game-over',
+        now,
+        action,
+      );
       shellCtx.fillStyle = '#fee2e2';
       shellCtx.font = `700 15px ${FONTS.mono}`;
       shellCtx.textAlign = 'center';
@@ -1885,6 +2546,10 @@ export function createGameCanvas(
     unlockAudioFromPointer();
 
     if (fullscreen?.isLogOpen?.()) return;
+    if (pendingPanelTransition) {
+      event.preventDefault();
+      return;
+    }
 
     if (fullscreen && bgmMuteRect && insideRect(bgmMuteRect, x, y)) {
       event.preventDefault();
@@ -1922,7 +2587,7 @@ export function createGameCanvas(
       if (insideStart) {
         event.preventDefault();
         fullscreen.onUiClick?.();
-        fullscreen.onStart?.();
+        beginPanelTransition('start', () => fullscreen.onStart?.());
         return;
       }
       return;
@@ -1937,7 +2602,7 @@ export function createGameCanvas(
       if (insideRetry) {
         event.preventDefault();
         fullscreen.onUiClick?.();
-        fullscreen.onRestart?.();
+        beginPanelTransition('retry', () => fullscreen.onRestart?.());
         return;
       }
       return;
@@ -2076,7 +2741,17 @@ export function createGameCanvas(
         particles.length = 0;
         lastCombo = 0;
         comboFxStartedAt = 0;
+        activeDifficultyAlert = null;
+        lastDifficultySpeedTier = null;
+        lastDifficultyBatchTier = null;
         boardLayerCacheKey = '';
+      }
+      if (
+        pendingPanelTransition &&
+        ((pendingPanelTransition.kind === 'start' && status !== 'idle') ||
+          (pendingPanelTransition.kind === 'retry' && status !== 'lost'))
+      ) {
+        clearPendingPanelTransition();
       }
 
       currentViews = views;
@@ -2110,8 +2785,10 @@ export function createGameCanvas(
     },
     destroy() {
       this.stopTimer();
+      clearPendingPanelTransition();
       stopPressureRepaint();
       canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('mousemove', onMouseMove);
       canvas.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('mouseleave', onMouseLeave);

@@ -6,7 +6,7 @@ import {
 import { getHudIcon, type HudIconName } from '../../ui/hud-sprites.ts';
 import { createPanelHead } from './editor-shell.ts';
 
-export type GameUiLabPanelId = 'overview' | 'panels' | 'icons' | 'cutouts';
+export type GameUiLabPanelId = 'overview' | 'panels' | 'candidate-panels' | 'icons' | 'cutouts';
 
 const MAIN_FLOW_PANELS: GameUiPanelName[] = [
   'start-panel',
@@ -32,19 +32,54 @@ const MAIN_FLOW_CUTOUTS = ['heart-full', 'heart-empty', 'heart-refill'] as const
 
 const UI_OVERVIEW_ASSETS = [
   {
-    title: 'Runtime UI panel preview',
-    src: '/assets/game/preview-ui-panels.png',
-    note: 'Sliced UI panels currently referenced by the runtime manifest.',
+    title: 'Start panel v3',
+    src: '/assets/candidates/game-ui-v3/panels/runtime/start-panel-v3.png',
+    note: 'Runtime start overlay panel.',
   },
   {
-    title: 'UI panels production v2',
-    src: '/assets/production/ui-panels-production-v2.png',
-    note: 'START / GAME OVER / AUTO / break & heal chips production sheet.',
+    title: 'Game over panel v3',
+    src: '/assets/candidates/game-ui-v3/panels/runtime/game-over-panel-v3.png',
+    note: 'Runtime end overlay panel.',
   },
   {
-    title: 'HUD icons production v2',
-    src: '/assets/production/hud-icons-production-v2.png',
-    note: 'Play, skull, refresh, and volume icon states.',
+    title: 'Retry button v3',
+    src: '/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png',
+    note: 'Runtime retry button art used by the end overlay.',
+  },
+] as const;
+
+const PANEL_PATHS: Partial<Record<GameUiPanelName, string>> = {
+  'start-panel': '/assets/candidates/game-ui-v3/panels/runtime/start-panel-v3.png',
+  'game-over-panel': '/assets/candidates/game-ui-v3/panels/runtime/game-over-panel-v3.png',
+  'retry-button': '/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png',
+};
+
+const CUTOUT_PATHS: Partial<Record<(typeof MAIN_FLOW_CUTOUTS)[number], string>> = {
+  'heart-full': '/assets/candidates/game-ui-v3/cutouts/heart-full.png',
+  'heart-empty': '/assets/candidates/game-ui-v3/cutouts/heart-empty.png',
+  'heart-refill': '/assets/candidates/game-ui-v3/cutouts/heart-full.png',
+};
+
+const CANDIDATE_PANEL_ASSETS = [
+  {
+    id: 'start-panel-v3-runtime',
+    label: 'start-panel-v3 runtime',
+    src: '/assets/candidates/game-ui-v3/panels/runtime/start-panel-v3.png',
+  },
+  {
+    id: 'game-over-panel-v3-runtime',
+    label: 'game-over-panel-v3 runtime',
+    src: '/assets/candidates/game-ui-v3/panels/runtime/game-over-panel-v3.png',
+  },
+  {
+    id: 'start-button-v3-runtime',
+    label: 'start-button-v3 runtime',
+    src: '/assets/candidates/game-ui-v3/panels/runtime/start-button-v3.png',
+  },
+  {
+    id: 'retry-button-v3-runtime',
+    label: 'retry-button-v3 runtime',
+    src: '/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png',
   },
 ] as const;
 
@@ -56,11 +91,11 @@ interface StaticAsset {
 }
 
 function panelPath(name: string): string {
-  return `/assets/game/ui/${name}.png`;
+  return PANEL_PATHS[name as GameUiPanelName] ?? `/assets/game/ui/${name}.png`;
 }
 
-function cutoutPath(name: string): string {
-  return `/assets/game/cutouts/${name}.png`;
+function cutoutPath(name: (typeof MAIN_FLOW_CUTOUTS)[number]): string {
+  return CUTOUT_PATHS[name] ?? `/assets/game/cutouts/${name}.png`;
 }
 
 function iconPath(name: string): string {
@@ -203,6 +238,7 @@ export function gameUiNavItems(): Array<{ id: GameUiLabPanelId; label: string; c
   return [
     { id: 'overview', label: 'Overview' },
     { id: 'panels', label: 'Panels', count: MAIN_FLOW_PANELS.length },
+    { id: 'candidate-panels', label: 'Candidate panels', count: CANDIDATE_PANEL_ASSETS.length },
     { id: 'icons', label: 'HUD icons', count: MAIN_FLOW_ICONS.length },
     { id: 'cutouts', label: 'HUD cutouts', count: MAIN_FLOW_CUTOUTS.length },
   ];
@@ -216,8 +252,17 @@ export function mountGameUiPanels(): {
     overview: createOverviewPanel(),
     panels: createStaticGridPanel(
       'UI panels',
-      'Start / game over / retry / AUTO / break & heal chips from public/assets/game/ui.',
+      'Runtime UI panels. v3 overlay panels use candidate runtime cuts; remaining chips stay on current game UI assets.',
       collectPanels(),
+    ),
+    'candidate-panels': createStaticGridPanel(
+      'Panel cuts v3',
+      'Transparent panel and button cuts retained for review. Start / game over / retry are already runtime-wired.',
+      CANDIDATE_PANEL_ASSETS.map((item) => {
+        const image = new Image();
+        image.src = item.src;
+        return { ...item, image };
+      }),
     ),
     icons: createStaticGridPanel(
       'HUD icons',
@@ -226,7 +271,7 @@ export function mountGameUiPanels(): {
     ),
     cutouts: createStaticGridPanel(
       'HUD cutouts',
-      'Lives row and heal highlight sprites from public/assets/game/cutouts.',
+      'Runtime HUD cutouts. Hearts use the approved v3 candidate cuts.',
       collectCutouts(),
     ),
   };

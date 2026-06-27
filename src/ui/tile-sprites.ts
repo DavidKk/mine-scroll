@@ -4,6 +4,9 @@ const BOARD_V3_TILE_BASE = '/assets/candidates/board-v3-square/tiles';
 export interface TileSprites {
   hidden: HTMLImageElement;
   revealed: HTMLImageElement;
+  hover: HTMLImageElement;
+  pressed: HTMLImageElement;
+  safe: HTMLImageElement;
   mine: HTMLImageElement;
   flag: HTMLImageElement;
   numbers: HTMLImageElement[];
@@ -27,14 +30,17 @@ export function loadTileSprites(): Promise<TileSprites | null> {
 
   loadPromise = (async () => {
     try {
-      const [hidden, revealed, mine, flag, ...numbers] = await Promise.all([
+      const [hidden, revealed, hover, pressed, safe, mine, flag, ...numbers] = await Promise.all([
         loadImage(`${BOARD_V3_TILE_BASE}/cell-hidden.png`),
         loadImage(`${BOARD_V3_TILE_BASE}/cell-revealed.png`),
+        loadImage(`${BOARD_V3_TILE_BASE}/cell-hover.png`),
+        loadImage(`${BOARD_V3_TILE_BASE}/cell-pressed.png`),
+        loadImage(`${BOARD_V3_TILE_BASE}/cell-safe.png`),
         loadImage(`${TILE_BASE}/mine.png`),
         loadImage(`${TILE_BASE}/flag.png`),
         ...Array.from({ length: 8 }, (_, i) => loadImage(`${BOARD_V3_TILE_BASE}/num-${i + 1}.png`)),
       ]);
-      cached = { hidden, revealed, mine, flag, numbers };
+      cached = { hidden, revealed, hover, pressed, safe, mine, flag, numbers };
       return cached;
     } catch {
       return null;

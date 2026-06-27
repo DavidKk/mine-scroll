@@ -8,7 +8,7 @@ import {
   type GameCutoutName,
 } from './game-assets.ts';
 import type { GridMetrics } from './theme.ts';
-import { drawHiddenCellSprite, getTileSprites } from './tile-sprites.ts';
+import { drawHiddenCellUnderlay, drawSpriteInCell, getTileSprites } from './tile-sprites.ts';
 
 export interface BoardPointerState {
   row: number;
@@ -194,19 +194,102 @@ export function drawCellHoverOverlay(
   const drawX = cx - drawSize / 2;
   const drawY = cy - drawSize / 2 + lift;
 
-  if (!usedSprite) {
+  const sprites = getTileSprites();
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = pressed ? 0.28 : 0.38;
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, g.cellSize * (pressed ? 0.58 : 0.74));
+  glow.addColorStop(0, pressed ? 'rgba(255, 211, 90, 0.58)' : 'rgba(45, 236, 255, 0.58)');
+  glow.addColorStop(1, 'rgba(45, 236, 255, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, g.cellSize * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = ringAlpha;
+  ctx.strokeStyle = pressed ? '#fbbf24' : '#2decff';
+  ctx.lineWidth = Math.max(1.5, g.cellSize * 0.045);
+  roundedRectPath(ctx, drawX - 2, drawY - 2, drawSize + 4, drawSize + 4, g.cellRadius + 2);
+  ctx.stroke();
+  ctx.restore();
+
+  if (!sprites) return;
+  ctx.save();
+  ctx.globalAlpha = pressed ? 0.98 : 0.96;
+  drawHiddenCellUnderlay(ctx, drawX, drawY, drawSize);
+  drawSpriteInCell(ctx, pressed ? sprites.pressed : sprites.hover, drawX, drawY, drawSize);
+  ctx.restore();
+  if (!usedSprite) return;
+}
+
+export function drawCellRevealTransitionOverlay(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  g: GridMetrics,
+  progress: number,
+): void {
+  const t = clamp01(progress);
+  const sprites = getTileSprites();
+  const cx = x + g.cellSize / 2;
+  const cy = y + g.cellSize / 2;
+  const flash = Math.sin(Math.min(1, t * 1.25) * Math.PI);
+  const reveal = clamp01(t / 0.5);
+
+  if (sprites && t < 0.58) {
     ctx.save();
-    ctx.globalAlpha = ringAlpha;
-    ctx.strokeStyle = '#818cf8';
-    ctx.lineWidth = Math.max(1.5, g.cellSize * 0.04);
-    roundedRectPath(ctx, drawX - 2, drawY - 2, drawSize + 4, drawSize + 4, g.cellRadius + 2);
-    ctx.stroke();
+    ctx.globalAlpha = (1 - reveal) * 0.9;
+    drawHiddenCellUnderlay(ctx, x, y, g.cellSize);
+    drawSpriteInCell(ctx, sprites.pressed, x, y, g.cellSize);
     ctx.restore();
   }
 
-  const sprites = getTileSprites();
-  if (!sprites) return;
-  drawHiddenCellSprite(ctx, sprites, drawX, drawY, drawSize);
+  if (sprites && t > 0.14 && t < 0.82) {
+    const safeT = clamp01((t - 0.14) / 0.5);
+    const scale = 0.94 + safeT * 0.1;
+    const size = g.cellSize * scale;
+    ctx.save();
+    ctx.globalAlpha = Math.sin(safeT * Math.PI) * 0.72;
+    ctx.globalCompositeOperation = 'lighter';
+    drawSpriteInCell(ctx, sprites.safe, cx - size / 2, cy - size / 2, size);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const bloomRadius = g.cellSize * (0.32 + t * 0.74);
+  const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, bloomRadius);
+  bloom.addColorStop(0, `rgba(235, 255, 255, ${0.52 * flash})`);
+  bloom.addColorStop(0.32, `rgba(45, 236, 255, ${0.34 * flash})`);
+  bloom.addColorStop(1, 'rgba(45, 236, 255, 0)');
+  ctx.fillStyle = bloom;
+  ctx.beginPath();
+  ctx.arc(cx, cy, bloomRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  const ringAlpha = (1 - t) * 0.78;
+  ctx.strokeStyle = `rgba(45, 236, 255, ${ringAlpha})`;
+  ctx.lineWidth = Math.max(1, g.cellSize * (0.06 - t * 0.035));
+  roundedRectPath(
+    ctx,
+    x - g.cellSize * 0.08 * t,
+    y - g.cellSize * 0.08 * t,
+    g.cellSize * (1 + 0.16 * t),
+    g.cellSize * (1 + 0.16 * t),
+    g.cellRadius + 4,
+  );
+  ctx.stroke();
+
+  for (let i = 0; i < 8; i += 1) {
+    const angle = i * (Math.PI * 2 / 8) + t * 0.7;
+    const dist = g.cellSize * (0.18 + t * 0.46) * (i % 2 === 0 ? 1 : 0.75);
+    const alpha = (1 - t) * 0.58;
+    ctx.fillStyle = i % 3 === 0 ? `rgba(255, 211, 90, ${alpha})` : `rgba(45, 236, 255, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist * 0.72, Math.max(1, g.cellSize * (0.035 - t * 0.018)), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 export function drawDigitAmbientOverlay(

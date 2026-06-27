@@ -1,11 +1,13 @@
 import { drawProceduralOrbitParticles, drawMineBurstSmoke, drawMineScorchMark, drawMineSettledSmoke } from '../../ui/cell-fx.ts';
 import {
+  drawFxSpriteFrame,
   drawImageContained,
   GAME_ASSET_TUNING,
   drawGameMineCutoutAtCenter,
   getGameCutout,
   getGameFxBlendMode,
   getGameFxFrames,
+  getGameUiPanel,
 } from '../../ui/game-assets.ts';
 import { drawHiddenCellSprite, drawSpriteInCell, getTileSprites, type TileSprites } from '../../ui/tile-sprites.ts';
 import { createFpsControl, createPanelHead, paintCheckerBg } from './editor-shell.ts';
@@ -31,7 +33,17 @@ export type EffectPanelId =
   | 'wrong-flag-v3'
   | 'mine'
   | 'mine-hit-v3'
-  | 'heart-refill-v3';
+  | 'heart-refill-v3'
+  | 'heart-loss-v3'
+  | 'start-panel-v3'
+  | 'game-over-panel-v3'
+  | 'score-hud-v3'
+  | 'combo-hud-v3'
+  | 'score-pop-v3'
+  | 'combo-burst-v3'
+  | 'life-loss-popup-v3'
+  | 'speed-up-alert-v3'
+  | 'danger-rise-alert-v3';
 
 interface CellEffectDrawOpts {
   scale?: number;
@@ -72,6 +84,13 @@ const MINE_HIT_V3_MS = 980;
 const MINE_HIT_V3_ACTION_MS = 620;
 const HEART_REFILL_V3_MS = 1180;
 const HEART_REFILL_V3_ACTION_MS = 560;
+const PANEL_V3_MS = 1480;
+const PANEL_V3_ACTION_MS = 620;
+const HUD_FEEDBACK_V3_MS = 1600;
+const SCORE_POP_V3_MS = 760;
+const COMBO_BURST_V3_MS = 900;
+const LIFE_LOSS_POPUP_V3_MS = GAME_ASSET_TUNING.fx.break.durationMs;
+const HUD_ALERT_V3_MS = 1260;
 const V3_CANDIDATE_FLAG_SRC = '/assets/candidates/game-ui-v3/cutouts/flag-standard.png';
 const V3_CANDIDATE_MINE_STANDARD_SRC = '/assets/candidates/game-ui-v3/cutouts/mine-standard.png';
 const V3_CANDIDATE_MINE_CRACKED_SRC = '/assets/candidates/game-ui-v3/cutouts/mine-cracked.png';
@@ -148,6 +167,28 @@ const v3BoardTileImages: Record<BoardV3TileKey, HTMLImageElement> = {
   'num-7': createAssetImage(`${V3_BOARD_TILE_BASE}/num-7.png`),
   'num-8': createAssetImage(`${V3_BOARD_TILE_BASE}/num-8.png`),
 };
+
+const panelConceptImages = {
+  startPanel: createAssetImage('/assets/candidates/game-ui-v3/panels/runtime/start-panel-v3.png'),
+  gameOverPanel: createAssetImage('/assets/candidates/game-ui-v3/panels/runtime/game-over-panel-v3.png'),
+} as const;
+
+const hudFeedbackImages = {
+  scoreStrip: createAssetImage('/assets/candidates/hud-feedback-v3/runtime/score-energy-strip-v3.png'),
+  scorePanelV6: createAssetImage('/assets/candidates/hud-feedback-v3/runtime/score-energy-panel-v6.png'),
+  comboRail: createAssetImage('/assets/candidates/hud-feedback-v3/runtime/combo-energy-rail-v3.png'),
+  scorePopBase: createAssetImage('/assets/candidates/hud-feedback-v3/runtime/score-pop-energy-base-v3.png'),
+  comboBurstBase: createAssetImage('/assets/candidates/hud-feedback-v3/runtime/combo-burst-energy-base-v3.png'),
+} as const;
+
+const hudAlertImages = {
+  speedUp: createAssetImage('/assets/candidates/hud-alerts-v3/runtime/speed-up-alert-v3.png'),
+  dangerRise: createAssetImage('/assets/candidates/hud-alerts-v3/runtime/danger-rise-alert-v3.png'),
+} as const;
+
+const scoreDigitImages = Array.from({ length: 10 }, (_, digit) =>
+  createAssetImage(`/assets/candidates/hud-feedback-v3/runtime/score-digits-v1/digit-${digit}.png`),
+);
 
 function mineBlastPopScale(progress: number): number {
   if (progress <= 0 || progress >= 1) return 1;
@@ -232,9 +273,103 @@ const EFFECT_SPECS: EffectCardSpec[] = [
   {
     id: 'heart-refill-v3',
     title: 'Heart refill v3',
-    description: 'Candidate reward motion using v3 heart cutouts plus Canvas pop, gold/cyan rings, and light particles.',
+    description: 'Click-to-preview life refill: static empty heart, Canvas refill burst, then full v3 heart hold.',
     cycleMs: HEART_REFILL_V3_MS,
     frameCount: 5,
+    defaultFps: 12,
+    loop: false,
+    interactive: true,
+  },
+  {
+    id: 'heart-loss-v3',
+    title: 'Heart loss v3',
+    description: 'Click-to-preview damage state: full v3 heart switches directly to the empty-heart cutout.',
+    cycleMs: 1,
+    frameCount: 2,
+    defaultFps: 1,
+    loop: false,
+    interactive: true,
+  },
+  {
+    id: 'start-panel-v3',
+    title: 'Start panel v3',
+    description: 'Candidate animated start overlay: clean panel art plus Canvas scanline, edge spark, button press, and start pulse.',
+    cycleMs: PANEL_V3_MS,
+    frameCount: 5,
+    defaultFps: 12,
+    loop: true,
+    interactive: true,
+  },
+  {
+    id: 'game-over-panel-v3',
+    title: 'Game over panel v3',
+    description: 'Candidate animated fail overlay: clean panel art plus Canvas red alert flash, shake, scanlines, and retry press feedback.',
+    cycleMs: PANEL_V3_MS,
+    frameCount: 5,
+    defaultFps: 12,
+    loop: true,
+    interactive: true,
+  },
+  {
+    id: 'score-hud-v3',
+    title: 'Score HUD v3',
+    description: 'Candidate score data chip: compact metal base, cyan edge light, score pulse, and scan flash on gain.',
+    cycleMs: HUD_FEEDBACK_V3_MS,
+    frameCount: 5,
+    defaultFps: 12,
+    loop: true,
+  },
+  {
+    id: 'combo-hud-v3',
+    title: 'Combo HUD v3',
+    description: 'Candidate combo chip with escalating cyan / gold / red energy states and impact pulse on combo gain.',
+    cycleMs: HUD_FEEDBACK_V3_MS,
+    frameCount: 5,
+    defaultFps: 12,
+    loop: true,
+  },
+  {
+    id: 'score-pop-v3',
+    title: 'Score pop v3',
+    description: 'Candidate score gain popup: +score rises from the score chip, flashes, and dissolves into scan particles.',
+    cycleMs: SCORE_POP_V3_MS,
+    frameCount: 5,
+    defaultFps: 12,
+    loop: true,
+  },
+  {
+    id: 'combo-burst-v3',
+    title: 'Combo burst v3',
+    description: 'Candidate high-impact combo popup with shock rings, tier colors, particles, and stronger x10/x20/x50 beats.',
+    cycleMs: COMBO_BURST_V3_MS,
+    frameCount: 6,
+    defaultFps: 12,
+    loop: true,
+  },
+  {
+    id: 'life-loss-popup-v3',
+    title: 'Life loss popup v3',
+    description: 'Current in-game damage/break popup below combo: red flash, break chip, wrong-flag burst, and defuse reset text.',
+    cycleMs: LIFE_LOSS_POPUP_V3_MS,
+    frameCount: 4,
+    defaultFps: 12,
+    loop: true,
+  },
+  {
+    id: 'speed-up-alert-v3',
+    title: 'Speed up alert v3',
+    description: 'Candidate difficulty alert: speed-up badge base plus Canvas text, scan streaks, and restrained acceleration particles.',
+    cycleMs: HUD_ALERT_V3_MS,
+    frameCount: 4,
+    defaultFps: 12,
+    loop: true,
+  },
+  {
+    id: 'danger-rise-alert-v3',
+    title: 'Danger rise alert v3',
+    description: 'Candidate difficulty alert: danger-rise badge base plus Canvas text, warning pulse, and vertical pressure sparks.',
+    cycleMs: HUD_ALERT_V3_MS,
+    frameCount: 4,
     defaultFps: 12,
     loop: true,
   },
@@ -1583,31 +1718,702 @@ function drawHeartRefillV3Scene(
   }
 }
 
+function drawHeartStaticV3Scene(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  full: boolean,
+): void {
+  paintStageBg(ctx, w, h);
+  const cx = w / 2;
+  const cy = h / 2;
+  const size = Math.min(w, h) * 0.58;
+  const image = getCandidateHeartImage(full);
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(7, 8, 15, 0.8)';
+  ctx.beginPath();
+  ctx.roundRect(cx - size * 0.72, cy - size * 0.58, size * 1.44, size * 1.16, size * 0.16);
+  ctx.fill();
+  ctx.restore();
+
+  if (!image) return;
+  ctx.save();
+  ctx.shadowColor = full ? 'rgba(255, 213, 92, 0.38)' : 'rgba(45, 236, 255, 0.18)';
+  ctx.shadowBlur = size * 0.08;
+  drawCandidateHeart(ctx, image, cx, cy, size, full ? 1 : 0.98, full ? 1 : 0.78);
+  ctx.restore();
+}
+
+type PanelConceptKind = 'start' | 'game-over';
+
+function drawPanelConceptImage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  cx: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+  scale = 1,
+  alpha = 1,
+): { x: number; y: number; w: number; h: number } | null {
+  if (!image || !image.complete || image.naturalWidth === 0 || image.naturalHeight === 0) return null;
+  const ratio = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight) * scale;
+  const w = image.naturalWidth * ratio;
+  const h = image.naturalHeight * ratio;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(image, x, y, w, h);
+  ctx.restore();
+  return { x, y, w, h };
+}
+
+function drawPanelV3CanvasFx(
+  ctx: CanvasRenderingContext2D,
+  bounds: { x: number; y: number; w: number; h: number },
+  kind: PanelConceptKind,
+  nowMs: number,
+  actionProgress = 0,
+): void {
+  const color = kind === 'start' ? '45, 236, 255' : '255, 76, 86';
+  const accent = kind === 'start' ? '255, 213, 92' : '251, 146, 60';
+  const phase = (nowMs % PANEL_V3_MS) / PANEL_V3_MS;
+  const pulse = 0.5 + Math.sin(phase * Math.PI * 2) * 0.5;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient(
+    bounds.x + bounds.w / 2,
+    bounds.y + bounds.h / 2,
+    bounds.w * 0.05,
+    bounds.x + bounds.w / 2,
+    bounds.y + bounds.h / 2,
+    bounds.w * 0.62,
+  );
+  glow.addColorStop(0, `rgba(${color}, ${0.08 + pulse * 0.05})`);
+  glow.addColorStop(1, `rgba(${color}, 0)`);
+  ctx.fillStyle = glow;
+  ctx.fillRect(bounds.x - bounds.w * 0.08, bounds.y - bounds.h * 0.12, bounds.w * 1.16, bounds.h * 1.24);
+
+  const scanX = bounds.x + ((phase * 1.35) % 1) * bounds.w;
+  const scan = ctx.createLinearGradient(scanX - bounds.w * 0.12, 0, scanX + bounds.w * 0.12, 0);
+  scan.addColorStop(0, 'rgba(255,255,255,0)');
+  scan.addColorStop(0.5, `rgba(${color}, ${0.34 + pulse * 0.12})`);
+  scan.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.strokeStyle = scan;
+  ctx.lineWidth = Math.max(1.5, bounds.h * 0.012);
+  ctx.beginPath();
+  ctx.moveTo(scanX - bounds.w * 0.22, bounds.y + bounds.h * 0.18);
+  ctx.lineTo(scanX + bounds.w * 0.22, bounds.y + bounds.h * 0.18);
+  ctx.moveTo(scanX - bounds.w * 0.18, bounds.y + bounds.h * 0.82);
+  ctx.lineTo(scanX + bounds.w * 0.18, bounds.y + bounds.h * 0.82);
+  ctx.stroke();
+
+  for (let i = 0; i < 8; i += 1) {
+    const side = i % 4;
+    const local = (phase + i * 0.137) % 1;
+    const x = side === 0
+      ? bounds.x + bounds.w * local
+      : side === 1
+        ? bounds.x + bounds.w
+        : side === 2
+          ? bounds.x + bounds.w * (1 - local)
+          : bounds.x;
+    const y = side === 0
+      ? bounds.y
+      : side === 1
+        ? bounds.y + bounds.h * local
+        : side === 2
+          ? bounds.y + bounds.h
+          : bounds.y + bounds.h * (1 - local);
+    ctx.fillStyle = `rgba(${i % 3 === 0 ? accent : color}, ${0.26 + pulse * 0.18})`;
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(1.2, bounds.h * 0.008), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (kind === 'game-over') {
+    ctx.globalAlpha = 0.22 + pulse * 0.08;
+    ctx.strokeStyle = `rgba(${color}, 0.42)`;
+    ctx.lineWidth = Math.max(1, bounds.h * 0.006);
+    for (let i = 0; i < 6; i += 1) {
+      const y = bounds.y + bounds.h * (0.2 + i * 0.11 + (phase * 0.05));
+      ctx.beginPath();
+      ctx.moveTo(bounds.x + bounds.w * 0.08, y);
+      ctx.lineTo(bounds.x + bounds.w * 0.92, y);
+      ctx.stroke();
+    }
+  }
+
+  if (actionProgress > 0) {
+    const t = clamp01(actionProgress);
+    const fade = 1 - t;
+    const centerY = bounds.y + bounds.h * (kind === 'start' ? 0.5 : 0.68);
+    const burst = ctx.createRadialGradient(
+      bounds.x + bounds.w / 2,
+      centerY,
+      bounds.h * (0.08 + t * 0.1),
+      bounds.x + bounds.w / 2,
+      centerY,
+      bounds.h * (0.32 + t * 0.62),
+    );
+    burst.addColorStop(0, `rgba(${kind === 'start' ? color : accent}, ${0.42 * fade})`);
+    burst.addColorStop(0.42, `rgba(${kind === 'start' ? color : accent}, ${0.18 * fade})`);
+    burst.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = burst;
+    ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+  }
+
+  ctx.restore();
+}
+
+function drawPanelV3Scene(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  kind: PanelConceptKind,
+  tMs: number,
+  actionProgress = 0,
+): void {
+  paintStageBg(ctx, w, h);
+  const image = kind === 'start' ? panelConceptImages.startPanel : panelConceptImages.gameOverPanel;
+  const action = clamp01(actionProgress);
+  const shake = kind === 'game-over' && action > 0 && action < 0.55
+    ? Math.sin(action * Math.PI * 18) * (1 - action) * Math.min(w, h) * 0.012
+    : 0;
+  const pop = action > 0 ? 1 - Math.sin(action * Math.PI) * 0.025 : 1;
+  const bounds = drawPanelConceptImage(ctx, image, w / 2 + shake, h / 2, w * 0.88, h * 0.72, pop);
+  if (bounds) drawPanelV3CanvasFx(ctx, bounds, kind, tMs, action);
+}
+
+interface HudPalette {
+  main: string;
+  soft: string;
+  text: string;
+  hot: string;
+}
+
+function comboHudPalette(combo: number): HudPalette {
+  if (combo >= 50) return { main: '255, 71, 120', soft: '168, 85, 247', text: '#ff4778', hot: '#fef08a' };
+  if (combo >= 20) return { main: '251, 113, 36', soft: '239, 68, 68', text: '#fb923c', hot: '#fde047' };
+  if (combo >= 10) return { main: '250, 204, 21', soft: '34, 211, 238', text: '#fde047', hot: '#f8fafc' };
+  return { main: '45, 236, 255', soft: '96, 165, 250', text: '#67e8f9', hot: '#dbeafe' };
+}
+
+function comboRailFilter(combo: number): string {
+  if (combo >= 50) return 'hue-rotate(145deg) saturate(1.55) brightness(1.08)';
+  if (combo >= 20) return 'hue-rotate(-150deg) saturate(1.45) brightness(1.08)';
+  if (combo >= 10) return 'hue-rotate(-118deg) saturate(1.45) brightness(1.08)';
+  if (combo >= 5) return 'hue-rotate(-58deg) saturate(1.32) brightness(1.05)';
+  return 'none';
+}
+
+function drawComboRailGlow(
+  ctx: CanvasRenderingContext2D,
+  asset: { x: number; y: number; w: number; h: number },
+  palette: HudPalette,
+  alpha: number,
+): void {
+  const cx = asset.x + asset.w / 2;
+  const cy = asset.y + asset.h * 0.54;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, asset.w * 0.58);
+  glow.addColorStop(0, `rgba(${palette.main}, ${alpha * 0.34})`);
+  glow.addColorStop(0.42, `rgba(${palette.soft}, ${alpha * 0.14})`);
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(asset.x, asset.y, asset.w, asset.h);
+  ctx.restore();
+}
+
+function drawFeedbackAsset(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  cx: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+  scale = 1,
+  alpha = 1,
+): { x: number; y: number; w: number; h: number } | null {
+  if (!image.complete || image.naturalWidth === 0 || image.naturalHeight === 0) return null;
+  const fit = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight) * scale;
+  const w = image.naturalWidth * fit;
+  const h = image.naturalHeight * fit;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(image, x, y, w, h);
+  ctx.restore();
+  return { x, y, w, h };
+}
+
+function drawFilteredFeedbackAsset(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  cx: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+  filter: string,
+  scale = 1,
+  alpha = 1,
+): { x: number; y: number; w: number; h: number } | null {
+  if (!image.complete || image.naturalWidth === 0 || image.naturalHeight === 0) return null;
+  const fit = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight) * scale;
+  const w = image.naturalWidth * fit;
+  const h = image.naturalHeight * fit;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.filter = filter;
+  ctx.drawImage(image, x, y, w, h);
+  ctx.restore();
+  return { x, y, w, h };
+}
+
+function drawHudText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  fontSize: number,
+  fill: string,
+  glow: string,
+): void {
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  let size = fontSize;
+  do {
+    ctx.font = `1000 ${size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    if (ctx.measureText(text).width <= maxW || size <= 14) break;
+    size -= 1;
+  } while (size > 14);
+  ctx.lineWidth = Math.max(2, size * 0.08);
+  ctx.strokeStyle = 'rgba(3, 7, 18, 0.9)';
+  ctx.strokeText(text, x, y);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = size * 0.28;
+  ctx.fillStyle = fill;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawScoreDigits(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+): boolean {
+  const digits = [...text].map((ch) => scoreDigitImages[Number(ch)]);
+  if (digits.some((image) => !image || !image.complete || image.naturalWidth === 0 || image.naturalHeight === 0)) return false;
+
+  const baseW = digits.reduce((sum, image) => sum + image.naturalWidth, 0);
+  const baseH = Math.max(...digits.map((image) => image.naturalHeight));
+  const gap = baseH * 0.015;
+  const totalBaseW = baseW + gap * Math.max(0, digits.length - 1);
+  const scale = Math.min(maxW / totalBaseW, maxH / baseH);
+  let cursorX = x;
+
+  ctx.save();
+  for (const image of digits) {
+    if (!image) continue;
+    const w = image.naturalWidth * scale;
+    const h = image.naturalHeight * scale;
+    ctx.drawImage(image, cursorX, cy - h / 2, w, h);
+    cursorX += w + gap * scale;
+  }
+  ctx.restore();
+  return true;
+}
+
+function drawHudV3Chip(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  label: string,
+  value: string,
+  palette: HudPalette,
+  tMs: number,
+  impact = 0,
+): void {
+  const phase = (tMs % HUD_FEEDBACK_V3_MS) / HUD_FEEDBACK_V3_MS;
+  const pulse = 0.5 + Math.sin(phase * Math.PI * 2) * 0.5;
+  const r = Math.min(10, h * 0.22);
+  const pop = 1 + Math.sin(clamp01(impact) * Math.PI) * 0.045;
+
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.scale(pop, pop);
+  ctx.translate(-w / 2, -h / 2);
+
+  ctx.shadowColor = `rgba(${palette.main}, ${0.22 + pulse * 0.14 + impact * 0.32})`;
+  ctx.shadowBlur = 10 + impact * 12;
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, 'rgba(25, 31, 44, 0.94)');
+  bg.addColorStop(0.5, 'rgba(8, 12, 22, 0.96)');
+  bg.addColorStop(1, 'rgba(3, 7, 16, 0.92)');
+  roundedRectPath(ctx, 0, 0, w, h, r);
+  ctx.fillStyle = bg;
+  ctx.fill();
+
+  const border = ctx.createLinearGradient(0, 0, w, 0);
+  border.addColorStop(0, `rgba(${palette.main}, 0.08)`);
+  border.addColorStop(0.22, `rgba(${palette.main}, ${0.38 + impact * 0.22})`);
+  border.addColorStop(0.72, `rgba(${palette.soft}, ${0.2 + pulse * 0.16})`);
+  border.addColorStop(1, `rgba(${palette.main}, 0.08)`);
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 1.4;
+  roundedRectPath(ctx, 0.5, 0.5, w - 1, h - 1, r);
+  ctx.stroke();
+
+  ctx.globalCompositeOperation = 'lighter';
+  const scanX = ((phase * 1.45) % 1) * w;
+  const scan = ctx.createLinearGradient(scanX - w * 0.18, 0, scanX + w * 0.18, 0);
+  scan.addColorStop(0, 'rgba(255,255,255,0)');
+  scan.addColorStop(0.5, `rgba(${palette.main}, ${0.16 + impact * 0.24})`);
+  scan.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = scan;
+  roundedRectPath(ctx, 2, 2, w - 4, h - 4, r - 2);
+  ctx.fill();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.font = `800 ${Math.max(8, h * 0.22)}px system-ui, sans-serif`;
+  ctx.fillStyle = `rgba(${palette.main}, 0.82)`;
+  ctx.fillText(label, w * 0.1, h * 0.16);
+  ctx.font = `900 ${Math.max(18, h * 0.43)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.fillStyle = palette.text;
+  ctx.shadowColor = `rgba(${palette.main}, 0.48)`;
+  ctx.shadowBlur = 8 + impact * 10;
+  ctx.fillText(value, w * 0.1, h * 0.45);
+
+  ctx.restore();
+}
+
+function drawScoreHudV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number, score = '39160'): void {
+  paintStageBg(ctx, w, h);
+  const progress = (tMs % HUD_FEEDBACK_V3_MS) / HUD_FEEDBACK_V3_MS;
+  const impact = progress < 0.28 ? 1 - easeOutCubic(progress / 0.28) : 0;
+  const asset = drawFeedbackAsset(ctx, hudFeedbackImages.scorePanelV6, w / 2, h * 0.52, w * 0.96, h * 0.5, 1 + impact * 0.026);
+  if (!asset) {
+    const chipW = Math.min(w * 0.78, 260);
+    const chipH = Math.min(h * 0.34, 74);
+    drawHudV3Chip(ctx, (w - chipW) / 2, h * 0.34, chipW, chipH, 'SCORE', score, comboHudPalette(2), tMs, impact);
+    return;
+  }
+  ctx.save();
+  const drewDigits = drawScoreDigits(
+    ctx,
+    score,
+    asset.x + asset.w * 0.34,
+    asset.y + asset.h * 0.475,
+    asset.w * 0.52,
+    Math.min(asset.h * 0.16, h * 0.16),
+  );
+  if (!drewDigits) {
+    drawHudText(
+      ctx,
+      score,
+      asset.x + asset.w * 0.61,
+      asset.y + asset.h * 0.52,
+      asset.w * 0.48,
+      Math.min(asset.h * 0.16, h * 0.18),
+      '#d8fbff',
+      'rgba(45, 236, 255, 0.72)',
+    );
+  }
+  ctx.restore();
+}
+
+function drawComboHudV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number, combo = 18): void {
+  paintStageBg(ctx, w, h);
+  const palette = comboHudPalette(combo);
+  const progress = (tMs % HUD_FEEDBACK_V3_MS) / HUD_FEEDBACK_V3_MS;
+  const impact = progress < 0.34 ? 1 - easeOutCubic(progress / 0.34) : 0;
+  const shake = impact * Math.sin(progress * Math.PI * 18) * Math.min(w, h) * 0.006;
+  const text = `x${combo}`;
+  const asset = drawFilteredFeedbackAsset(
+    ctx,
+    hudFeedbackImages.comboRail,
+    w / 2 + shake,
+    h * 0.52,
+    w * 0.9,
+    h * 0.25,
+    comboRailFilter(combo),
+    1 + impact * 0.025,
+  );
+  if (!asset) {
+    const chipW = Math.min(w * 0.72, 240);
+    const chipH = Math.min(h * 0.3, 66);
+    drawHudV3Chip(ctx, (w - chipW) / 2 + shake, h * 0.36, chipW, chipH, 'COMBO', text, palette, tMs, impact);
+    return;
+  }
+  drawComboRailGlow(ctx, asset, palette, 0.36 + impact * 0.22);
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${Math.max(8, asset.h * 0.11)}px system-ui, sans-serif`;
+  ctx.fillStyle = `rgba(${palette.main}, 0.72)`;
+  ctx.fillText('COMBO', w / 2, asset.y + asset.h * 0.33);
+  drawHudText(ctx, text, w / 2, asset.y + asset.h * 0.56, asset.w * 0.66, asset.h * 0.23, palette.text, `rgba(${palette.main}, 0.86)`);
+  ctx.restore();
+}
+
+function drawScorePopV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number): void {
+  paintStageBg(ctx, w, h);
+  const t = (tMs % SCORE_POP_V3_MS) / SCORE_POP_V3_MS;
+  const chipW = Math.min(w * 0.7, 230);
+  const chipH = Math.min(h * 0.28, 60);
+  const chipX = (w - chipW) / 2;
+  const chipY = h * 0.56;
+  const strip = drawFeedbackAsset(ctx, hudFeedbackImages.scoreStrip, w / 2, chipY + chipH / 2, chipW, chipH * 1.35, 1);
+  if (!strip) drawHudV3Chip(ctx, chipX, chipY, chipW, chipH, 'SCORE', '012840', comboHudPalette(2), tMs, t < 0.2 ? 1 - t / 0.2 : 0);
+
+  const rise = easeOutCubic(t);
+  const alpha = t < 0.72 ? 1 : 1 - (t - 0.72) / 0.28;
+  const cx = w / 2;
+  const cy = chipY - h * (0.05 + rise * 0.34);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  drawFeedbackAsset(ctx, hudFeedbackImages.scorePopBase, cx, cy + h * 0.06, w * 0.62, h * 0.42, 0.88 + Math.sin(t * Math.PI) * 0.08, alpha);
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.28);
+  glow.addColorStop(0, `rgba(45, 236, 255, ${0.34 * alpha})`);
+  glow.addColorStop(1, 'rgba(45, 236, 255, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${Math.min(48, w * 0.16)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.shadowColor = 'rgba(45, 236, 255, 0.82)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = `rgba(125, 249, 255, ${alpha})`;
+  ctx.fillText('+320', cx, cy);
+
+  for (let i = 0; i < 12; i += 1) {
+    const p = clamp01((t - i * 0.025) / 0.72);
+    const px = cx + (i - 5.5) * w * 0.025 + Math.sin(i * 1.9) * w * 0.02;
+    const py = cy + p * h * 0.18;
+    ctx.fillStyle = i % 3 === 0 ? `rgba(255, 213, 92, ${alpha * (1 - p)})` : `rgba(45, 236, 255, ${alpha * (1 - p)})`;
+    ctx.fillRect(px, py, Math.max(1.2, w * 0.008), Math.max(1.2, h * 0.006));
+  }
+  ctx.restore();
+}
+
+function drawComboBurstV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number, combo = 24): void {
+  paintStageBg(ctx, w, h);
+  const palette = comboHudPalette(combo);
+  const t = (tMs % COMBO_BURST_V3_MS) / COMBO_BURST_V3_MS;
+  const hit = clamp01(t / 0.24);
+  const fade = t < 0.78 ? 1 : 1 - (t - 0.78) / 0.22;
+  const cx = w / 2;
+  const cy = h / 2;
+  const shake = combo >= 20 && t < 0.25 ? Math.sin(t * Math.PI * 32) * (1 - t / 0.25) * Math.min(w, h) * 0.012 : 0;
+
+  ctx.save();
+  ctx.translate(shake, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  drawFeedbackAsset(
+    ctx,
+    hudFeedbackImages.comboBurstBase,
+    cx,
+    cy + h * 0.02,
+    w * 0.92,
+    h * 0.62,
+    0.86 + easeOutBack(hit) * 0.12,
+    fade,
+  );
+  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.48);
+  core.addColorStop(0, `rgba(${palette.main}, ${0.34 * fade})`);
+  core.addColorStop(0.32, `rgba(${palette.soft}, ${0.22 * fade})`);
+  core.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(0, 0, w, h);
+
+  for (let i = 0; i < (combo >= 50 ? 3 : combo >= 20 ? 2 : 1); i += 1) {
+    const ringT = clamp01((t - i * 0.1) / 0.62);
+    if (ringT <= 0 || ringT >= 1) continue;
+    ctx.strokeStyle = `rgba(${i % 2 ? palette.soft : palette.main}, ${(1 - ringT) * 0.78})`;
+    ctx.lineWidth = lerp(5, 1.2, ringT);
+    ctx.beginPath();
+    ctx.arc(cx, cy, lerp(w * 0.12, w * 0.48, easeOutCubic(ringT)), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < 30; i += 1) {
+    const p = clamp01((t - (i % 6) * 0.018) / 0.72);
+    const angle = (i / 30) * Math.PI * 2;
+    const dist = lerp(w * 0.08, w * 0.44, easeOutCubic(p)) * (i % 2 ? 0.78 : 1);
+    const alpha = fade * (1 - p);
+    ctx.fillStyle = i % 4 === 0 ? `rgba(${palette.soft}, ${alpha})` : `rgba(${palette.main}, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist * 0.78, lerp(3.6, 0.8, p), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  const scale = 0.82 + easeOutBack(hit) * 0.28;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = Math.max(4, w * 0.018);
+  ctx.strokeStyle = 'rgba(3, 7, 18, 0.92)';
+  ctx.font = `1000 ${Math.min(78, w * 0.25)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.strokeText(`x${combo}`, 0, -4);
+  ctx.shadowColor = `rgba(${palette.main}, 0.88)`;
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = palette.text;
+  ctx.fillText(`x${combo}`, 0, -4);
+  ctx.font = `900 ${Math.min(18, w * 0.055)}px system-ui, sans-serif`;
+  ctx.fillStyle = palette.hot;
+  ctx.shadowBlur = 8;
+  ctx.fillText(combo >= 50 ? 'OVERLOAD' : combo >= 20 ? 'CHAIN BREAKER' : combo >= 10 ? 'HIGH COMBO' : 'COMBO', 0, 48);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function drawLifeLossPopupV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number): void {
+  paintStageBg(ctx, w, h);
+  const progress = (tMs % LIFE_LOSS_POPUP_V3_MS) / LIFE_LOSS_POPUP_V3_MS;
+  const alpha = Math.max(0, 1 - progress);
+  const impact = Math.sin(Math.min(1, progress * 2.3) * Math.PI);
+  const uiScale = Math.min(w / 260, h / 150) * 0.96;
+  const pop = 0.9 + impact * 0.18;
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(GAME_ASSET_TUNING.fx.break.flashAlpha, alpha * GAME_ASSET_TUNING.fx.break.flashAlpha);
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(w / 2, h * 0.54);
+  ctx.scale(pop, pop);
+  drawFxSpriteFrame(ctx, 'wrong-flag-break', progress, 0, 6 * uiScale, 190 * uiScale, 108 * uiScale, GAME_ASSET_TUNING.fx.break.spriteAlpha);
+
+  const chip = getGameUiPanel('break-chip');
+  if (chip) {
+    drawImageContained(ctx, chip, -52 * uiScale, -42 * uiScale, 104 * uiScale, 32 * uiScale, 1);
+  } else {
+    ctx.beginPath();
+    ctx.roundRect(-52 * uiScale, -42 * uiScale, 104 * uiScale, 32 * uiScale, 8 * uiScale);
+    ctx.fillStyle = 'rgba(30, 41, 59, 0.86)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.72)';
+    ctx.lineWidth = Math.max(1, 1.6 * uiScale);
+    ctx.stroke();
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
+  ctx.shadowBlur = 14 * uiScale;
+  ctx.font = `900 ${28 * uiScale}px system-ui, sans-serif`;
+  ctx.fillStyle = '#fecaca';
+  ctx.fillText('BREAK x8', 0, -6 * uiScale);
+  ctx.font = `900 ${13 * uiScale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.fillStyle = '#ff4d3d';
+  ctx.fillText('DEFUSE 4->0', 0, 22 * uiScale);
+  ctx.restore();
+}
+
+type HudAlertKind = 'speed-up' | 'danger-rise';
+
+function drawHudAlertV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, kind: HudAlertKind, tMs: number): void {
+  paintStageBg(ctx, w, h);
+  const progress = (tMs % HUD_ALERT_V3_MS) / HUD_ALERT_V3_MS;
+  const inT = clamp01(progress / 0.18);
+  const outT = progress > 0.82 ? clamp01((progress - 0.82) / 0.18) : 0;
+  const visible = easeOutCubic(inT) * (1 - easeOutCubic(outT));
+  const impact = progress < 0.28 ? 1 - easeOutCubic(progress / 0.28) : 0;
+  const image = kind === 'speed-up' ? hudAlertImages.speedUp : hudAlertImages.dangerRise;
+  const label = kind === 'speed-up' ? 'SPEED UP' : 'DANGER RISE';
+  const main = kind === 'speed-up' ? '255, 190, 55' : '255, 76, 86';
+  const soft = kind === 'speed-up' ? '45, 236, 255' : '251, 113, 36';
+  const text = kind === 'speed-up' ? '#fef3c7' : '#ffe4e6';
+  const shake = kind === 'danger-rise' ? Math.sin(progress * Math.PI * 18) * impact * w * 0.004 : 0;
+  const asset = drawFeedbackAsset(ctx, image, w / 2 + shake, h * 0.52, w * 0.9, h * 0.34, 0.94 + impact * 0.035, visible);
+  if (!asset) return;
+
+  ctx.save();
+  ctx.globalAlpha = visible;
+  ctx.globalCompositeOperation = 'lighter';
+  const scanX = asset.x + ((progress * 1.35) % 1) * asset.w;
+  const scan = ctx.createLinearGradient(scanX - asset.w * 0.12, 0, scanX + asset.w * 0.12, 0);
+  scan.addColorStop(0, 'rgba(255,255,255,0)');
+  scan.addColorStop(0.5, `rgba(${soft}, ${0.24 + impact * 0.18})`);
+  scan.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = scan;
+  ctx.fillRect(asset.x + asset.w * 0.08, asset.y + asset.h * 0.22, asset.w * 0.84, asset.h * 0.56);
+
+  for (let i = 0; i < 12; i += 1) {
+    const p = (progress + i * 0.071) % 1;
+    const dir = kind === 'speed-up' ? 1 : -1;
+    const px = asset.x + asset.w * (0.18 + p * 0.64);
+    const py = asset.y + asset.h * (kind === 'speed-up' ? 0.36 + Math.sin(i) * 0.12 : 0.75 - p * 0.48);
+    ctx.fillStyle = i % 3 === 0 ? `rgba(${main}, ${visible * (1 - p)})` : `rgba(${soft}, ${visible * 0.72 * (1 - p)})`;
+    ctx.fillRect(px, py, Math.max(1.2, w * 0.004), Math.max(1.2, h * 0.004 + (kind === 'danger-rise' ? p * h * 0.02 : 0)));
+    if (kind === 'speed-up') ctx.fillRect(px - dir * w * 0.018, py, w * 0.016, Math.max(1, h * 0.003));
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `1000 ${Math.min(32, asset.h * 0.31)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.lineWidth = Math.max(2, asset.h * 0.045);
+  ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+  ctx.shadowColor = `rgba(${main}, ${0.72 + impact * 0.18})`;
+  ctx.shadowBlur = asset.h * (0.12 + impact * 0.08);
+  ctx.strokeText(label, asset.x + asset.w / 2, asset.y + asset.h * 0.52);
+  ctx.fillStyle = text;
+  ctx.fillText(label, asset.x + asset.w / 2, asset.y + asset.h * 0.52);
+  ctx.restore();
+}
+
 function createStaticFrameCanvas(
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
   label: string,
   index: number,
+  size: { w: number; h: number; wide?: boolean } = { w: 88, h: 88 },
 ): HTMLElement {
   const cell = document.createElement('div');
   cell.className = 'asset-lab__frame-cell';
   cell.title = label;
 
   const thumb = document.createElement('div');
-  thumb.className = 'asset-lab__frame-thumb asset-lab__checker';
+  thumb.className = `asset-lab__frame-thumb asset-lab__checker${size.wide ? ' asset-lab__frame-thumb--wide' : ''}`;
 
   const canvas = document.createElement('canvas');
   canvas.className = 'asset-lab__frame-canvas';
-  canvas.width = 88;
-  canvas.height = 88;
-  canvas.style.width = '88px';
-  canvas.style.height = '88px';
+  canvas.width = size.w;
+  canvas.height = size.h;
+  canvas.style.width = `${size.w}px`;
+  canvas.style.height = `${size.h}px`;
 
   const ctx = canvas.getContext('2d');
   if (ctx) {
-    draw(ctx, 88, 88);
+    draw(ctx, size.w, size.h);
     const startedAt = performance.now();
     const redrawWhileAssetsLoad = (): void => {
-      draw(ctx, 88, 88);
+      draw(ctx, size.w, size.h);
       if (performance.now() - startedAt < 2200) {
         window.requestAnimationFrame(redrawWhileAssetsLoad);
       }
@@ -1775,6 +2581,111 @@ function createMineLiveCanvas(sprites: TileSprites): LivePreview | null {
   };
 }
 
+function createHeartRefillLiveCanvas(getFps: () => number, baseFps: number): LivePreview | null {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'asset-lab__preview-canvas asset-lab__preview-canvas--interactive';
+  const ctx = initPreviewCanvas(canvas);
+  if (!ctx) return null;
+
+  let refillStart: number | null = null;
+  let full = false;
+
+  const onClick = (): void => {
+    full = false;
+    refillStart = scaledTime(performance.now(), getFps(), baseFps);
+  };
+
+  const stopLoop = startPreviewLoop(canvas, () => {
+    const { w, h } = measurePreviewCanvas(canvas, ctx);
+    const now = scaledTime(performance.now(), getFps(), baseFps);
+    if (refillStart !== null) {
+      const elapsed = now - refillStart;
+      if (elapsed >= HEART_REFILL_V3_ACTION_MS) {
+        refillStart = null;
+        full = true;
+        drawHeartStaticV3Scene(ctx, w, h, true);
+        return;
+      }
+      drawHeartRefillV3Scene(ctx, w, h, elapsed);
+      return;
+    }
+    drawHeartStaticV3Scene(ctx, w, h, full);
+  });
+
+  canvas.addEventListener('click', onClick);
+
+  return {
+    canvas,
+    dispose: () => {
+      stopLoop();
+      canvas.removeEventListener('click', onClick);
+    },
+  };
+}
+
+function createHeartLossLiveCanvas(): LivePreview | null {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'asset-lab__preview-canvas asset-lab__preview-canvas--interactive';
+  const ctx = initPreviewCanvas(canvas);
+  if (!ctx) return null;
+
+  let full = true;
+  const onClick = (): void => {
+    full = !full;
+  };
+
+  const stopLoop = startPreviewLoop(canvas, () => {
+    const { w, h } = measurePreviewCanvas(canvas, ctx);
+    drawHeartStaticV3Scene(ctx, w, h, full);
+  });
+
+  canvas.addEventListener('click', onClick);
+
+  return {
+    canvas,
+    dispose: () => {
+      stopLoop();
+      canvas.removeEventListener('click', onClick);
+    },
+  };
+}
+
+function createPanelV3LiveCanvas(kind: PanelConceptKind, getFps: () => number, baseFps: number): LivePreview | null {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'asset-lab__preview-canvas asset-lab__preview-canvas--interactive';
+  const ctx = initPreviewCanvas(canvas);
+  if (!ctx) return null;
+
+  let actionStart: number | null = null;
+  const onClick = (): void => {
+    actionStart = scaledTime(performance.now(), getFps(), baseFps);
+  };
+
+  const stopLoop = startPreviewLoop(canvas, () => {
+    const { w, h } = measurePreviewCanvas(canvas, ctx);
+    const now = scaledTime(performance.now(), getFps(), baseFps);
+    let action = 0;
+    if (actionStart !== null) {
+      action = (now - actionStart) / PANEL_V3_ACTION_MS;
+      if (action >= 1) {
+        action = 0;
+        actionStart = null;
+      }
+    }
+    drawPanelV3Scene(ctx, w, h, kind, now, action);
+  });
+
+  canvas.addEventListener('click', onClick);
+
+  return {
+    canvas,
+    dispose: () => {
+      stopLoop();
+      canvas.removeEventListener('click', onClick);
+    },
+  };
+}
+
 function createFrames(id: EffectPanelId, sprites: TileSprites): HTMLElement {
   const frames = document.createElement('div');
   frames.className = 'asset-lab__frame-grid';
@@ -1902,6 +2813,138 @@ function createFrames(id: EffectPanelId, sprites: TileSprites): HTMLElement {
     return frames;
   }
 
+  if (id === 'heart-loss-v3') {
+    [
+      { label: 'Full', full: true },
+      { label: 'Empty', full: false },
+    ].forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas((ctx, w, h) => drawHeartStaticV3Scene(ctx, w, h, item.full), item.label, index),
+      );
+    });
+    return frames;
+  }
+
+  if (id === 'start-panel-v3' || id === 'game-over-panel-v3') {
+    const kind: PanelConceptKind = id === 'start-panel-v3' ? 'start' : 'game-over';
+    const panelFrames = [
+      { label: 'Idle', t: 0, action: 0 },
+      { label: 'Scan', t: PANEL_V3_MS * 0.32, action: 0 },
+      { label: 'Pulse', t: PANEL_V3_MS * 0.62, action: 0 },
+      { label: id === 'start-panel-v3' ? 'Start click' : 'Retry click', t: PANEL_V3_MS * 0.12, action: 0.28 },
+      { label: 'Settle', t: PANEL_V3_MS * 0.86, action: 0.72 },
+    ];
+    panelFrames.forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas((ctx, w, h) => drawPanelV3Scene(ctx, w, h, kind, item.t, item.action), item.label, index),
+      );
+    });
+    return frames;
+  }
+
+  if (id === 'score-hud-v3') {
+    frames.classList.add('asset-lab__frame-grid--wide');
+    [
+      { label: '4 digits', t: HUD_FEEDBACK_V3_MS * 0.45, score: '1280' },
+      { label: '5 digits', t: HUD_FEEDBACK_V3_MS * 0.05, score: '39160' },
+      { label: '7 digits', t: HUD_FEEDBACK_V3_MS * 0.28, score: '1284000' },
+      { label: '9 digits', t: HUD_FEEDBACK_V3_MS * 0.72, score: '987654321' },
+    ].forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas(
+          (ctx, w, h) => drawScoreHudV3Scene(ctx, w, h, item.t, item.score),
+          item.label,
+          index,
+          { w: 176, h: 88, wide: true },
+        ),
+      );
+    });
+    return frames;
+  }
+
+  if (id === 'combo-hud-v3') {
+    [
+      { label: 'x3 cyan', t: 0, combo: 3 },
+      { label: 'x10 gold', t: HUD_FEEDBACK_V3_MS * 0.08, combo: 10 },
+      { label: 'x20 hot', t: HUD_FEEDBACK_V3_MS * 0.18, combo: 20 },
+      { label: 'x50 overload', t: HUD_FEEDBACK_V3_MS * 0.28, combo: 50 },
+      { label: 'x99999 reserved', t: HUD_FEEDBACK_V3_MS * 0.42, combo: 99999 },
+    ].forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas((ctx, w, h) => drawComboHudV3Scene(ctx, w, h, item.t, item.combo), item.label, index),
+      );
+    });
+    return frames;
+  }
+
+  if (id === 'score-pop-v3') {
+    [
+      { label: 'Source', t: 0 },
+      { label: 'Flash', t: SCORE_POP_V3_MS * 0.16 },
+      { label: 'Rise', t: SCORE_POP_V3_MS * 0.38 },
+      { label: 'Dissolve', t: SCORE_POP_V3_MS * 0.76 },
+    ].forEach((item, index) => {
+      frames.append(createStaticFrameCanvas((ctx, w, h) => drawScorePopV3Scene(ctx, w, h, item.t), item.label, index));
+    });
+    return frames;
+  }
+
+  if (id === 'combo-burst-v3') {
+    [
+      { label: 'x8', t: COMBO_BURST_V3_MS * 0.12, combo: 8 },
+      { label: 'x10 impact', t: COMBO_BURST_V3_MS * 0.18, combo: 10 },
+      { label: 'x20 shock', t: COMBO_BURST_V3_MS * 0.28, combo: 20 },
+      { label: 'x50 overload', t: COMBO_BURST_V3_MS * 0.34, combo: 50 },
+      { label: 'Dissolve', t: COMBO_BURST_V3_MS * 0.76, combo: 50 },
+    ].forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas((ctx, w, h) => drawComboBurstV3Scene(ctx, w, h, item.t, item.combo), item.label, index),
+      );
+    });
+    return frames;
+  }
+
+  if (id === 'life-loss-popup-v3') {
+    frames.classList.add('asset-lab__frame-grid--wide');
+    [
+      { label: 'Impact', t: LIFE_LOSS_POPUP_V3_MS * 0.08 },
+      { label: 'Break', t: LIFE_LOSS_POPUP_V3_MS * 0.22 },
+      { label: 'Reset', t: LIFE_LOSS_POPUP_V3_MS * 0.48 },
+      { label: 'Fade', t: LIFE_LOSS_POPUP_V3_MS * 0.78 },
+    ].forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas(
+          (ctx, w, h) => drawLifeLossPopupV3Scene(ctx, w, h, item.t),
+          item.label,
+          index,
+          { w: 176, h: 88, wide: true },
+        ),
+      );
+    });
+    return frames;
+  }
+
+  if (id === 'speed-up-alert-v3' || id === 'danger-rise-alert-v3') {
+    frames.classList.add('asset-lab__frame-grid--wide');
+    const kind: HudAlertKind = id === 'speed-up-alert-v3' ? 'speed-up' : 'danger-rise';
+    [
+      { label: 'Enter', t: HUD_ALERT_V3_MS * 0.08 },
+      { label: 'Pulse', t: HUD_ALERT_V3_MS * 0.24 },
+      { label: 'Scan', t: HUD_ALERT_V3_MS * 0.52 },
+      { label: 'Fade', t: HUD_ALERT_V3_MS * 0.86 },
+    ].forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas(
+          (ctx, w, h) => drawHudAlertV3Scene(ctx, w, h, kind, item.t),
+          item.label,
+          index,
+          { w: 176, h: 88, wide: true },
+        ),
+      );
+    });
+    return frames;
+  }
+
   const mineFrames: Array<{ label: string; mode: MineMode; t: number; progress?: number }> = [
     { label: 'Armed', mode: 'armed', t: 0 },
     { label: 'Hit flash', mode: 'flash', t: 0 },
@@ -1952,7 +2995,41 @@ function createAnimPreview(
     return createLoopCanvas((ctx, w, h, now) => drawMineHitV3Scene(ctx, w, h, sprites, now), getFps, baseFps);
   }
   if (id === 'heart-refill-v3') {
-    return createLoopCanvas((ctx, w, h, now) => drawHeartRefillV3Scene(ctx, w, h, now), getFps, baseFps);
+    return createHeartRefillLiveCanvas(getFps, baseFps);
+  }
+  if (id === 'heart-loss-v3') return createHeartLossLiveCanvas();
+  if (id === 'start-panel-v3') return createPanelV3LiveCanvas('start', getFps, baseFps);
+  if (id === 'game-over-panel-v3') return createPanelV3LiveCanvas('game-over', getFps, baseFps);
+  if (id === 'score-hud-v3') {
+    return createLoopCanvas((ctx, w, h, now) => {
+      const scores = ['1280', '39160', '1284000', '987654321'];
+      const score = scores[Math.floor(now / HUD_FEEDBACK_V3_MS) % scores.length] ?? scores[0];
+      drawScoreHudV3Scene(ctx, w, h, now, score);
+    }, getFps, baseFps);
+  }
+  if (id === 'combo-hud-v3') {
+    return createLoopCanvas((ctx, w, h, now) => {
+      const combos = [3, 10, 20, 50];
+      const combo = combos[Math.floor(now / HUD_FEEDBACK_V3_MS) % combos.length] ?? 3;
+      drawComboHudV3Scene(ctx, w, h, now, combo);
+    }, getFps, baseFps);
+  }
+  if (id === 'score-pop-v3') {
+    return createLoopCanvas((ctx, w, h, now) => drawScorePopV3Scene(ctx, w, h, now), getFps, baseFps);
+  }
+  if (id === 'combo-burst-v3') {
+    return createLoopCanvas((ctx, w, h, now) => {
+      const combos = [8, 10, 20, 50];
+      const combo = combos[Math.floor(now / COMBO_BURST_V3_MS) % combos.length] ?? 8;
+      drawComboBurstV3Scene(ctx, w, h, now, combo);
+    }, getFps, baseFps);
+  }
+  if (id === 'life-loss-popup-v3') {
+    return createLoopCanvas((ctx, w, h, now) => drawLifeLossPopupV3Scene(ctx, w, h, now), getFps, baseFps);
+  }
+  if (id === 'speed-up-alert-v3' || id === 'danger-rise-alert-v3') {
+    const kind: HudAlertKind = id === 'speed-up-alert-v3' ? 'speed-up' : 'danger-rise';
+    return createLoopCanvas((ctx, w, h, now) => drawHudAlertV3Scene(ctx, w, h, kind, now), getFps, baseFps);
   }
   return createMineLiveCanvas(sprites);
 }
@@ -2002,7 +3079,13 @@ function createEffectPanel(spec: EffectCardSpec): { panel: HTMLElement; dispose:
     hint.textContent =
       spec.id === 'mine'
         ? 'Click the preview to play the blast sequence.'
-        : 'Hover and click the preview to test hover / open states.';
+        : spec.id === 'heart-refill-v3'
+          ? 'Click the preview to play refill; it holds on the full heart.'
+          : spec.id === 'heart-loss-v3'
+            ? 'Click the preview to toggle full / empty heart states.'
+            : spec.id === 'start-panel-v3' || spec.id === 'game-over-panel-v3'
+              ? 'Click the preview to play the button press feedback.'
+              : 'Hover and click the preview to test hover / open states.';
     controls.append(hint);
   }
 

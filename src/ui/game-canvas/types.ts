@@ -40,6 +40,10 @@ export interface GameCanvasHudStats {
     livesCurrent: number;
     livesMax: number;
   };
+  difficulty?: {
+    speedTier: number;
+    batchTier: number;
+  };
 }
 
 export interface GameCanvasFullscreenOptions {
