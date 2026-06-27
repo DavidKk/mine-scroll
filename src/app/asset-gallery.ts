@@ -95,6 +95,21 @@ const V3_CANDIDATE_CUTOUTS: StaticPreviewItem[] = [
   { id: 'heart-empty', label: 'Heart empty', src: `${V3_CANDIDATE_BASE}/cutouts/heart-empty.png`, background: 'checker' },
 ];
 
+const V3_HUD_ALERT_CANDIDATES: StaticPreviewItem[] = [
+  {
+    id: 'speed-up-alert-v3',
+    label: 'Speed up alert v3',
+    src: '/assets/candidates/hud-alerts-v3/runtime/speed-up-alert-v3.png',
+    background: 'black',
+  },
+  {
+    id: 'danger-rise-alert-v3',
+    label: 'Danger rise alert v3',
+    src: '/assets/candidates/hud-alerts-v3/runtime/danger-rise-alert-v3.png',
+    background: 'black',
+  },
+];
+
 const V3_BOARD_TILE_CANDIDATES: StaticPreviewItem[] = [
   { id: 'cell-hidden', label: 'Cell hidden square v3', src: `${V3_BOARD_TILE_BASE}/cell-hidden.png`, background: 'checker' },
   { id: 'cell-revealed', label: 'Cell revealed square v3', src: `${V3_BOARD_TILE_BASE}/cell-revealed.png`, background: 'checker' },
@@ -311,6 +326,7 @@ const FX_NAV: Array<{ id: EffectPanelId; label: string }> = [
   { id: 'combo-burst-v3', label: 'Combo burst v3' },
   { id: 'life-loss-popup-v3', label: 'Life loss popup v3' },
   { id: 'speed-up-alert-v3', label: 'Speed up alert v3' },
+  { id: 'speed-up-chevron-v3', label: 'Speed up chevrons v3' },
   { id: 'danger-rise-alert-v3', label: 'Danger rise alert v3' },
 ];
 
@@ -447,8 +463,15 @@ function mountSpritesSection(
     description: 'Review-only 128x128 square board tiles and standalone digit glyphs. Runtime wiring is still pending.',
     items: V3_BOARD_TILE_CANDIDATES,
   };
+  const candidateHudAlertSection: StaticPreviewSection = {
+    id: 'hud-alerts-v3',
+    title: 'HUD alerts v3',
+    description: 'Runtime difficulty alert badge art. Chevron acceleration streaks are Canvas-driven — see Animations → Speed up chevrons v3.',
+    items: V3_HUD_ALERT_CANDIDATES,
+  };
   spritePanels.set(candidateCutoutSection.id, createStaticPreviewPanel(candidateCutoutSection));
   spritePanels.set(candidateBoardTileSection.id, createStaticPreviewPanel(candidateBoardTileSection));
+  spritePanels.set(candidateHudAlertSection.id, createStaticPreviewPanel(candidateHudAlertSection));
   const workspace = createWorkspace();
   const sidebarHost = document.createElement('div');
   sidebarHost.className = 'asset-lab__sidebar-host';
@@ -474,6 +497,12 @@ function mountSpritesSection(
         label: 'Board v3 Tiles',
         group: 'sprites' as const,
         count: candidateBoardTileSection.items.length,
+      },
+      {
+        id: candidateHudAlertSection.id,
+        label: 'HUD Alerts v3',
+        group: 'sprites' as const,
+        count: candidateHudAlertSection.items.length,
       },
     ];
 

@@ -266,7 +266,7 @@ export interface BottomFeedbackSlots {
   scorePop: Point;
 }
 
-const BOTTOM_FEEDBACK_STACK_GAP = 54;
+const BOTTOM_FEEDBACK_STACK_GAP = 118;
 
 export function getBottomFeedbackSlots(
   viewportW: number,
@@ -296,12 +296,12 @@ export function getBottomFeedbackSlots(
     };
   }
 
-  // When vertical space is tight: score shifts left, combo stays centered
+  // When vertical space is tight: score shifts left but stays clearly above combo
   return {
     comboBurst,
     scorePop: {
       x: comboBurst.x - 92 * scale,
-      y: comboBurst.y - stackGap * 0.42,
+      y: comboBurst.y - stackGap * 0.92,
     },
   };
 }

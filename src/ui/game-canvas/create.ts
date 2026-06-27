@@ -25,7 +25,7 @@ import {
   type ScrollPressureState,
   type RenderState,
 } from '../renderer/index.ts';
-import { drawCellRevealTransitionOverlay, drawMineBurstSmoke, type BoardPointerState } from '../cell-fx.ts';
+import { drawCellRevealTransitionOverlay, drawMineBurstSmoke, drawPanelV3ScanBeams, type BoardPointerState } from '../cell-fx.ts';
 import { FpsMeter, drawFpsHud } from '../fps-meter.ts';
 import {
   GAME_ASSET_TUNING,
@@ -1078,19 +1078,7 @@ export function createGameCanvas(
     shellCtx.fillStyle = glow;
     shellCtx.fillRect(x - w * 0.08, y - h * 0.12, w * 1.16, h * 1.24);
 
-    const scanX = x + ((phase * 1.35) % 1) * w;
-    const scan = shellCtx.createLinearGradient(scanX - w * 0.12, 0, scanX + w * 0.12, 0);
-    scan.addColorStop(0, 'rgba(255,255,255,0)');
-    scan.addColorStop(0.5, `rgba(${color}, ${0.34 + pulse * 0.12})`);
-    scan.addColorStop(1, 'rgba(255,255,255,0)');
-    shellCtx.strokeStyle = scan;
-    shellCtx.lineWidth = Math.max(1.5, h * 0.012);
-    shellCtx.beginPath();
-    shellCtx.moveTo(scanX - w * 0.22, y + h * 0.18);
-    shellCtx.lineTo(scanX + w * 0.22, y + h * 0.18);
-    shellCtx.moveTo(scanX - w * 0.18, y + h * 0.82);
-    shellCtx.lineTo(scanX + w * 0.18, y + h * 0.82);
-    shellCtx.stroke();
+    drawPanelV3ScanBeams(shellCtx, { x, y, w, h }, color, phase, pulse);
 
     for (let i = 0; i < 8; i += 1) {
       const side = i % 4;
@@ -2253,7 +2241,6 @@ export function createGameCanvas(
 
     drawParticles(shellCtx, performance.now());
     drawDifficultyAlert(shellCtx, shellW);
-    drawScoreEvent(shellCtx, activeScoreEvent, scoreFxStartedAt, shellW);
     drawBreakEvent(shellCtx, activeBreakEvent, breakFxStartedAt, shellW, shellH);
 
     if (combo > 1 && comboFxStartedAt > 0) {
@@ -2328,6 +2315,8 @@ export function createGameCanvas(
 
       if (t < 1) scheduleAnimationFrame();
     }
+
+    drawScoreEvent(shellCtx, activeScoreEvent, scoreFxStartedAt, shellW);
 
     if (combo > 1) {
       const pulse = 0.5 + Math.sin(Date.now() / 120) * 0.5;

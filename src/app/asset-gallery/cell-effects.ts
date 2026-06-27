@@ -1,4 +1,4 @@
-import { drawProceduralOrbitParticles, drawMineBurstSmoke, drawMineScorchMark, drawMineSettledSmoke } from '../../ui/cell-fx.ts';
+import { drawProceduralOrbitParticles, drawMineBurstSmoke, drawMineScorchMark, drawMineSettledSmoke, drawPanelV3ScanBeams } from '../../ui/cell-fx.ts';
 import {
   drawFxSpriteFrame,
   drawImageContained,
@@ -43,6 +43,7 @@ export type EffectPanelId =
   | 'combo-burst-v3'
   | 'life-loss-popup-v3'
   | 'speed-up-alert-v3'
+  | 'speed-up-chevron-v3'
   | 'danger-rise-alert-v3';
 
 interface CellEffectDrawOpts {
@@ -358,7 +359,16 @@ const EFFECT_SPECS: EffectCardSpec[] = [
   {
     id: 'speed-up-alert-v3',
     title: 'Speed up alert v3',
-    description: 'Candidate difficulty alert: speed-up badge base plus Canvas text, scan streaks, and restrained acceleration particles.',
+    description: 'Full runtime SPEED UP alert: badge art, Canvas text, scan streaks, and chevron acceleration particles.',
+    cycleMs: HUD_ALERT_V3_MS,
+    frameCount: 4,
+    defaultFps: 12,
+    loop: true,
+  },
+  {
+    id: 'speed-up-chevron-v3',
+    title: 'Speed up chevrons v3',
+    description: 'Isolated Canvas chevron streaks from the runtime SPEED UP alert: paired rects that read as right-pointing triangles.',
     cycleMs: HUD_ALERT_V3_MS,
     frameCount: 4,
     defaultFps: 12,
@@ -1797,19 +1807,7 @@ function drawPanelV3CanvasFx(
   ctx.fillStyle = glow;
   ctx.fillRect(bounds.x - bounds.w * 0.08, bounds.y - bounds.h * 0.12, bounds.w * 1.16, bounds.h * 1.24);
 
-  const scanX = bounds.x + ((phase * 1.35) % 1) * bounds.w;
-  const scan = ctx.createLinearGradient(scanX - bounds.w * 0.12, 0, scanX + bounds.w * 0.12, 0);
-  scan.addColorStop(0, 'rgba(255,255,255,0)');
-  scan.addColorStop(0.5, `rgba(${color}, ${0.34 + pulse * 0.12})`);
-  scan.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.strokeStyle = scan;
-  ctx.lineWidth = Math.max(1.5, bounds.h * 0.012);
-  ctx.beginPath();
-  ctx.moveTo(scanX - bounds.w * 0.22, bounds.y + bounds.h * 0.18);
-  ctx.lineTo(scanX + bounds.w * 0.22, bounds.y + bounds.h * 0.18);
-  ctx.moveTo(scanX - bounds.w * 0.18, bounds.y + bounds.h * 0.82);
-  ctx.lineTo(scanX + bounds.w * 0.18, bounds.y + bounds.h * 0.82);
-  ctx.stroke();
+  drawPanelV3ScanBeams(ctx, bounds, color, phase, pulse);
 
   for (let i = 0; i < 8; i += 1) {
     const side = i % 4;
@@ -2337,6 +2335,58 @@ function drawLifeLossPopupV3Scene(ctx: CanvasRenderingContext2D, w: number, h: n
 
 type HudAlertKind = 'speed-up' | 'danger-rise';
 
+function drawSpeedUpChevronStreaks(
+  ctx: CanvasRenderingContext2D,
+  bounds: { x: number; y: number; w: number; h: number },
+  progress: number,
+  alpha: number,
+  canvasW: number,
+  canvasH: number,
+): void {
+  const main = '255, 190, 55';
+  const soft = '45, 236, 255';
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = alpha;
+  for (let i = 0; i < 12; i += 1) {
+    const p = (progress + i * 0.071) % 1;
+    const px = bounds.x + bounds.w * (0.18 + p * 0.64);
+    const py = bounds.y + bounds.h * (0.36 + Math.sin(i) * 0.12);
+    ctx.fillStyle = i % 3 === 0 ? `rgba(${main}, ${alpha * (1 - p)})` : `rgba(${soft}, ${alpha * 0.72 * (1 - p)})`;
+    ctx.fillRect(px, py, Math.max(1.2, canvasW * 0.004), Math.max(1.2, canvasH * 0.004));
+    ctx.fillRect(px - canvasW * 0.018, py, canvasW * 0.016, Math.max(1, canvasH * 0.003));
+  }
+  ctx.restore();
+}
+
+function drawSpeedUpChevronFxScene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number): void {
+  ctx.fillStyle = '#07080f';
+  ctx.fillRect(0, 0, w, h);
+
+  const progress = (tMs % HUD_ALERT_V3_MS) / HUD_ALERT_V3_MS;
+  const lane = { x: w * 0.06, y: h * 0.34, w: w * 0.88, h: h * 0.32 };
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(45, 236, 255, 0.14)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 8]);
+  ctx.strokeRect(lane.x, lane.y, lane.w, lane.h);
+  ctx.restore();
+
+  drawSpeedUpChevronStreaks(ctx, lane, progress, 1, w, h);
+
+  ctx.save();
+  ctx.globalAlpha = 0.42;
+  ctx.strokeStyle = 'rgba(255, 190, 55, 0.55)';
+  ctx.lineWidth = Math.max(1, h * 0.006);
+  ctx.beginPath();
+  ctx.moveTo(lane.x + lane.w * 0.12, lane.y + lane.h * 0.72);
+  ctx.lineTo(lane.x + lane.w * 0.88, lane.y + lane.h * 0.72);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawHudAlertV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, kind: HudAlertKind, tMs: number): void {
   paintStageBg(ctx, w, h);
   const progress = (tMs % HUD_ALERT_V3_MS) / HUD_ALERT_V3_MS;
@@ -2364,14 +2414,16 @@ function drawHudAlertV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.fillStyle = scan;
   ctx.fillRect(asset.x + asset.w * 0.08, asset.y + asset.h * 0.22, asset.w * 0.84, asset.h * 0.56);
 
-  for (let i = 0; i < 12; i += 1) {
-    const p = (progress + i * 0.071) % 1;
-    const dir = kind === 'speed-up' ? 1 : -1;
-    const px = asset.x + asset.w * (0.18 + p * 0.64);
-    const py = asset.y + asset.h * (kind === 'speed-up' ? 0.36 + Math.sin(i) * 0.12 : 0.75 - p * 0.48);
-    ctx.fillStyle = i % 3 === 0 ? `rgba(${main}, ${visible * (1 - p)})` : `rgba(${soft}, ${visible * 0.72 * (1 - p)})`;
-    ctx.fillRect(px, py, Math.max(1.2, w * 0.004), Math.max(1.2, h * 0.004 + (kind === 'danger-rise' ? p * h * 0.02 : 0)));
-    if (kind === 'speed-up') ctx.fillRect(px - dir * w * 0.018, py, w * 0.016, Math.max(1, h * 0.003));
+  if (kind === 'speed-up') {
+    drawSpeedUpChevronStreaks(ctx, asset, progress, visible, w, h);
+  } else {
+    for (let i = 0; i < 12; i += 1) {
+      const p = (progress + i * 0.071) % 1;
+      const px = asset.x + asset.w * (0.18 + p * 0.64);
+      const py = asset.y + asset.h * (0.75 - p * 0.48);
+      ctx.fillStyle = i % 3 === 0 ? `rgba(${main}, ${visible * (1 - p)})` : `rgba(${soft}, ${visible * 0.72 * (1 - p)})`;
+      ctx.fillRect(px, py, Math.max(1.2, w * 0.004), Math.max(1.2, h * 0.004 + p * h * 0.02));
+    }
   }
 
   ctx.globalCompositeOperation = 'source-over';
@@ -2924,6 +2976,26 @@ function createFrames(id: EffectPanelId, sprites: TileSprites): HTMLElement {
     return frames;
   }
 
+  if (id === 'speed-up-chevron-v3') {
+    frames.classList.add('asset-lab__frame-grid--wide');
+    [
+      { label: 'Streak A', t: HUD_ALERT_V3_MS * 0.12 },
+      { label: 'Streak B', t: HUD_ALERT_V3_MS * 0.34 },
+      { label: 'Streak C', t: HUD_ALERT_V3_MS * 0.58 },
+      { label: 'Streak D', t: HUD_ALERT_V3_MS * 0.82 },
+    ].forEach((item, index) => {
+      frames.append(
+        createStaticFrameCanvas(
+          (ctx, w, h) => drawSpeedUpChevronFxScene(ctx, w, h, item.t),
+          item.label,
+          index,
+          { w: 176, h: 88, wide: true },
+        ),
+      );
+    });
+    return frames;
+  }
+
   if (id === 'speed-up-alert-v3' || id === 'danger-rise-alert-v3') {
     frames.classList.add('asset-lab__frame-grid--wide');
     const kind: HudAlertKind = id === 'speed-up-alert-v3' ? 'speed-up' : 'danger-rise';
@@ -3026,6 +3098,9 @@ function createAnimPreview(
   }
   if (id === 'life-loss-popup-v3') {
     return createLoopCanvas((ctx, w, h, now) => drawLifeLossPopupV3Scene(ctx, w, h, now), getFps, baseFps);
+  }
+  if (id === 'speed-up-chevron-v3') {
+    return createLoopCanvas((ctx, w, h, now) => drawSpeedUpChevronFxScene(ctx, w, h, now), getFps, baseFps);
   }
   if (id === 'speed-up-alert-v3' || id === 'danger-rise-alert-v3') {
     const kind: HudAlertKind = id === 'speed-up-alert-v3' ? 'speed-up' : 'danger-rise';
