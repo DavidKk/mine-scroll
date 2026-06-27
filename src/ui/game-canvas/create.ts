@@ -33,6 +33,7 @@ import {
   comboHudGlowRgba,
   createScorePopFallbackDrawer,
   drawComboBurstV3,
+  drawComboRailInteriorArcs,
   drawScorePopV3,
   getComboFeedbackPalette,
   getComboHudAccentColors,
@@ -528,6 +529,7 @@ export function createGameCanvas(
       const comboAge = now - comboFxStartedAt;
       if (comboAge < GAME_ASSET_TUNING.fx.comboBurst.durationMs) return 'full';
     }
+    if (lastCombo > 1 && currentStatus === 'playing') return 'ambient';
     if (fullscreen) return 'ambient';
     if (currentStatus === 'idle') return 'ambient';
     if (currentStatus !== 'playing') return false;
@@ -1942,6 +1944,7 @@ export function createGameCanvas(
     );
     if (asset) {
       drawComboRailGlow(shellCtx, asset, palette, glowAlpha);
+      drawComboRailInteriorArcs(shellCtx, asset, displayCombo, palette, scale, Date.now());
     }
     if (!asset) {
       const glow = shellCtx.createRadialGradient(cx, y + 25 * scale, 2 * scale, cx, y + 25 * scale, 64 * scale);

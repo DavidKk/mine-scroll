@@ -4,6 +4,7 @@ import {
   SCORE_POP_FX_MS,
   comboBurstPreviewProgress,
   drawComboBurstV3,
+  drawComboRailInteriorArcs,
   drawScorePopV3,
   getComboFeedbackPalette,
   getComboRailFilter,
@@ -2248,6 +2249,7 @@ function drawComboHudV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number
     return;
   }
   drawComboRailGlow(ctx, asset, palette, 0.36 + impact * 0.22);
+  drawComboRailInteriorArcs(ctx, asset, combo, palette, w / 390, tMs);
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
