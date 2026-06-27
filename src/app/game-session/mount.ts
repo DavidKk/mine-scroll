@@ -12,7 +12,6 @@ import {
   endlessScreenRowToLocal,
   getEndlessPreviewRows,
   getEndlessScrollProfile,
-  isBatchScrollSafe,
   isEndlessInteractiveScreenRow,
 } from '../../core/modes/endless/index.ts';
 import { getModeEntry } from '../../core/modes/catalog.ts';
@@ -33,6 +32,8 @@ function createInitialRuntime(session: ModeSession): GameSessionRuntime {
     scrollTimeoutId: null,
     scrollDeadlineAt: 0,
     scrollIntervalMs: 0,
+    scrollDetonateTimeoutId: null,
+    scrollPendingTick: null,
     aiHint: null,
     aiAutoId: null,
     aiAutoActive: false,
@@ -127,6 +128,8 @@ export function mountGameSession(
     refreshAiHint: () => ai.refreshAiHint(),
     stopAiAuto: () => ai.stopAiAuto(),
     onScrollTick: () => gameAudio.play('scrollUp'),
+    queueMineExplosions: (cells) => runtime.view?.queueScrollMineGhosts(cells),
+    onScrollMineDetonate: () => gameAudio.play('mineHit'),
   });
 
   ai = createAiController({
@@ -145,7 +148,6 @@ export function mountGameSession(
     const scrollElapsed =
       runtime.scrollGameStartedAt > 0 ? Date.now() - runtime.scrollGameStartedAt : 0;
     const scrollProfile = getEndlessScrollProfile(scrollElapsed);
-    const batchRows = scrollProfile.batchRows;
     const playing = runtime.session.state.status === 'playing';
     return {
       score: runtime.session.score ?? 0,
@@ -153,7 +155,7 @@ export function mountGameSession(
       scoreEvent: runtime.presentation.scoreEvent,
       breakEvent: runtime.presentation.breakEvent,
       lives: `${'♥'.repeat(lives)}${'♡'.repeat(Math.max(0, maxLives - lives))}`,
-      spaceEnabled: playing && isBatchScrollSafe(runtime.session, batchRows),
+      spaceEnabled: playing,
       devAutoVisible: import.meta.env.DEV,
       devAutoActive: runtime.aiAutoActive,
       backdrop: {
@@ -215,6 +217,10 @@ export function mountGameSession(
       onStart: () => startArcadeRun(),
       onRestart: () => restartGame(),
       onDevAuto: () => ai.toggleAiAuto(startArcadeRun),
+      onDevSpeedUp: () => {
+        if (!scroll.bumpScrollDifficultyForDebug()) return;
+        gameLog.append('Debug · scroll tier +1', 'system');
+      },
       onUiHover: () => gameAudio.play('uiHover'),
       onUiClick: () => gameAudio.play('uiClick'),
       onPointerDown: () => gameAudio.unlock(),
@@ -337,10 +343,6 @@ export function mountGameSession(
     if (event.code === 'Space') {
       if (runtime.logOpen) return;
       if (runtime.session.state.status !== 'playing') return;
-      const scrollElapsed =
-        runtime.scrollGameStartedAt > 0 ? Date.now() - runtime.scrollGameStartedAt : 0;
-      const batchRows = getEndlessScrollProfile(scrollElapsed).batchRows;
-      if (!isBatchScrollSafe(runtime.session, batchRows)) return;
       event.preventDefault();
       gameAudio.unlock();
       scroll.performScrollTick(true);

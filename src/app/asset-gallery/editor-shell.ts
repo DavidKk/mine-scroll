@@ -1,4 +1,7 @@
-import { ROUTES, assetLabSectionPath, type AssetLabSection } from '../routes.ts';
+import { ROUTES, assetLabPanelPath, assetLabSectionPath, type AssetLabSection } from '../routes.ts';
+import { wrapWithCustomScrollbar } from '../../ui/custom-scrollbar.ts';
+
+const ASSET_LAB_SCROLL_HOST = 'scroll-host scroll-host--asset-lab';
 
 export function paintCheckerBg(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const tile = 16;
@@ -85,27 +88,28 @@ export function createTopbar(
   return bar;
 }
 
-export function createSidebar(
+export function populateSidebar(
+  container: HTMLElement,
   items: NavItem[],
   activeId: string,
+  section: AssetLabSection,
   onSelect: (id: string) => void,
-): HTMLElement {
-  const aside = document.createElement('aside');
-  aside.className = 'asset-lab__sidebar';
+): void {
+  container.replaceChildren();
 
   const label = document.createElement('p');
   label.className = 'asset-lab__control-label';
   label.textContent = 'Browser';
-  aside.append(label);
+  container.append(label);
 
   const list = document.createElement('div');
   list.className = 'asset-lab__nav-list';
 
   for (const item of items) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `asset-lab__nav-item${item.id === activeId ? ' asset-lab__nav-item--active' : ''}`;
-    btn.dataset.navId = item.id;
+    const link = document.createElement('a');
+    link.href = assetLabPanelPath(section, item.id);
+    link.className = `asset-lab__nav-item${item.id === activeId ? ' asset-lab__nav-item--active' : ''}`;
+    link.dataset.navId = item.id;
 
     const name = document.createElement('span');
     name.className = 'asset-lab__nav-item-label';
@@ -115,19 +119,58 @@ export function createSidebar(
     count.className = 'asset-lab__nav-item-count';
     if (item.count !== undefined) count.textContent = String(item.count);
 
-    btn.append(name, count);
-    btn.addEventListener('click', () => onSelect(item.id));
-    list.append(btn);
+    link.append(name, count);
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      onSelect(item.id);
+    });
+    list.append(link);
   }
 
-  aside.append(list);
+  container.append(list);
+}
+
+export function createSidebar(
+  items: NavItem[],
+  activeId: string,
+  section: AssetLabSection,
+  onSelect: (id: string) => void,
+): HTMLElement {
+  const aside = document.createElement('aside');
+  aside.className = 'asset-lab__sidebar';
+  populateSidebar(aside, items, activeId, section, onSelect);
   return aside;
 }
 
-export function createWorkspace(): HTMLElement {
-  const main = document.createElement('main');
-  main.className = 'asset-lab__workspace';
-  return main;
+export function createAssetLabSidebarScroll(): {
+  host: HTMLElement;
+  scrollView: HTMLElement;
+  dispose: () => void;
+} {
+  const host = document.createElement('div');
+  host.className = 'asset-lab__sidebar-host';
+
+  const scrollView = document.createElement('aside');
+  scrollView.className = 'asset-lab__sidebar';
+  const dispose = wrapWithCustomScrollbar(scrollView, ASSET_LAB_SCROLL_HOST);
+  host.append(scrollView.parentElement!);
+
+  return { host, scrollView, dispose };
+}
+
+export function createAssetLabWorkspaceScroll(): {
+  host: HTMLElement;
+  scrollView: HTMLElement;
+  dispose: () => void;
+} {
+  const scrollView = document.createElement('main');
+  scrollView.className = 'asset-lab__workspace';
+  const dispose = wrapWithCustomScrollbar(scrollView, ASSET_LAB_SCROLL_HOST);
+  return {
+    host: scrollView.parentElement as HTMLElement,
+    scrollView,
+    dispose,
+  };
 }
 
 export function createPanelHead(title: string, description: string): HTMLElement {

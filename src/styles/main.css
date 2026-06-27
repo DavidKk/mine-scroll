@@ -510,8 +510,25 @@ body::-webkit-scrollbar {
 
 .asset-lab__sidebar-host {
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   background: #14161d;
+}
+
+.scroll-host--asset-lab {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.scroll-host--asset-lab .scroll-indicator {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.scroll-host--asset-lab .scroll-indicator__thumb {
+  background: rgba(245, 165, 36, 0.62);
+  box-shadow: 0 0 6px rgba(245, 165, 36, 0.28);
 }
 
 .asset-lab__sidebar {
@@ -519,8 +536,6 @@ body::-webkit-scrollbar {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 100%;
-  overflow-y: auto;
 }
 
 .asset-lab__control-label {
@@ -553,6 +568,8 @@ body::-webkit-scrollbar {
   font-size: 13px;
   font-weight: 600;
   text-align: left;
+  text-decoration: none;
+  box-sizing: border-box;
   cursor: pointer;
 }
 
@@ -577,7 +594,6 @@ body::-webkit-scrollbar {
 
 .asset-lab__workspace {
   min-height: 0;
-  overflow-y: auto;
   padding: 16px;
   background: #0b0c10;
 }

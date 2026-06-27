@@ -2,7 +2,7 @@ import { mountAssetGallery } from './asset-gallery.ts';
 import { mountGameSession } from './game-session/index.ts';
 import {
   canonicalAssetLabPath,
-  resolveAssetLabSection,
+  parseAssetLabRoute,
   resolveRoute,
 } from './routes.ts';
 import { mountResponsiveMatrix } from './responsive-matrix.ts';
@@ -30,8 +30,8 @@ export function mountApp(root: HTMLElement): void {
 
   switch (resolveRoute()) {
     case 'assets': {
-      const section = resolveAssetLabSection() ?? 'sprites';
-      cleanup = mountAssetGallery(root, section, navigateApp);
+      const route = parseAssetLabRoute() ?? { section: 'sprites' as const, panelId: null };
+      cleanup = mountAssetGallery(root, route.section, route.panelId, navigateApp);
       return;
     }
     case 'lab':

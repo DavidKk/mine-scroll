@@ -1,9 +1,12 @@
 import {
+  collectScrollLeavingMineCells,
   endlessScrollTick,
   getEndlessScrollPressure,
   getEndlessScrollProfile,
+  SCROLL_STEP_MS,
 } from '../../core/modes/endless/index.ts';
 import type { ModeSession } from '../../core/types.ts';
+import { GAME_ASSET_TUNING } from '../../ui/game-assets.ts';
 import type { CanvasLogController, GameSessionRuntime, SessionApplyContext } from './types.ts';
 
 export interface ScrollControllerDeps {
@@ -14,13 +17,21 @@ export interface ScrollControllerDeps {
   refreshAiHint(): void;
   stopAiAuto(): void;
   onScrollTick?: () => void;
+  queueMineExplosions?: (cells: { row: number; col: number }[]) => void;
+  onScrollMineDetonate?: () => void;
 }
+
+const SCROLL_MINE_GHOST_MS = GAME_ASSET_TUNING.fx.mineExplosion.durationMs;
+/** Scroll after mine is shown and blast starts — ghost keeps pinned while board moves. */
+const SCROLL_COMMIT_AT = 0.55;
 
 export interface ScrollController {
   getElapsedMs(): number;
   markGameClockStarted(): void;
   stopScrollTimer(): void;
   performScrollTick(manual: boolean, aiReason?: string): void;
+  /** DEV: bump scroll elapsed by one tier step to test speed / batch escalation. Returns false if not playing. */
+  bumpScrollDifficultyForDebug(): boolean;
   startScrollTimer(): void;
   getScrollPressureState(): ReturnType<typeof buildScrollPressure> | undefined;
 }
@@ -43,8 +54,26 @@ function getScrollElapsedMsFromRuntime(runtime: GameSessionRuntime): number {
   return Date.now() - runtime.scrollGameStartedAt;
 }
 
+function clearScrollDetonation(runtime: GameSessionRuntime): void {
+  if (runtime.scrollDetonateTimeoutId !== null) {
+    window.clearTimeout(runtime.scrollDetonateTimeoutId);
+    runtime.scrollDetonateTimeoutId = null;
+  }
+  runtime.scrollPendingTick = null;
+}
+
 export function createScrollController(deps: ScrollControllerDeps): ScrollController {
-  const { runtime, gameLog, applySession, render, refreshAiHint, stopAiAuto, onScrollTick } = deps;
+  const {
+    runtime,
+    gameLog,
+    applySession,
+    render,
+    refreshAiHint,
+    stopAiAuto,
+    onScrollTick,
+    queueMineExplosions,
+    onScrollMineDetonate,
+  } = deps;
 
   function getElapsedMs(): number {
     return getScrollElapsedMsFromRuntime(runtime);
@@ -67,6 +96,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     }
     runtime.scrollDeadlineAt = 0;
     runtime.scrollIntervalMs = 0;
+    clearScrollDetonation(runtime);
   }
 
   function scheduleNextScroll(): void {
@@ -84,16 +114,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     }, profile.intervalMs);
   }
 
-  function performScrollTick(manual: boolean, aiReason?: string): void {
-    if (runtime.session.state.status !== 'playing') return;
-
-    if (runtime.scrollTimeoutId !== null) {
-      window.clearTimeout(runtime.scrollTimeoutId);
-      runtime.scrollTimeoutId = null;
-    }
-
-    const profile = getEndlessScrollProfile(getElapsedMs());
-    const batchRows = profile.batchRows;
+  function commitScrollTick(manual: boolean, aiReason: string | undefined, batchRows: number): void {
     const beforeLives = runtime.session.lives;
     const next = endlessScrollTick(runtime.session, batchRows);
     if (!manual) {
@@ -134,6 +155,50 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     render();
   }
 
+  function performScrollTick(manual: boolean, aiReason?: string): void {
+    if (runtime.session.state.status !== 'playing') return;
+    if (runtime.scrollDetonateTimeoutId !== null) return;
+
+    if (runtime.scrollTimeoutId !== null) {
+      window.clearTimeout(runtime.scrollTimeoutId);
+      runtime.scrollTimeoutId = null;
+    }
+
+    const profile = getEndlessScrollProfile(getElapsedMs());
+    const batchRows = profile.batchRows;
+    const leavingMines = collectScrollLeavingMineCells(runtime.session, batchRows);
+
+    if (leavingMines.length > 0 && queueMineExplosions) {
+      queueMineExplosions(leavingMines.map((cell) => ({ row: cell.screenRow, col: cell.col })));
+      onScrollMineDetonate?.();
+      runtime.scrollPendingTick = { manual, aiReason, batchRows };
+      render();
+      runtime.scrollDetonateTimeoutId = window.setTimeout(() => {
+        runtime.scrollDetonateTimeoutId = null;
+        const pending = runtime.scrollPendingTick;
+        runtime.scrollPendingTick = null;
+        if (!pending || runtime.session.state.status !== 'playing') return;
+        commitScrollTick(pending.manual, pending.aiReason, pending.batchRows);
+      }, Math.round(SCROLL_MINE_GHOST_MS * SCROLL_COMMIT_AT));
+      return;
+    }
+
+    commitScrollTick(manual, aiReason, batchRows);
+  }
+
+  function bumpScrollDifficultyForDebug(): boolean {
+    if (runtime.session.state.status !== 'playing') return false;
+    markGameClockStarted();
+    runtime.scrollGameStartedAt = Math.max(0, runtime.scrollGameStartedAt - SCROLL_STEP_MS);
+    if (runtime.scrollTimeoutId !== null) {
+      window.clearTimeout(runtime.scrollTimeoutId);
+      runtime.scrollTimeoutId = null;
+    }
+    scheduleNextScroll();
+    render();
+    return true;
+  }
+
   function startScrollTimer(): void {
     if (runtime.scrollTimeoutId !== null) return;
     scheduleNextScroll();
@@ -149,6 +214,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     markGameClockStarted,
     stopScrollTimer,
     performScrollTick,
+    bumpScrollDifficultyForDebug,
     startScrollTimer,
     getScrollPressureState,
   };

@@ -101,7 +101,9 @@ export function playLifeLossAudio(
     return;
   }
   if (cause === 'scroll-bottom') {
-    audio.play('lifeWarning');
+    const hasMine = next.lastLifeLoss?.cells.some((cell) => cell.kind === 'mine-unflagged') === true;
+    if (!hasMine) audio.play('lifeWarning');
+    return;
   }
 }
 

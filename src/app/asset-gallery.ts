@@ -1,13 +1,15 @@
 import { getTileSprites } from '../ui/tile-sprites.ts';
 import type { AssetLabSection } from './routes.ts';
+import { syncAssetLabPanelPath } from './routes.ts';
 import { audioNavItems, mountAudioPanels, type AudioPanelId } from './asset-gallery/audio-lab.ts';
 import { backdropNavItems, mountBackdropPanels, type BackdropPanelId } from './asset-gallery/ambient-backdrop-lab.ts';
 import {
+  createAssetLabSidebarScroll,
+  createAssetLabWorkspaceScroll,
   createFooterNote,
   createPanelHead,
-  createSidebar,
   createTopbar,
-  createWorkspace,
+  populateSidebar,
   type NavItem,
 } from './asset-gallery/editor-shell.ts';
 import { mountEffectPanels, type EffectPanelId } from './asset-gallery/cell-effects.ts';
@@ -342,6 +344,7 @@ const FOOTER_NOTES: Record<AssetLabSection, string> = {
 export function mountAssetGallery(
   root: HTMLElement,
   section: AssetLabSection,
+  initialPanelId: string | null,
   onNavigate: (path: string) => void,
 ): () => void {
   root.className = 'app app--asset-lab';
@@ -356,7 +359,7 @@ export function mountAssetGallery(
       label: s.title,
       group: 'sources' as const,
       count: s.items.length,
-    })), (id) => panels.get(id)));
+    })), (id) => panels.get(id), initialPanelId));
     return () => {
       for (const dispose of disposers) dispose();
       root.replaceChildren();
@@ -373,7 +376,7 @@ export function mountAssetGallery(
       return () => root.replaceChildren();
     }
 
-    disposers.push(mountSpritesSection(root, sections, section, onNavigate));
+    disposers.push(mountSpritesSection(root, sections, section, onNavigate, initialPanelId));
     return () => {
       for (const dispose of disposers) dispose();
       root.replaceChildren();
@@ -388,7 +391,7 @@ export function mountAssetGallery(
       label: fx.label,
       group: 'animations' as const,
       count: 8,
-    })), (id) => effects.panels[id as EffectPanelId]));
+    })), (id) => effects.panels[id as EffectPanelId], initialPanelId));
     return () => {
       for (const dispose of disposers) dispose();
       root.replaceChildren();
@@ -403,7 +406,7 @@ export function mountAssetGallery(
       label: item.label,
       group: 'game-ui' as const,
       count: item.count,
-    })), (id) => gameUi.panels[id as GameUiLabPanelId]));
+    })), (id) => gameUi.panels[id as GameUiLabPanelId], initialPanelId));
     return () => {
       for (const dispose of disposers) dispose();
       root.replaceChildren();
@@ -418,7 +421,7 @@ export function mountAssetGallery(
       label: item.label,
       group: 'background' as const,
       count: item.count,
-    })), (id) => backdrop.panels[id as BackdropPanelId]));
+    })), (id) => backdrop.panels[id as BackdropPanelId], initialPanelId));
     return () => {
       for (const dispose of disposers) dispose();
       root.replaceChildren();
@@ -432,7 +435,7 @@ export function mountAssetGallery(
     label: item.label,
     group: 'audio' as const,
     count: item.count,
-  })), (id) => audio.panels[id as AudioPanelId]));
+  })), (id) => audio.panels[id as AudioPanelId], initialPanelId));
 
   return () => {
     for (const dispose of disposers) dispose();
@@ -440,16 +443,21 @@ export function mountAssetGallery(
   };
 }
 
+function resolveActivePanelId(items: NavItem[], panelId: string | null): string {
+  if (panelId && items.some((item) => item.id === panelId)) return panelId;
+  return items[0]?.id ?? '';
+}
+
 function mountSpritesSection(
   root: HTMLElement,
   sections: AssetSection[],
   section: AssetLabSection,
   onNavigate: (path: string) => void,
+  initialPanelId: string | null,
 ): () => void {
   const shell = document.createElement('div');
   shell.className = 'asset-lab';
 
-  let activeId = sections[0]!.id;
   const spritePanels = new Map(sections.map((s) => [s.id, createSpritePanel(s)]));
   const candidateCutoutSection: StaticPreviewSection = {
     id: 'v3-cutouts',
@@ -472,9 +480,10 @@ function mountSpritesSection(
   spritePanels.set(candidateCutoutSection.id, createStaticPreviewPanel(candidateCutoutSection));
   spritePanels.set(candidateBoardTileSection.id, createStaticPreviewPanel(candidateBoardTileSection));
   spritePanels.set(candidateHudAlertSection.id, createStaticPreviewPanel(candidateHudAlertSection));
-  const workspace = createWorkspace();
-  const sidebarHost = document.createElement('div');
-  sidebarHost.className = 'asset-lab__sidebar-host';
+  const { host: sidebarHost, scrollView: sidebarScroll, dispose: disposeSidebarScroll } =
+    createAssetLabSidebarScroll();
+  const { host: workspaceHost, scrollView: workspaceScroll, dispose: disposeWorkspaceScroll } =
+    createAssetLabWorkspaceScroll();
   const panelHost = document.createElement('div');
   panelHost.className = 'asset-lab__panel-host';
 
@@ -506,27 +515,34 @@ function mountSpritesSection(
       },
     ];
 
-  function showPanel(id: string): void {
+  let activeId = resolveActivePanelId(navItems(), initialPanelId);
+
+  function showPanel(id: string, syncUrl = true): void {
     activeId = id;
     panelHost.replaceChildren();
     const panel = spritePanels.get(id);
     if (panel) panelHost.append(panel);
     renderSidebar();
+    if (syncUrl && id) syncAssetLabPanelPath(section, id);
   }
 
   function renderSidebar(): void {
-    sidebarHost.replaceChildren(createSidebar(navItems(), activeId, showPanel));
+    populateSidebar(sidebarScroll, navItems(), activeId, section, showPanel);
   }
 
   const panel = document.createElement('div');
   panel.className = 'asset-lab__panel-layout';
-  panel.append(sidebarHost, workspace);
-  workspace.append(panelHost);
+  panel.append(sidebarHost, workspaceHost);
+  workspaceScroll.append(panelHost);
   shell.append(createTopbar(section, onNavigate), panel, createFooterNote(FOOTER_NOTES[section]));
   root.append(shell);
-  showPanel(activeId);
+  showPanel(activeId, false);
+  if (activeId) syncAssetLabPanelPath(section, activeId, 'replace');
 
-  return () => undefined;
+  return () => {
+    disposeSidebarScroll();
+    disposeWorkspaceScroll();
+  };
 }
 
 function mountLabSection(
@@ -535,36 +551,45 @@ function mountLabSection(
   onNavigate: (path: string) => void,
   items: NavItem[],
   getPanel: (id: string) => HTMLElement | undefined,
+  initialPanelId: string | null,
 ): () => void {
   const shell = document.createElement('div');
   shell.className = 'asset-lab';
 
-  let activeId = items[0]?.id ?? '';
-  const workspace = createWorkspace();
-  const sidebarHost = document.createElement('div');
-  sidebarHost.className = 'asset-lab__sidebar-host';
+  let activeId = resolveActivePanelId(items, initialPanelId);
+  const { host: sidebarHost, scrollView: sidebarScroll, dispose: disposeSidebarScroll } =
+    createAssetLabSidebarScroll();
+  const { host: workspaceHost, scrollView: workspaceScroll, dispose: disposeWorkspaceScroll } =
+    createAssetLabWorkspaceScroll();
   const panelHost = document.createElement('div');
   panelHost.className = 'asset-lab__panel-host';
 
-  function showPanel(id: string): void {
+  function showPanel(id: string, syncUrl = true): void {
     activeId = id;
     panelHost.replaceChildren();
     const panel = getPanel(id);
     if (panel) panelHost.append(panel);
     renderSidebar();
+    if (syncUrl && id) syncAssetLabPanelPath(section, id);
   }
 
   function renderSidebar(): void {
-    sidebarHost.replaceChildren(createSidebar(items, activeId, showPanel));
+    populateSidebar(sidebarScroll, items, activeId, section, showPanel);
   }
 
   const panel = document.createElement('div');
   panel.className = 'asset-lab__panel-layout';
-  panel.append(sidebarHost, workspace);
-  workspace.append(panelHost);
+  panel.append(sidebarHost, workspaceHost);
+  workspaceScroll.append(panelHost);
   shell.append(createTopbar(section, onNavigate), panel, createFooterNote(FOOTER_NOTES[section]));
   root.append(shell);
-  if (activeId) showPanel(activeId);
+  if (activeId) {
+    showPanel(activeId, false);
+    syncAssetLabPanelPath(section, activeId, 'replace');
+  }
 
-  return () => undefined;
+  return () => {
+    disposeSidebarScroll();
+    disposeWorkspaceScroll();
+  };
 }

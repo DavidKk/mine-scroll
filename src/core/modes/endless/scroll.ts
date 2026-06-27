@@ -81,6 +81,35 @@ export function isBottomRowScrollSafe(session: ModeSession): boolean {
   return computeBottomRowScrollDamage(session, session.state.board) === 0;
 }
 
+/** Screen cells with unflagged mines in rows about to scroll off. */
+export interface ScrollLeavingMineCell {
+  screenRow: number;
+  col: number;
+}
+
+export function collectScrollLeavingMineCells(
+  session: ModeSession,
+  batchRows: number,
+): ScrollLeavingMineCell[] {
+  if (session.modeId !== 'endless' || session.state.status !== 'playing') return [];
+
+  const board = session.state.board;
+  const rows = Math.max(1, Math.min(batchRows, board.rows));
+  const viewStart = session.endlessViewStart ?? visibleViewStart(board);
+  const out: ScrollLeavingMineCell[] = [];
+
+  for (let i = 0; i < rows; i += 1) {
+    const localRow = board.rows - 1 - i;
+    if (localRow < 0 || isRowAllBlank(board, localRow)) continue;
+    for (let col = 0; col < board.cols; col += 1) {
+      if (penaltyCellKind(session, board, localRow, col) !== 'mine-unflagged') continue;
+      out.push({ screenRow: toScreenRow(localRow, viewStart), col });
+    }
+  }
+
+  return out;
+}
+
 /** Before batch scroll: all N leaving rows are safe. */
 export function isBatchScrollSafe(session: ModeSession, batchRows: number): boolean {
   if (session.modeId !== 'endless' || session.state.status !== 'playing') return false;

@@ -29,6 +29,7 @@ export interface GameStageLayout {
   boardW: number;
   boardH: number;
   autoRect: Rect;
+  devSpeedRect: Rect;
   bottomRailRect: Rect;
   scoreAnchor: Point;
   livesAnchor: Point;
@@ -184,8 +185,10 @@ export function computeGameStageLayout(
       ? boardAreaTop + slack * 0.5
       : boardAreaTop + slack * 0.15;
 
-  const autoSize = (profile === 'desktop' ? 72 : 56) * scale;
-  const autoInset = safe + 10 * scale;
+  const devBtnH = (profile === 'desktop' ? 22 : 20) * scale;
+  const devAutoW = (profile === 'desktop' ? 44 : 40) * scale;
+  const devSpeedW = (profile === 'desktop' ? 26 : 24) * scale;
+  const devInset = safe + 8 * scale;
   const bottomRailRect: Rect = {
     x: 0,
     y: viewportH - reserves.bottomRailH - reserves.bottomPad,
@@ -194,10 +197,17 @@ export function computeGameStageLayout(
   };
 
   const autoRect: Rect = {
-    x: Math.max(safe, viewportW - autoSize - autoInset),
-    y: bottomRailRect.y - autoSize - 8 * scale,
-    w: autoSize,
-    h: autoSize,
+    x: Math.max(safe, viewportW - devAutoW - devInset),
+    y: bottomRailRect.y - devBtnH - 6 * scale,
+    w: devAutoW,
+    h: devBtnH,
+  };
+  const devButtonGap = 5 * scale;
+  const devSpeedRect: Rect = {
+    x: Math.max(safe, autoRect.x - devSpeedW - devButtonGap),
+    y: autoRect.y,
+    w: devSpeedW,
+    h: devBtnH,
   };
 
   return {
@@ -217,6 +227,7 @@ export function computeGameStageLayout(
     boardW,
     boardH,
     autoRect,
+    devSpeedRect,
     bottomRailRect,
     scoreAnchor: { x: safe, y: hudY },
     livesAnchor: { x: viewportW - safe, y: hudY },
@@ -258,6 +269,18 @@ export function getComboFeedbackAnchor(
   const minY = layout.boardOffsetY + layout.gridOriginY + layout.cellSize * 0.5;
   const y = Math.max(minY, Math.min(bottomRowCenterY, layout.bottomRailY - 28 * scale));
   return { x: cx, y };
+}
+
+/** Speed / danger alerts: centered in the HUD–board gap, just above the grid. */
+export function getDifficultyAlertAnchor(
+  layout: Pick<GameStageLayout, 'viewportW' | 'hudY' | 'hudH' | 'boardY'>,
+): Point {
+  const hudBottom = layout.hudY + layout.hudH;
+  const gap = Math.max(0, layout.boardY - hudBottom);
+  return {
+    x: layout.viewportW / 2,
+    y: hudBottom + gap * 0.82,
+  };
 }
 
 /** Bottom feedback stack: score pop above, combo burst below, separate anchors. */

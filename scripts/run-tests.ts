@@ -11,6 +11,7 @@ import {
   MINES_PER_LIFE,
 } from '../src/core/mines-defused.ts';
 import {
+  collectScrollLeavingMineCells,
   createEndlessSession,
   endlessRevealAt,
   endlessScrollTick,
@@ -23,6 +24,7 @@ import {
   ENDLESS_WINDOW_ROWS,
   getEndlessMineRatio,
   getEndlessScrollProfile,
+  isBatchScrollSafe,
   SCROLL_BATCH_TIERS,
   SCROLL_INTERVAL_TIERS_MS,
 } from '../src/core/modes/endless/index.ts';
@@ -32,8 +34,10 @@ import {
   computeGameStageLayout,
   getComboFeedbackAnchor,
   getBottomFeedbackSlots,
+  getDifficultyAlertAnchor,
 } from '../src/ui/game-stage-layout.ts';
 import { isLoopingGameFx, resolveFxFrameIndex } from '../src/ui/game-assets.ts';
+import { getComboFeedbackPalette, getComboHudTier } from '../src/ui/hud-feedback-fx.ts';
 
 interface FakeCell extends SolverCell {
   mine?: boolean;
@@ -611,6 +615,28 @@ function testBlankBottomRowsDoNotTriggerAiScroll(): void {
   assert.equal(move, null);
 }
 
+function testScrollLeavingMinesCollectedBeforeScroll(): void {
+  let session = withSeed(createEndlessSession(), 1);
+  session = endlessRevealAt(session, 16, 4);
+  assert.equal(session.state.status, 'playing');
+  assert.equal(isBatchScrollSafe(session, 1), false);
+  const mines = collectScrollLeavingMineCells(session, 1);
+  assert.ok(mines.length > 0, 'expected unflagged mines on leaving bottom row');
+  for (const cell of mines) {
+    assert.ok(cell.screenRow >= 0 && cell.col >= 0);
+  }
+}
+
+function testScrollProceedsWhenBottomUnsafe(): void {
+  let session = withSeed(createEndlessSession(), 2654435761);
+  session = endlessRevealAt(session, 16, 4);
+  assert.equal(session.state.status, 'playing');
+  assert.equal(isBatchScrollSafe(session, 1), false);
+  const beforeDepth = session.scrollRowCount ?? 0;
+  const next = endlessScrollTick(session, 1);
+  assert.equal((next.scrollRowCount ?? 0) - beforeDepth, 1);
+}
+
 function testBatchScrollMovesMultipleRowsAndCapsDamage(): void {
   let session = withSeed(createEndlessSession(), 2654435761);
   session = endlessRevealAt(session, 16, 4);
@@ -742,6 +768,31 @@ function testOrbitParticlesSeamAtLoopWrap(): void {
   }
 }
 
+function testComboHudV3TierColors(): void {
+  assert.equal(getComboHudTier(3), 0);
+  assert.equal(getComboHudTier(9), 0);
+  assert.equal(getComboHudTier(10), 1);
+  assert.equal(getComboHudTier(19), 1);
+  assert.equal(getComboHudTier(20), 2);
+  assert.equal(getComboHudTier(49), 2);
+  assert.equal(getComboHudTier(50), 3);
+  assert.equal(getComboFeedbackPalette(8).digitColor, '#93c5fd');
+  assert.equal(getComboFeedbackPalette(12).digitColor, '#facc15');
+  assert.equal(getComboFeedbackPalette(24).digitColor, '#fb923c');
+  assert.equal(getComboFeedbackPalette(50).digitColor, '#ef4444');
+  assert.equal(getComboFeedbackPalette(50).text, '#fca5a5');
+  assert.notEqual(getComboFeedbackPalette(20).digitColor, '#ef4444');
+}
+
+function testDifficultyAlertAnchorSitsAboveBoard(): void {
+  const { stage } = comboAnchorInput(390, 844);
+  const anchor = getDifficultyAlertAnchor(stage);
+  const hudBottom = stage.hudY + stage.hudH;
+  assert.ok(anchor.y > hudBottom + stage.scale * 8, 'alert should sit below top HUD');
+  assert.ok(anchor.y < stage.boardY - stage.scale * 4, 'alert should stay above board top');
+  assert.equal(anchor.x, stage.viewportW / 2);
+}
+
 const tests: Array<[string, () => void]> = [
   ['scroll profile speeds up and increases batch size', testScrollProfile],
   ['endless mine ratio ramps to classic plus 50 percent density', testEndlessMineRatioRampsToClassicPlusHalf],
@@ -763,12 +814,16 @@ const tests: Array<[string, () => void]> = [
   ['chord requires a visible reveal target', testChordRequiresVisibleRevealTarget],
   ['endless solver breaks through fully unknown board', testEndlessBreaksThroughFullyUnknownBoard],
   ['blank bottom rows do not trigger AI scroll', testBlankBottomRowsDoNotTriggerAiScroll],
+  ['scroll leaving mines collected before scroll', testScrollLeavingMinesCollectedBeforeScroll],
+  ['scroll proceeds when bottom row is not safe', testScrollProceedsWhenBottomUnsafe],
   ['batch scroll moves multiple rows and caps damage', testBatchScrollMovesMultipleRowsAndCapsDamage],
   ['combo feedback anchor centers horizontally', testComboFeedbackAnchorCentersHorizontally],
   ['combo feedback anchor aligns with bottom playable row', testComboFeedbackAnchorAlignsWithBottomPlayableRow],
   ['combo feedback anchor sits below hud and above bottom rail', testComboFeedbackAnchorSitsBelowHudAndAboveBottomRail],
   ['combo feedback anchor fallback without layout', testComboFeedbackAnchorFallbackWithoutLayout],
   ['bottom feedback slots separate score and combo', testBottomFeedbackSlotsSeparateScoreAndCombo],
+  ['combo hud v3 uses four escalating color tiers', testComboHudV3TierColors],
+  ['difficulty alert anchor sits above board', testDifficultyAlertAnchorSitsAboveBoard],
   ['fx frame index loops and completes oneshots', testFxFrameIndexLoopAndOneshot],
   ['orbit particles match at loop wrap', testOrbitParticlesSeamAtLoopWrap],
 ];

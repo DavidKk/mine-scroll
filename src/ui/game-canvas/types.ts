@@ -29,7 +29,7 @@ export interface GameCanvasHudStats {
     minesCleared: number;
   };
   lives?: string;
-  /** Bottom rows are safe — player can press Space to manual scroll. */
+  /** Player can press Space to manual scroll while playing (unsafe bottom rows cost a life). */
   spaceEnabled?: boolean;
   devAutoVisible?: boolean;
   devAutoActive?: boolean;
@@ -55,6 +55,8 @@ export interface GameCanvasFullscreenOptions {
   showStartOverlay?: () => boolean;
   onRestart?: () => void;
   onDevAuto?: () => void;
+  /** DEV: advance scroll difficulty one tier (+50s elapsed). */
+  onDevSpeedUp?: () => void;
   onUiHover?: () => void;
   onUiClick?: () => void;
   /** First pointer on canvas — unlock audio context (browser autoplay policy). */
@@ -108,6 +110,8 @@ export interface GameCanvasController {
   resetTimer(): void;
   /** Repaint only (scroll countdown animation). */
   repaint(): void;
+  /** Pinned scroll-off mine ghosts (shell coords; pure FX, no board mutation). */
+  queueScrollMineGhosts(cells: { row: number; col: number }[]): void;
   destroy(): void;
 }
 

@@ -26,6 +26,25 @@ import {
   type RenderState,
 } from '../renderer/index.ts';
 import { drawCellRevealTransitionOverlay, drawMineBurstSmoke, drawPanelV3ScanBeams, type BoardPointerState } from '../cell-fx.ts';
+import { drawHiddenCellUnderlay } from '../tile-sprites.ts';
+import {
+  comboBurstRuntimeProgress,
+  comboHudGlowRgba,
+  createComboBurstFallbackDrawer,
+  createScorePopFallbackDrawer,
+  drawComboBurstV3,
+  drawScorePopV3,
+  getComboFeedbackPalette,
+  getComboRailFilter,
+  isComboBurstFxVisible,
+  isScorePopFxVisible,
+  resolveComboBurstV3RuntimeLayout,
+  resolveScorePopV3RuntimeLayout,
+  scorePopRuntimeProgress,
+  type HudFxBudget,
+  type ScorePopFxProgress,
+  type ScorePopV3Layer,
+} from '../hud-feedback-fx.ts';
 import { FpsMeter, drawFpsHud } from '../fps-meter.ts';
 import {
   GAME_ASSET_TUNING,
@@ -40,6 +59,7 @@ import {
   computeEndlessBoardCellSize,
   computeGameStageLayout,
   getBottomFeedbackSlots as resolveBottomFeedbackSlots,
+  getDifficultyAlertAnchor,
   type GameStageLayout,
 } from '../game-stage-layout.ts';
 import {
@@ -189,6 +209,7 @@ export function createGameCanvas(
   let startRect: { x: number; y: number; w: number; h: number } | null = null;
   let retryRect: { x: number; y: number; w: number; h: number } | null = null;
   let devAutoRect: { x: number; y: number; w: number; h: number } | null = null;
+  let devSpeedRect: { x: number; y: number; w: number; h: number } | null = null;
   let bgmMuteRect: { x: number; y: number; w: number; h: number } | null = null;
   let uiHoverTarget: string | null = null;
   let pendingPanelTransition:
@@ -243,14 +264,20 @@ export function createGameCanvas(
   let levelUpFxStartedAt = 0;
   let backdropMood: BackdropMood = { heat: 0.15, energy: 0.88, intensity: 0 };
   let lastBackdropSampleAt = 0;
+  let ambientBackdropCache: HTMLCanvasElement | null = null;
+  let ambientBackdropCacheKey = '';
 
-  type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode';
+  type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode' | 'scroll-mine-ghost';
   interface CellFx {
     kind: CellFxKind;
     row: number;
     col: number;
     startedAt: number;
     durationMs: number;
+    /** Shell-space top-left; pinned so scroll does not shift the ghost. */
+    pinShellX?: number;
+    pinShellY?: number;
+    cellSize?: number;
   }
 
   interface ParticleFx {
@@ -331,7 +358,7 @@ export function createGameCanvas(
     }
     if (pendingPanelTransition) return 'full';
     if (activeDifficultyAlert && now - activeDifficultyAlert.startedAt < DIFFICULTY_ALERT_MS) return 'full';
-    if (activeScoreEvent && scoreFxStartedAt > 0) return 'full';
+    if (scoreFxStartedAt > 0 && now - scoreFxStartedAt < SCORE_HUD_PULSE_MS) return 'full';
     if (activeBreakEvent && breakFxStartedAt > 0) return 'full';
     if (lastCombo > 1 && comboFxStartedAt > 0) {
       const comboAge = now - comboFxStartedAt;
@@ -425,6 +452,23 @@ export function createGameCanvas(
     shellCtx.drawImage(shellBgCache, 0, 0);
   }
 
+  function isScorePopFxEnabled(): boolean {
+    return GAME_ASSET_TUNING.fx.scorePop.enabled;
+  }
+
+  function isHudFxHeavy(now = performance.now()): boolean {
+    if (!isScorePopFxEnabled()) return false;
+    if (!activeScoreEvent || scoreFxStartedAt <= 0) return false;
+    if (now - scoreFxStartedAt >= GAME_ASSET_TUNING.fx.scorePop.durationMs) return false;
+    if (lastCombo <= 1 || comboFxStartedAt <= 0) return false;
+    if (now - comboFxStartedAt >= GAME_ASSET_TUNING.fx.comboBurst.durationMs) return false;
+    return true;
+  }
+
+  function hudFxBudget(now = performance.now()): HudFxBudget {
+    return isHudFxHeavy(now) ? 'lite' : 'normal';
+  }
+
   function drawAmbientShellBackdrop(shellCtx: CanvasRenderingContext2D, now: number): void {
     if (!fullscreen) return;
     const stats = fullscreen.getStats?.();
@@ -442,22 +486,53 @@ export function createGameCanvas(
     lastBackdropSampleAt = now;
     backdropMood = smoothBackdropMood(backdropMood, target, dtMs);
 
+    const heavyHud = isHudFxHeavy(now);
+    const backdropInput = {
+      shellW: width,
+      shellH: height,
+      nowMs: now,
+      status: currentStatus,
+      mood: backdropMood,
+      boardSafeRect: squareLayout
+        ? {
+            x: boardOffsetX,
+            y: boardOffsetY,
+            w: squareLayout.width,
+            h: squareLayout.height,
+          }
+        : undefined,
+    };
+
     try {
-      drawAmbientBackdrop(shellCtx, {
-        shellW: width,
-        shellH: height,
-        nowMs: now,
-        status: currentStatus,
-        mood: backdropMood,
-        boardSafeRect: squareLayout
-          ? {
-              x: boardOffsetX,
-              y: boardOffsetY,
-              w: squareLayout.width,
-              h: squareLayout.height,
-            }
-          : undefined,
-      });
+      if (heavyHud) {
+        const cacheBucket = Math.floor(now / 120);
+        const cacheKey = `${width}x${height}|${cacheBucket}|${Math.round(backdropMood.heat * 100)}|${Math.round(backdropMood.intensity * 100)}`;
+        if (
+          !ambientBackdropCache ||
+          ambientBackdropCache.width !== width ||
+          ambientBackdropCache.height !== height
+        ) {
+          ambientBackdropCache = document.createElement('canvas');
+          ambientBackdropCache.width = width;
+          ambientBackdropCache.height = height;
+          ambientBackdropCacheKey = '';
+        }
+        if (cacheKey !== ambientBackdropCacheKey) {
+          const cacheCtx = ambientBackdropCache.getContext('2d');
+          if (cacheCtx) {
+            cacheCtx.clearRect(0, 0, width, height);
+            drawAmbientBackdrop(cacheCtx, backdropInput);
+            ambientBackdropCacheKey = cacheKey;
+          }
+        }
+        if (ambientBackdropCache) {
+          shellCtx.drawImage(ambientBackdropCache, 0, 0);
+        }
+        return;
+      }
+
+      ambientBackdropCacheKey = '';
+      drawAmbientBackdrop(shellCtx, backdropInput);
     } catch (err) {
       console.error('[backdrop]', err);
     }
@@ -565,12 +640,131 @@ export function createGameCanvas(
     }
   }
 
+  function drawMineExplosionVisual(
+    effectCtx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    cellSize: number,
+    t: number,
+    options?: { forceExplosionSprite?: boolean },
+  ): void {
+    const cx = x + cellSize / 2;
+    const cy = y + cellSize / 2;
+    const useExplosionSprite = options?.forceExplosionSprite || !hasMineHitV3RuntimeAssets();
+
+    if (useExplosionSprite) {
+      const blastFade = 1 - Math.max(0, (t - 0.42) / 0.58) ** 2;
+      drawFxSpriteFrame(
+        effectCtx,
+        'mine-explosion',
+        t,
+        cx,
+        cy,
+        cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteW,
+        cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteH,
+        GAME_ASSET_TUNING.fx.mineExplosion.spriteAlpha * blastFade,
+      );
+    }
+
+    if (t < 0.42) {
+      const flash = getGameCutout('mine-hit-flash');
+      if (flash) {
+        const flashAlpha = (1 - t / 0.42) * 0.92;
+        effectCtx.save();
+        effectCtx.globalAlpha = flashAlpha;
+        drawGameMineCutout(effectCtx, flash, x, y, cellSize);
+        effectCtx.restore();
+      }
+    }
+
+    const alpha = 1 - t;
+    const radius = cellSize * (0.35 + t * 1.15);
+    const glow = effectCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    glow.addColorStop(0, `rgba(248, 113, 113, ${0.48 * GAME_ASSET_TUNING.fx.mineExplosion.glowAlpha * alpha})`);
+    glow.addColorStop(0.45, `rgba(251, 146, 60, ${0.28 * GAME_ASSET_TUNING.fx.mineExplosion.glowAlpha * alpha})`);
+    glow.addColorStop(1, 'rgba(248, 113, 113, 0)');
+    effectCtx.fillStyle = glow;
+    effectCtx.beginPath();
+    effectCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+    effectCtx.fill();
+
+    effectCtx.strokeStyle = `rgba(254, 202, 202, ${0.8 * GAME_ASSET_TUNING.fx.mineExplosion.streakAlpha * alpha})`;
+    effectCtx.lineWidth = Math.max(1.5, cellSize * 0.05);
+    effectCtx.lineCap = 'round';
+    for (let i = 0; i < 10; i += 1) {
+      const angle = (Math.PI * 2 * i) / 10 + t * 0.45;
+      const inner = cellSize * (0.22 + t * 0.38);
+      const outer = cellSize * (0.38 + t * 0.78);
+      effectCtx.beginPath();
+      effectCtx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+      effectCtx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+      effectCtx.stroke();
+    }
+
+    drawMineBurstSmoke(effectCtx, cx, cy, cellSize, t, 0.88);
+    drawMineHitV3RuntimeOverlay(effectCtx, cx, cy, x, y, cellSize, t);
+  }
+
+  function drawScrollMineGhostReveal(
+    effectCtx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    cellSize: number,
+    t: number,
+  ): void {
+    const revealT = Math.min(1, t / 0.3);
+    const pop = 0.9 + Math.sin(revealT * Math.PI) * 0.12;
+    const alpha = revealT < 0.82 ? 1 : 1 - (revealT - 0.82) / 0.18;
+    effectCtx.save();
+    effectCtx.globalAlpha = alpha;
+    drawHiddenCellUnderlay(effectCtx, x, y, cellSize);
+    const mine = getGameCutout('mine-standard');
+    if (mine) {
+      drawGameMineCutout(
+        effectCtx,
+        mine,
+        x,
+        y,
+        cellSize,
+        GAME_ASSET_TUNING.cutouts.mineScale * pop,
+      );
+    }
+    effectCtx.restore();
+  }
+
+  function drawScrollMineGhostEffects(shellCtx: CanvasRenderingContext2D, now: number): void {
+    let hasGhost = false;
+    shellCtx.save();
+    for (const fx of cellEffects) {
+      if (fx.kind !== 'scroll-mine-ghost') continue;
+      if (fx.pinShellX === undefined || fx.pinShellY === undefined || fx.cellSize === undefined) continue;
+      hasGhost = true;
+      const age = now - fx.startedAt;
+      const t = Math.max(0, Math.min(1, age / fx.durationMs));
+      const x = fx.pinShellX;
+      const y = fx.pinShellY;
+      const cellSize = fx.cellSize;
+
+      if (t < 0.34) {
+        drawScrollMineGhostReveal(shellCtx, x, y, cellSize, t / 0.34);
+      }
+
+      if (t >= 0.16) {
+        const blastT = Math.max(0, Math.min(1, (t - 0.16) / 0.84));
+        drawMineExplosionVisual(shellCtx, x, y, cellSize, blastT, { forceExplosionSprite: true });
+      }
+    }
+    shellCtx.restore();
+    if (hasGhost) scheduleAnimationFrame();
+  }
+
   function drawCellEffects(effectCtx: CanvasRenderingContext2D, now: number): void {
     if (!squareLayout || cellEffects.length === 0) return;
     const { gridOriginX, gridOriginY, grid } = squareLayout;
 
     effectCtx.save();
     for (const fx of cellEffects) {
+      if (fx.kind === 'scroll-mine-ghost') continue;
       const age = now - fx.startedAt;
       const t = Math.max(0, Math.min(1, age / fx.durationMs));
       const { x, y } = cellPixelForFx(fx.row, fx.col, gridOriginX, gridOriginY, grid);
@@ -601,19 +795,7 @@ export function createGameCanvas(
           GAME_ASSET_TUNING.fx.flagPop.spriteAlpha,
         );
       } else if (fx.kind === 'explode') {
-        if (!hasMineHitV3RuntimeAssets()) {
-          const blastFade = 1 - Math.max(0, (t - 0.42) / 0.58) ** 2;
-          drawFxSpriteFrame(
-            effectCtx,
-            'mine-explosion',
-            t,
-            cx,
-            cy,
-            grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteW,
-            grid.cellSize * GAME_ASSET_TUNING.fx.mineExplosion.spriteH,
-            GAME_ASSET_TUNING.fx.mineExplosion.spriteAlpha * blastFade,
-          );
-        }
+        drawMineExplosionVisual(effectCtx, x, y, grid.cellSize, t);
       }
 
       if (fx.kind === 'reveal') {
@@ -649,46 +831,6 @@ export function createGameCanvas(
         effectCtx.beginPath();
         effectCtx.arc(cx, cy, radius, 0, Math.PI * 2);
         effectCtx.stroke();
-      }
-
-      if (fx.kind === 'explode') {
-        if (t < 0.42) {
-          const flash = getGameCutout('mine-hit-flash');
-          if (flash) {
-            const flashAlpha = (1 - t / 0.42) * 0.92;
-            effectCtx.save();
-            effectCtx.globalAlpha = flashAlpha;
-            drawGameMineCutout(effectCtx, flash, x, y, grid.cellSize);
-            effectCtx.restore();
-          }
-        }
-
-        const alpha = 1 - t;
-        const radius = grid.cellSize * (0.35 + t * 1.15);
-        const glow = effectCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        glow.addColorStop(0, `rgba(248, 113, 113, ${0.48 * GAME_ASSET_TUNING.fx.mineExplosion.glowAlpha * alpha})`);
-        glow.addColorStop(0.45, `rgba(251, 146, 60, ${0.28 * GAME_ASSET_TUNING.fx.mineExplosion.glowAlpha * alpha})`);
-        glow.addColorStop(1, 'rgba(248, 113, 113, 0)');
-        effectCtx.fillStyle = glow;
-        effectCtx.beginPath();
-        effectCtx.arc(cx, cy, radius, 0, Math.PI * 2);
-        effectCtx.fill();
-
-        effectCtx.strokeStyle = `rgba(254, 202, 202, ${0.8 * GAME_ASSET_TUNING.fx.mineExplosion.streakAlpha * alpha})`;
-        effectCtx.lineWidth = Math.max(1.5, grid.cellSize * 0.05);
-        effectCtx.lineCap = 'round';
-        for (let i = 0; i < 10; i += 1) {
-          const angle = (Math.PI * 2 * i) / 10 + t * 0.45;
-          const inner = grid.cellSize * (0.22 + t * 0.38);
-          const outer = grid.cellSize * (0.38 + t * 0.78);
-          effectCtx.beginPath();
-          effectCtx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
-          effectCtx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
-          effectCtx.stroke();
-        }
-
-        drawMineBurstSmoke(effectCtx, cx, cy, grid.cellSize, t, 0.88);
-        drawMineHitV3RuntimeOverlay(effectCtx, cx, cy, x, y, grid.cellSize, t);
       }
     }
     effectCtx.restore();
@@ -813,7 +955,12 @@ export function createGameCanvas(
   function spawnComboParticles(combo: number): void {
     const now = performance.now();
     const palette = comboColor(combo);
-    const count = Math.max(6, Math.round(Math.min(42, 14 + Math.floor(combo / 2)) * GAME_ASSET_TUNING.fx.comboBurst.particleScale));
+    const heavy = scoreFxStartedAt > 0 && now - scoreFxStartedAt < GAME_ASSET_TUNING.fx.scorePop.durationMs;
+    const particleScale = heavy ? 0.55 : 1;
+    const count = Math.max(
+      heavy ? 4 : 6,
+      Math.round(Math.min(42, 14 + Math.floor(combo / 2)) * GAME_ASSET_TUNING.fx.comboBurst.particleScale * particleScale),
+    );
     const { x: originX, y: originY } = getComboFeedbackAnchor();
 
     for (let i = 0; i < count; i += 1) {
@@ -922,6 +1069,7 @@ export function createGameCanvas(
       startRect = null;
       retryRect = null;
       devAutoRect = null;
+      devSpeedRect = null;
       ctx.clearRect(0, 0, width, height);
       drawShellBackground(ctx);
       drawAmbientShellBackdrop(ctx, now);
@@ -958,6 +1106,7 @@ export function createGameCanvas(
     if (fullscreen) {
       ctx.restore();
       drawFullscreenOverlay(ctx, fullscreen, width, height);
+      drawScrollMineGhostEffects(ctx, now);
       drawFullscreenHud(ctx, fullscreen, width, height, fps, frameMs);
     } else {
       drawFpsHud(ctx, width - 8, 8, fps, frameMs, 1);
@@ -1302,34 +1451,10 @@ export function createGameCanvas(
     shellCtx.restore();
   }
 
-  function comboHudColor(combo: number): string {
-    if (combo >= 50) return '#c4b5fd';
-    if (combo >= 20) return '#fb923c';
-    if (combo >= 10) return '#facc15';
-    if (combo >= 5) return '#4ade80';
-    return '#93c5fd';
-  }
-
-  function comboHudGlow(combo: number, alpha: number): string {
-    if (combo >= 50) return `rgba(196, 181, 253, ${alpha})`;
-    if (combo >= 20) return `rgba(251, 146, 60, ${alpha})`;
-    if (combo >= 10) return `rgba(250, 204, 21, ${alpha})`;
-    if (combo >= 5) return `rgba(74, 222, 128, ${alpha})`;
-    return `rgba(147, 197, 253, ${alpha})`;
-  }
-
-  function comboRailFilter(combo: number): string {
-    if (combo >= 50) return 'hue-rotate(145deg) saturate(1.55) brightness(1.08)';
-    if (combo >= 20) return 'hue-rotate(-150deg) saturate(1.45) brightness(1.08)';
-    if (combo >= 10) return 'hue-rotate(-118deg) saturate(1.45) brightness(1.08)';
-    if (combo >= 5) return 'hue-rotate(-58deg) saturate(1.32) brightness(1.05)';
-    return 'none';
-  }
-
   function drawComboRailGlow(
     shellCtx: CanvasRenderingContext2D,
     asset: { x: number; y: number; w: number; h: number },
-    combo: number,
+    palette: ReturnType<typeof getComboFeedbackPalette>,
     alpha: number,
   ): void {
     const cx = asset.x + asset.w / 2;
@@ -1337,8 +1462,8 @@ export function createGameCanvas(
     shellCtx.save();
     shellCtx.globalCompositeOperation = 'lighter';
     const glow = shellCtx.createRadialGradient(cx, cy, 0, cx, cy, asset.w * 0.58);
-    glow.addColorStop(0, comboHudGlow(combo, alpha * 0.34));
-    glow.addColorStop(0.42, comboHudGlow(combo, alpha * 0.16));
+    glow.addColorStop(0, `rgba(${palette.main}, ${alpha * 0.34})`);
+    glow.addColorStop(0.42, `rgba(${palette.soft}, ${alpha * 0.14})`);
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     shellCtx.fillStyle = glow;
     shellCtx.fillRect(asset.x, asset.y, asset.w, asset.h);
@@ -1413,14 +1538,14 @@ export function createGameCanvas(
       shellCtx.shadowColor = 'rgba(45, 236, 255, 0.42)';
       shellCtx.shadowBlur = 7 * scale;
       shellCtx.fillStyle = THEME.hudText;
-      const fallbackText = String(score).padStart(5, '0');
+      const fallbackText = String(score);
       setFittedMonoFont(shellCtx, fallbackText, 86 * scale, 15 * scale, 10 * scale, 850);
       shellCtx.fillText(fallbackText, x - 2 * scale, y + 15 * scale);
       shellCtx.restore();
       return;
     }
 
-    const text = String(score).padStart(5, '0');
+    const text = String(score);
     const drewDigits = drawScoreDigits(
       shellCtx,
       text,
@@ -1451,7 +1576,8 @@ export function createGameCanvas(
   ): void {
     if (combo <= 1) return;
     const displayCombo = combo;
-    const color = comboHudColor(displayCombo);
+    const palette = getComboFeedbackPalette(displayCombo);
+    const color = palette.digitColor;
     const pulse = 0.5 + Math.sin(Date.now() / 140) * 0.5;
     const glowAlpha = 0.28 + Math.min(0.3, displayCombo * 0.012) + pulse * 0.1;
     const text = `x${displayCombo}`;
@@ -1470,22 +1596,22 @@ export function createGameCanvas(
       y + 28 * scale,
       180 * scale,
       48 * scale,
-      comboRailFilter(displayCombo),
+      getComboRailFilter(displayCombo),
       1,
       0.9,
     );
     if (asset) {
-      drawComboRailGlow(shellCtx, asset, displayCombo, glowAlpha);
+      drawComboRailGlow(shellCtx, asset, palette, glowAlpha);
     }
     if (!asset) {
       const glow = shellCtx.createRadialGradient(cx, y + 25 * scale, 2 * scale, cx, y + 25 * scale, 64 * scale);
-      glow.addColorStop(0, comboHudGlow(displayCombo, glowAlpha));
+      glow.addColorStop(0, comboHudGlowRgba(displayCombo, glowAlpha));
       glow.addColorStop(1, 'rgba(0,0,0,0)');
       shellCtx.fillStyle = glow;
       shellCtx.fillRect(cx - 76 * scale, y - 4 * scale, 152 * scale, 58 * scale);
     }
 
-    shellCtx.fillStyle = color;
+    shellCtx.fillStyle = `rgba(${palette.main}, 0.72)`;
     shellCtx.font = `900 ${10 * scale}px ${FONTS.display}`;
     shellCtx.globalAlpha = 0.9;
     shellCtx.fillText(label, cx, y);
@@ -1668,34 +1794,58 @@ export function createGameCanvas(
     shellCtx.restore();
   }
 
+  function drawDevChip(
+    rect: { x: number; y: number; w: number; h: number },
+    border: string,
+    fill: string,
+  ): void {
+    const r = Math.min(rect.h / 2, 5);
+    fillRounded(rect.x, rect.y, rect.w, rect.h, r, fill);
+    strokeRounded(rect.x, rect.y, rect.w, rect.h, r, border, 1);
+  }
+
   function drawDevAutoButton(
     shellCtx: CanvasRenderingContext2D,
     rect: { x: number; y: number; w: number; h: number },
     active: boolean,
     scale: number,
   ): void {
-    if (drawUiPanelImage(shellCtx, active ? 'auto-on' : 'auto-off', rect.x, rect.y, rect.w, rect.h, 0.98)) {
-      return;
-    }
-
-    drawArcadePanel(
-      shellCtx,
-      rect.x,
-      rect.y,
-      rect.w,
-      rect.h,
-      active ? 'rgba(74, 222, 128, 0.68)' : 'rgba(148, 163, 184, 0.34)',
-      active ? 'rgba(7, 25, 18, 0.82)' : 'rgba(18, 20, 28, 0.68)',
+    const { x, y, w, h } = rect;
+    drawDevChip(
+      rect,
+      active ? 'rgba(74, 222, 128, 0.9)' : 'rgba(71, 85, 105, 0.7)',
+      active ? 'rgba(22, 101, 52, 0.95)' : 'rgba(30, 41, 59, 0.88)',
     );
-    shellCtx.fillStyle = active ? '#86efac' : '#cbd5e1';
-    shellCtx.font = `800 ${18 * scale}px ${FONTS.display}`;
+
+    shellCtx.save();
     shellCtx.textAlign = 'center';
     shellCtx.textBaseline = 'middle';
-    shellCtx.fillText('AI', rect.x + rect.w / 2, rect.y + rect.h / 2 + 1 * scale);
-    shellCtx.fillStyle = active ? '#22c55e' : '#64748b';
-    shellCtx.beginPath();
-    shellCtx.arc(rect.x + rect.w - 13 * scale, rect.y + 13 * scale, 3 * scale, 0, Math.PI * 2);
-    shellCtx.fill();
+    shellCtx.font = `800 ${Math.max(8, 9 * scale)}px ${FONTS.mono}`;
+    shellCtx.fillStyle = active ? '#bbf7d0' : '#64748b';
+    shellCtx.fillText('AUTO', x + w / 2, y + h / 2 + 0.5 * scale);
+    shellCtx.restore();
+  }
+
+  function drawDevSpeedUpButton(
+    shellCtx: CanvasRenderingContext2D,
+    rect: { x: number; y: number; w: number; h: number },
+    enabled: boolean,
+    scale: number,
+  ): void {
+    const { x, y, w, h } = rect;
+    drawDevChip(
+      rect,
+      enabled ? 'rgba(251, 191, 36, 0.85)' : 'rgba(71, 85, 105, 0.45)',
+      enabled ? 'rgba(69, 52, 8, 0.92)' : 'rgba(30, 41, 59, 0.55)',
+    );
+
+    shellCtx.save();
+    shellCtx.textAlign = 'center';
+    shellCtx.textBaseline = 'middle';
+    shellCtx.fillStyle = enabled ? '#fde68a' : '#475569';
+    shellCtx.font = `900 ${Math.max(11, 12 * scale)}px ${FONTS.display}`;
+    shellCtx.fillText('↑', x + w / 2, y + h / 2 + 0.5 * scale);
+    shellCtx.restore();
   }
 
   function drawModernBackground(
@@ -1771,6 +1921,9 @@ export function createGameCanvas(
       devAutoRect = { x: autoX, y: autoY, w: autoW, h: autoH };
       const active = Boolean(stats.devAutoActive);
       drawDevAutoButton(shellCtx, devAutoRect, active, scale);
+      const speed = stage.devSpeedRect;
+      devSpeedRect = { x: speed.x, y: speed.y, w: speed.w, h: speed.h };
+      drawDevSpeedUpButton(shellCtx, devSpeedRect, currentStatus === 'playing', scale);
     }
 
     drawFpsHud(shellCtx, shellW - 10 * scale, barY + 2 * scale, fps, frameMs, scale);
@@ -1884,10 +2037,10 @@ export function createGameCanvas(
   function comboColor(combo: number): { fill: string; stroke: string; glow: string; text: string } {
     if (combo >= 50) {
       return {
-        fill: 'rgba(99, 102, 241, 0.92)',
-        stroke: 'rgba(129, 140, 248, 0.6)',
-        glow: 'rgba(99, 102, 241, 0.25)',
-        text: '#ffffff',
+        fill: 'rgba(239, 68, 68, 0.92)',
+        stroke: 'rgba(248, 113, 113, 0.6)',
+        glow: 'rgba(239, 68, 68, 0.28)',
+        text: '#fecaca',
       };
     }
     if (combo >= 20) {
@@ -2005,55 +2158,43 @@ export function createGameCanvas(
     if (pressure.urgent) scheduleAnimationFrame();
   }
 
-  function drawScoreEvent(
-    shellCtx: CanvasRenderingContext2D,
-    event: GameCanvasHudStats['scoreEvent'] | null,
-    startedAt: number,
-    _shellW: number,
-  ): void {
-    if (!event || startedAt <= 0) return;
+  function resolveActiveScorePopProgress(): ScorePopFxProgress | null {
+    if (!activeScoreEvent || scoreFxStartedAt <= 0) return null;
     const durationMs = GAME_ASSET_TUNING.fx.scorePop.durationMs;
-    const t = Math.min(1, (performance.now() - startedAt) / durationMs);
-    if (t >= 1) {
+    const progress = scorePopRuntimeProgress(performance.now() - scoreFxStartedAt, durationMs);
+    if (progress.t >= 1) {
       activeScoreEvent = null;
       scoreFxStartedAt = 0;
-      return;
+      return null;
     }
-    const alpha = Math.max(0, 1 - t);
+    return progress;
+  }
+
+  function drawScorePopV3Layer(
+    shellCtx: CanvasRenderingContext2D,
+    shellW: number,
+    shellH: number,
+    layer: ScorePopV3Layer,
+  ): void {
+    const progress = resolveActiveScorePopProgress();
+    if (!progress || !activeScoreEvent) return;
     const stageScale = stageLayout?.scale ?? 1;
-    const pop = 1 + Math.sin(Math.min(1, t * 2.2) * Math.PI) * 0.12;
-    const anchor = getBottomFeedbackSlots().scorePop;
-    const x = anchor.x;
-    const y = anchor.y - t * 36 * stageScale;
-    const palette = comboColor(event.comboAfter);
-
-    shellCtx.save();
-    shellCtx.globalAlpha = alpha;
-    shellCtx.translate(x, y);
-    shellCtx.scale(pop, pop);
-    const scorePopAsset = drawFeedbackAsset(
-      shellCtx,
-      hudFeedbackAssets.scorePopBase,
-      0,
-      8 * stageScale,
-      152 * stageScale,
-      92 * stageScale,
-      0.92,
-      Math.min(0.92, alpha),
-    );
-    if (!scorePopAsset) {
-      drawFxSpriteFrame(shellCtx, 'score-pop', t, 0, 0, 132 * stageScale, 56 * stageScale, GAME_ASSET_TUNING.fx.scorePop.spriteAlpha);
-    }
-    shellCtx.textAlign = 'center';
-    shellCtx.textBaseline = 'middle';
-    shellCtx.shadowColor = palette.stroke;
-    shellCtx.shadowBlur = 10 * stageScale;
-    shellCtx.font = `900 ${22 * stageScale}px ${FONTS.mono}`;
-    shellCtx.fillStyle = event.comboAfter >= 10 ? '#fef08a' : '#dbeafe';
-    shellCtx.fillText(`+${event.scoreAdded}`, 0, 0);
-    shellCtx.restore();
-
-    if (t < 1) scheduleAnimationFrame();
+    const slots = getBottomFeedbackSlots();
+    drawScorePopV3(shellCtx, {
+      canvasW: shellW,
+      canvasH: shellH,
+      progress,
+      layout: resolveScorePopV3RuntimeLayout(slots.comboBurst, slots.scorePop, shellW, progress, stageScale),
+      layer,
+      comboTier: activeScoreEvent.comboAfter,
+      scoreText: `+${activeScoreEvent.scoreAdded}`,
+      scoreStrip: hudFeedbackAssets.scoreStrip,
+      scorePopBase: hudFeedbackAssets.scorePopBase,
+      fontFamily: FONTS.mono,
+      hudFxBudget: hudFxBudget(),
+      drawFallbackFx: createScorePopFallbackDrawer(stageScale),
+    });
+    if (layer !== 'strip' && isScorePopFxVisible(progress)) scheduleAnimationFrame();
   }
 
   function drawBreakEvent(
@@ -2127,8 +2268,9 @@ export function createGameCanvas(
     const alpha = Math.sin(enter * Math.PI * 0.5) * (1 - exit);
     const impact = t < 0.25 ? 1 - t / 0.25 : 0;
     const shake = isDanger ? Math.sin(t * Math.PI * 18) * impact * 3 * stageScale : 0;
-    const cx = shellW / 2 + shake;
-    const cy = stageLayout ? Math.max(stageLayout.hudH + 18 * stageScale, stageLayout.boardY - 14 * stageScale) : 92 * stageScale;
+    const alertAnchor = stageLayout ? getDifficultyAlertAnchor(stageLayout) : null;
+    const cx = (alertAnchor?.x ?? shellW / 2) + shake;
+    const cy = alertAnchor?.y ?? 92 * stageScale;
     const maxW = Math.min(shellW * 0.58, 300 * stageScale);
     const maxH = 60 * stageScale;
     const asset = drawFeedbackAsset(shellCtx, image, cx, cy, maxW, maxH, 0.98 + impact * 0.035, alpha);
@@ -2200,10 +2342,13 @@ export function createGameCanvas(
 
     if (stats?.scoreEvent && stats.scoreEvent.id !== lastScoreEventId) {
       lastScoreEventId = stats.scoreEvent.id;
-      activeScoreEvent = stats.scoreEvent;
       scoreFxStartedAt = performance.now();
-      spawnScoreHudParticles();
+      const comboAlsoIncreased = combo > lastCombo && combo > 1;
+      if (!comboAlsoIncreased) spawnScoreHudParticles();
       scheduleAnimationFrame();
+      if (isScorePopFxEnabled()) {
+        activeScoreEvent = stats.scoreEvent;
+      }
     }
     if (stats?.breakEvent && stats.breakEvent.id !== lastBreakEventId) {
       lastBreakEventId = stats.breakEvent.id;
@@ -2243,80 +2388,34 @@ export function createGameCanvas(
     drawDifficultyAlert(shellCtx, shellW);
     drawBreakEvent(shellCtx, activeBreakEvent, breakFxStartedAt, shellW, shellH);
 
+    if (isScorePopFxEnabled()) drawScorePopV3Layer(shellCtx, shellW, shellH, 'strip');
+
     if (combo > 1 && comboFxStartedAt > 0) {
       const elapsedMs = performance.now() - comboFxStartedAt;
       const durationMs = GAME_ASSET_TUNING.fx.comboBurst.durationMs;
-      const t = Math.min(1, elapsedMs / durationMs);
-      const alpha = Math.max(0, 1 - t);
+      const progress = comboBurstRuntimeProgress(elapsedMs, combo, durationMs);
       const stageScale = stageLayout?.scale ?? 1;
-      const isMobile = (stageLayout?.viewportW ?? shellW) < 560;
-      const pop = 1.12 + Math.sin(Math.min(1, t * 2.5) * Math.PI) * (GAME_ASSET_TUNING.fx.comboBurst.maxScale - 1);
-      const burstScale = Math.max(0.9, Math.min(GAME_ASSET_TUNING.fx.comboBurst.maxScale, pop));
-      const palette = comboColor(combo);
       const slots = getBottomFeedbackSlots();
-      const cx = slots.comboBurst.x;
-      const burstW = (isMobile ? 150 : 190) * stageScale;
-      const burstH = (isMobile ? 66 : 80) * stageScale;
-      const halfBurstH =
-        burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH * burstScale * 0.5;
       const railTop = stageLayout?.bottomRailRect.y ?? shellH;
-      const cy = Math.min(
-        slots.comboBurst.y - t * 10 * stageScale,
-        railTop - halfBurstH - 8 * stageScale,
-      );
+      const layout = resolveComboBurstV3RuntimeLayout(slots.comboBurst, progress, stageScale, shellW, railTop);
 
-      shellCtx.save();
-      shellCtx.globalAlpha = alpha;
-      shellCtx.translate(cx, cy);
-      shellCtx.scale(burstScale, burstScale);
+      drawComboBurstV3(shellCtx, {
+        canvasW: shellW,
+        canvasH: shellH,
+        combo,
+        progress,
+        layout,
+        comboBurstBase: hudFeedbackAssets.comboBurstBase,
+        fontFamilyMono: FONTS.mono,
+        fontFamilyDisplay: FONTS.display,
+        hudFxBudget: hudFxBudget(),
+        drawFallbackFx: createComboBurstFallbackDrawer(layout.burstW, layout.burstH),
+      });
 
-      const comboBurstAsset = drawFeedbackAsset(
-        shellCtx,
-        hudFeedbackAssets.comboBurstBase,
-        0,
-        0,
-        burstW * GAME_ASSET_TUNING.fx.comboBurst.spriteW,
-        burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH,
-        1,
-        Math.min(0.9, alpha),
-      );
-      if (!comboBurstAsset) {
-        drawFxSpriteFrame(
-          shellCtx,
-          'combo-burst',
-          t,
-          0,
-          0,
-          burstW * GAME_ASSET_TUNING.fx.comboBurst.spriteW,
-          burstH * GAME_ASSET_TUNING.fx.comboBurst.spriteH,
-          GAME_ASSET_TUNING.fx.comboBurst.spriteAlpha,
-        );
-      }
-
-      const glow = shellCtx.createRadialGradient(0, 0, 10, 0, 0, burstW * 0.52);
-      glow.addColorStop(0, palette.glow);
-      glow.addColorStop(1, 'rgba(0,0,0,0)');
-      shellCtx.fillStyle = glow;
-      shellCtx.fillRect(-burstW / 2, -burstH / 2, burstW, burstH);
-
-      shellCtx.textAlign = 'center';
-      shellCtx.textBaseline = 'middle';
-      shellCtx.lineWidth = Math.max(3, 5 * stageScale);
-      shellCtx.strokeStyle = 'rgba(15, 23, 42, 0.86)';
-      shellCtx.fillStyle = comboHudColor(combo);
-      shellCtx.font = `900 ${Math.min(isMobile ? 42 : 56, (isMobile ? 34 : 44) + String(combo).length * 3) * stageScale}px ${FONTS.mono}`;
-      shellCtx.strokeText(`x${combo}`, 0, -4 * stageScale);
-      shellCtx.fillText(`x${combo}`, 0, -4 * stageScale);
-      shellCtx.font = `900 ${11 * stageScale}px ${FONTS.display}`;
-      shellCtx.fillStyle = palette.text;
-      shellCtx.globalAlpha = alpha * 0.76;
-      shellCtx.fillText('COMBO', 0, 28 * stageScale);
-      shellCtx.restore();
-
-      if (t < 1) scheduleAnimationFrame();
+      if (isComboBurstFxVisible(progress)) scheduleAnimationFrame();
     }
 
-    drawScoreEvent(shellCtx, activeScoreEvent, scoreFxStartedAt, shellW);
+    if (isScorePopFxEnabled()) drawScorePopV3Layer(shellCtx, shellW, shellH, 'pop');
 
     if (combo > 1) {
       const pulse = 0.5 + Math.sin(Date.now() / 120) * 0.5;
@@ -2548,6 +2647,13 @@ export function createGameCanvas(
       return;
     }
 
+    if (fullscreen && devSpeedRect && currentStatus === 'playing' && insideRect(devSpeedRect, x, y)) {
+      event.preventDefault();
+      fullscreen.onUiClick?.();
+      fullscreen.onDevSpeedUp?.();
+      return;
+    }
+
     if (fullscreen && devAutoRect) {
       const insideAuto =
         x >= devAutoRect.x &&
@@ -2647,6 +2753,7 @@ export function createGameCanvas(
 
   function hitInteractiveUi(x: number, y: number): string | null {
     if (bgmMuteRect && insideRect(bgmMuteRect, x, y)) return 'bgm-mute';
+    if (devSpeedRect && currentStatus === 'playing' && insideRect(devSpeedRect, x, y)) return 'dev-speed';
     if (devAutoRect && insideRect(devAutoRect, x, y)) return 'dev-auto';
     if (
       currentStatus === 'idle' &&
@@ -2711,6 +2818,30 @@ export function createGameCanvas(
     startAmbientLoop();
   }
 
+  function queueScrollMineGhosts(cells: { row: number; col: number }[]): void {
+    if (cells.length === 0 || !squareLayout) return;
+    const now = performance.now();
+    const durationMs = GAME_ASSET_TUNING.fx.mineExplosion.durationMs;
+    const { gridOriginX, gridOriginY, grid } = squareLayout;
+    for (const cell of cells) {
+      const { x, y } = cellPixelForFx(cell.row, cell.col, gridOriginX, gridOriginY, grid);
+      cellEffects.push({
+        kind: 'scroll-mine-ghost',
+        row: cell.row,
+        col: cell.col,
+        pinShellX: boardOffsetX + x,
+        pinShellY: boardOffsetY + y,
+        cellSize: grid.cellSize,
+        startedAt: now,
+        durationMs,
+      });
+    }
+    while (cellEffects.length > 48) {
+      cellEffects.shift();
+    }
+    scheduleAnimationFrame();
+  }
+
   return {
     render(views, status, flagCount, options) {
       const nextRows = fixedGridRows ?? options?.rows ?? currentRows;
@@ -2772,6 +2903,7 @@ export function createGameCanvas(
     repaint() {
       paint();
     },
+    queueScrollMineGhosts,
     destroy() {
       this.stopTimer();
       clearPendingPanelTransition();

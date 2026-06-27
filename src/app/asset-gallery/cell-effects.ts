@@ -1,13 +1,23 @@
 import { drawProceduralOrbitParticles, drawMineBurstSmoke, drawMineScorchMark, drawMineSettledSmoke, drawPanelV3ScanBeams } from '../../ui/cell-fx.ts';
 import {
-  drawFxSpriteFrame,
+  COMBO_BURST_FX_MS,
+  SCORE_POP_FX_MS,
+  comboBurstPreviewProgress,
+  drawComboBurstV3,
+  drawScorePopV3,
+  getComboFeedbackPalette,
+  getComboRailFilter,
+  resolveComboBurstV3PreviewLayout,
+  resolveScorePopV3PreviewLayout,
+  scorePopPreviewProgress,
+} from '../../ui/hud-feedback-fx.ts';
+import {
   drawImageContained,
   GAME_ASSET_TUNING,
   drawGameMineCutoutAtCenter,
   getGameCutout,
   getGameFxBlendMode,
   getGameFxFrames,
-  getGameUiPanel,
 } from '../../ui/game-assets.ts';
 import { drawHiddenCellSprite, drawSpriteInCell, getTileSprites, type TileSprites } from '../../ui/tile-sprites.ts';
 import { createFpsControl, createPanelHead, paintCheckerBg } from './editor-shell.ts';
@@ -88,9 +98,9 @@ const HEART_REFILL_V3_ACTION_MS = 560;
 const PANEL_V3_MS = 1480;
 const PANEL_V3_ACTION_MS = 620;
 const HUD_FEEDBACK_V3_MS = 1600;
-const SCORE_POP_V3_MS = 760;
-const COMBO_BURST_V3_MS = 900;
-const LIFE_LOSS_POPUP_V3_MS = GAME_ASSET_TUNING.fx.break.durationMs;
+const SCORE_POP_V3_MS = SCORE_POP_FX_MS;
+const COMBO_BURST_V3_MS = COMBO_BURST_FX_MS;
+const LIFE_LOSS_POPUP_V3_MS = 820;
 const HUD_ALERT_V3_MS = 1260;
 const V3_CANDIDATE_FLAG_SRC = '/assets/candidates/game-ui-v3/cutouts/flag-standard.png';
 const V3_CANDIDATE_MINE_STANDARD_SRC = '/assets/candidates/game-ui-v3/cutouts/mine-standard.png';
@@ -185,6 +195,10 @@ const hudFeedbackImages = {
 const hudAlertImages = {
   speedUp: createAssetImage('/assets/candidates/hud-alerts-v3/runtime/speed-up-alert-v3.png'),
   dangerRise: createAssetImage('/assets/candidates/hud-alerts-v3/runtime/danger-rise-alert-v3.png'),
+} as const;
+
+const hudDamageImages = {
+  lifeLossPopupSheet: createAssetImage('/assets/candidates/hud-damage-v3/runtime/life-loss-popup-v3-sheet.png'),
 } as const;
 
 const scoreDigitImages = Array.from({ length: 10 }, (_, digit) =>
@@ -323,9 +337,9 @@ const EFFECT_SPECS: EffectCardSpec[] = [
   {
     id: 'combo-hud-v3',
     title: 'Combo HUD v3',
-    description: 'Candidate combo chip with escalating cyan / gold / red energy states and impact pulse on combo gain.',
+    description: 'Candidate combo chip with four escalating states: cyan, gold, hot, and red overload at x50+.',
     cycleMs: HUD_FEEDBACK_V3_MS,
-    frameCount: 5,
+    frameCount: 4,
     defaultFps: 12,
     loop: true,
   },
@@ -350,7 +364,7 @@ const EFFECT_SPECS: EffectCardSpec[] = [
   {
     id: 'life-loss-popup-v3',
     title: 'Life loss popup v3',
-    description: 'Current in-game damage/break popup below combo: red flash, break chip, wrong-flag burst, and defuse reset text.',
+    description: 'Candidate damage popup: red sci-fi HUD chip, LIFE -1 text, light impact shake, scan streaks, and small sparks.',
     cycleMs: LIFE_LOSS_POPUP_V3_MS,
     frameCount: 4,
     defaultFps: 12,
@@ -1895,18 +1909,8 @@ interface HudPalette {
 }
 
 function comboHudPalette(combo: number): HudPalette {
-  if (combo >= 50) return { main: '255, 71, 120', soft: '168, 85, 247', text: '#ff4778', hot: '#fef08a' };
-  if (combo >= 20) return { main: '251, 113, 36', soft: '239, 68, 68', text: '#fb923c', hot: '#fde047' };
-  if (combo >= 10) return { main: '250, 204, 21', soft: '34, 211, 238', text: '#fde047', hot: '#f8fafc' };
-  return { main: '45, 236, 255', soft: '96, 165, 250', text: '#67e8f9', hot: '#dbeafe' };
-}
-
-function comboRailFilter(combo: number): string {
-  if (combo >= 50) return 'hue-rotate(145deg) saturate(1.55) brightness(1.08)';
-  if (combo >= 20) return 'hue-rotate(-150deg) saturate(1.45) brightness(1.08)';
-  if (combo >= 10) return 'hue-rotate(-118deg) saturate(1.45) brightness(1.08)';
-  if (combo >= 5) return 'hue-rotate(-58deg) saturate(1.32) brightness(1.05)';
-  return 'none';
+  const palette = getComboFeedbackPalette(combo);
+  return { main: palette.main, soft: palette.soft, text: palette.text, hot: palette.hot };
 }
 
 function drawComboRailGlow(
@@ -1972,6 +1976,34 @@ function drawFilteredFeedbackAsset(
   ctx.globalAlpha = alpha;
   ctx.filter = filter;
   ctx.drawImage(image, x, y, w, h);
+  ctx.restore();
+  return { x, y, w, h };
+}
+
+function drawSheetFrameContained(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  frameIndex: number,
+  frameCount: number,
+  cx: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+  scale = 1,
+  alpha = 1,
+): { x: number; y: number; w: number; h: number } | null {
+  if (!image.complete || image.naturalWidth === 0 || image.naturalHeight === 0 || frameCount <= 0) return null;
+  const frameW = image.naturalWidth / frameCount;
+  const frameH = image.naturalHeight;
+  const index = Math.min(frameCount - 1, Math.max(0, Math.floor(frameIndex)));
+  const fit = Math.min(maxW / frameW, maxH / frameH) * scale;
+  const w = frameW * fit;
+  const h = frameH * fit;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(image, index * frameW, 0, frameW, frameH, x, y, w, h);
   ctx.restore();
   return { x, y, w, h };
 }
@@ -2151,7 +2183,7 @@ function drawComboHudV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number
     h * 0.52,
     w * 0.9,
     h * 0.25,
-    comboRailFilter(combo),
+    getComboRailFilter(combo),
     1 + impact * 0.025,
   );
   if (!asset) {
@@ -2173,163 +2205,147 @@ function drawComboHudV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number
 
 function drawScorePopV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number): void {
   paintStageBg(ctx, w, h);
-  const t = (tMs % SCORE_POP_V3_MS) / SCORE_POP_V3_MS;
-  const chipW = Math.min(w * 0.7, 230);
-  const chipH = Math.min(h * 0.28, 60);
-  const chipX = (w - chipW) / 2;
-  const chipY = h * 0.56;
-  const strip = drawFeedbackAsset(ctx, hudFeedbackImages.scoreStrip, w / 2, chipY + chipH / 2, chipW, chipH * 1.35, 1);
-  if (!strip) drawHudV3Chip(ctx, chipX, chipY, chipW, chipH, 'SCORE', '012840', comboHudPalette(2), tMs, t < 0.2 ? 1 - t / 0.2 : 0);
+  const progress = scorePopPreviewProgress(tMs, SCORE_POP_V3_MS);
+  const layout = resolveScorePopV3PreviewLayout(w, h, progress);
+  const chipX = (w - layout.chipW) / 2;
+  const chipY = layout.stripTopY;
 
-  const rise = easeOutCubic(t);
-  const alpha = t < 0.72 ? 1 : 1 - (t - 0.72) / 0.28;
-  const cx = w / 2;
-  const cy = chipY - h * (0.05 + rise * 0.34);
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  drawFeedbackAsset(ctx, hudFeedbackImages.scorePopBase, cx, cy + h * 0.06, w * 0.62, h * 0.42, 0.88 + Math.sin(t * Math.PI) * 0.08, alpha);
-  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.28);
-  glow.addColorStop(0, `rgba(45, 236, 255, ${0.34 * alpha})`);
-  glow.addColorStop(1, 'rgba(45, 236, 255, 0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `900 ${Math.min(48, w * 0.16)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-  ctx.shadowColor = 'rgba(45, 236, 255, 0.82)';
-  ctx.shadowBlur = 12;
-  ctx.fillStyle = `rgba(125, 249, 255, ${alpha})`;
-  ctx.fillText('+320', cx, cy);
-
-  for (let i = 0; i < 12; i += 1) {
-    const p = clamp01((t - i * 0.025) / 0.72);
-    const px = cx + (i - 5.5) * w * 0.025 + Math.sin(i * 1.9) * w * 0.02;
-    const py = cy + p * h * 0.18;
-    ctx.fillStyle = i % 3 === 0 ? `rgba(255, 213, 92, ${alpha * (1 - p)})` : `rgba(45, 236, 255, ${alpha * (1 - p)})`;
-    ctx.fillRect(px, py, Math.max(1.2, w * 0.008), Math.max(1.2, h * 0.006));
-  }
-  ctx.restore();
+  drawScorePopV3(ctx, {
+    canvasW: w,
+    canvasH: h,
+    progress,
+    layout,
+    comboTier: 10,
+    scoreText: '+320',
+    scoreStrip: hudFeedbackImages.scoreStrip,
+    scorePopBase: hudFeedbackImages.scorePopBase,
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    drawStripFallback: (stripCtx) => {
+      if (hudFeedbackImages.scoreStrip.complete && hudFeedbackImages.scoreStrip.naturalWidth > 0) return;
+      drawHudV3Chip(stripCtx, chipX, chipY, layout.chipW, layout.chipH, 'SCORE', '012840', comboHudPalette(2), tMs, progress.t < 0.2 ? 1 - progress.t / 0.2 : 0);
+    },
+  });
 }
 
 function drawComboBurstV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number, combo = 24): void {
   paintStageBg(ctx, w, h);
-  const palette = comboHudPalette(combo);
-  const t = (tMs % COMBO_BURST_V3_MS) / COMBO_BURST_V3_MS;
-  const hit = clamp01(t / 0.24);
-  const fade = t < 0.78 ? 1 : 1 - (t - 0.78) / 0.22;
-  const cx = w / 2;
-  const cy = h / 2;
-  const shake = combo >= 20 && t < 0.25 ? Math.sin(t * Math.PI * 32) * (1 - t / 0.25) * Math.min(w, h) * 0.012 : 0;
+  const progress = comboBurstPreviewProgress(tMs, combo, COMBO_BURST_V3_MS, Math.min(w, h));
+  const layout = resolveComboBurstV3PreviewLayout(w, h);
 
-  ctx.save();
-  ctx.translate(shake, 0);
-  ctx.globalCompositeOperation = 'lighter';
-  drawFeedbackAsset(
-    ctx,
-    hudFeedbackImages.comboBurstBase,
-    cx,
-    cy + h * 0.02,
-    w * 0.92,
-    h * 0.62,
-    0.86 + easeOutBack(hit) * 0.12,
-    fade,
-  );
-  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.48);
-  core.addColorStop(0, `rgba(${palette.main}, ${0.34 * fade})`);
-  core.addColorStop(0.32, `rgba(${palette.soft}, ${0.22 * fade})`);
-  core.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = core;
-  ctx.fillRect(0, 0, w, h);
-
-  for (let i = 0; i < (combo >= 50 ? 3 : combo >= 20 ? 2 : 1); i += 1) {
-    const ringT = clamp01((t - i * 0.1) / 0.62);
-    if (ringT <= 0 || ringT >= 1) continue;
-    ctx.strokeStyle = `rgba(${i % 2 ? palette.soft : palette.main}, ${(1 - ringT) * 0.78})`;
-    ctx.lineWidth = lerp(5, 1.2, ringT);
-    ctx.beginPath();
-    ctx.arc(cx, cy, lerp(w * 0.12, w * 0.48, easeOutCubic(ringT)), 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  for (let i = 0; i < 30; i += 1) {
-    const p = clamp01((t - (i % 6) * 0.018) / 0.72);
-    const angle = (i / 30) * Math.PI * 2;
-    const dist = lerp(w * 0.08, w * 0.44, easeOutCubic(p)) * (i % 2 ? 0.78 : 1);
-    const alpha = fade * (1 - p);
-    ctx.fillStyle = i % 4 === 0 ? `rgba(${palette.soft}, ${alpha})` : `rgba(${palette.main}, ${alpha})`;
-    ctx.beginPath();
-    ctx.arc(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist * 0.78, lerp(3.6, 0.8, p), 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.globalCompositeOperation = 'source-over';
-  const scale = 0.82 + easeOutBack(hit) * 0.28;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(scale, scale);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = Math.max(4, w * 0.018);
-  ctx.strokeStyle = 'rgba(3, 7, 18, 0.92)';
-  ctx.font = `1000 ${Math.min(78, w * 0.25)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-  ctx.strokeText(`x${combo}`, 0, -4);
-  ctx.shadowColor = `rgba(${palette.main}, 0.88)`;
-  ctx.shadowBlur = 18;
-  ctx.fillStyle = palette.text;
-  ctx.fillText(`x${combo}`, 0, -4);
-  ctx.font = `900 ${Math.min(18, w * 0.055)}px system-ui, sans-serif`;
-  ctx.fillStyle = palette.hot;
-  ctx.shadowBlur = 8;
-  ctx.fillText(combo >= 50 ? 'OVERLOAD' : combo >= 20 ? 'CHAIN BREAKER' : combo >= 10 ? 'HIGH COMBO' : 'COMBO', 0, 48);
-  ctx.restore();
-
-  ctx.restore();
+  drawComboBurstV3(ctx, {
+    canvasW: w,
+    canvasH: h,
+    combo,
+    progress,
+    layout,
+    comboBurstBase: hudFeedbackImages.comboBurstBase,
+    fontFamilyMono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontFamilyDisplay: 'system-ui, sans-serif',
+  });
 }
 
 function drawLifeLossPopupV3Scene(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number): void {
   paintStageBg(ctx, w, h);
   const progress = (tMs % LIFE_LOSS_POPUP_V3_MS) / LIFE_LOSS_POPUP_V3_MS;
-  const alpha = Math.max(0, 1 - progress);
-  const impact = Math.sin(Math.min(1, progress * 2.3) * Math.PI);
-  const uiScale = Math.min(w / 260, h / 150) * 0.96;
-  const pop = 0.9 + impact * 0.18;
+  const enter = easeOutCubic(clamp01(progress / 0.14));
+  const exit = progress > 0.78 ? easeOutCubic(clamp01((progress - 0.78) / 0.22)) : 0;
+  const alpha = enter * (1 - exit);
+  const impact = progress < 0.24 ? 1 - easeOutCubic(progress / 0.24) : 0;
+  const frameIndex = Math.min(3, Math.floor(progress * 4));
+  const shake = Math.sin(progress * Math.PI * 30) * impact * Math.min(w, h) * 0.012;
+  const lift = Math.sin(clamp01(progress) * Math.PI) * h * 0.035;
+  const cx = w / 2 + shake;
+  const cy = h * 0.54 - lift;
 
   ctx.save();
-  ctx.globalAlpha = Math.min(GAME_ASSET_TUNING.fx.break.flashAlpha, alpha * GAME_ASSET_TUNING.fx.break.flashAlpha);
-  ctx.fillStyle = '#ef4444';
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = alpha * (0.16 + impact * 0.1);
+  const warningGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.56);
+  warningGlow.addColorStop(0, 'rgba(255, 55, 75, 0.9)');
+  warningGlow.addColorStop(0.35, 'rgba(255, 133, 66, 0.24)');
+  warningGlow.addColorStop(1, 'rgba(255, 55, 75, 0)');
+  ctx.fillStyle = warningGlow;
   ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+
+  const asset = drawSheetFrameContained(
+    ctx,
+    hudDamageImages.lifeLossPopupSheet,
+    frameIndex,
+    4,
+    cx,
+    cy,
+    w * 0.94,
+    h * 0.52,
+    0.92 + impact * 0.04,
+    alpha,
+  );
+
+  const bounds = asset ?? {
+    x: w * 0.18,
+    y: h * 0.35,
+    w: w * 0.64,
+    h: h * 0.28,
+  };
+
+  if (!asset) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = 'rgba(255, 58, 74, 0.74)';
+    ctx.shadowBlur = 16 + impact * 8;
+    roundedRectPath(ctx, bounds.x, bounds.y, bounds.w, bounds.h, bounds.h * 0.28);
+    const bg = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x + bounds.w, bounds.y + bounds.h);
+    bg.addColorStop(0, 'rgba(56, 16, 24, 0.94)');
+    bg.addColorStop(0.52, 'rgba(18, 10, 18, 0.96)');
+    bg.addColorStop(1, 'rgba(80, 18, 28, 0.9)');
+    ctx.fillStyle = bg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 68, 86, 0.84)';
+    ctx.lineWidth = Math.max(1.2, bounds.h * 0.035);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = 'lighter';
+  const scanT = (progress * 1.55) % 1;
+  const scanX = bounds.x + bounds.w * scanT;
+  const scan = ctx.createLinearGradient(scanX - bounds.w * 0.2, 0, scanX + bounds.w * 0.12, 0);
+  scan.addColorStop(0, 'rgba(255,255,255,0)');
+  scan.addColorStop(0.45, `rgba(255, 86, 86, ${0.22 + impact * 0.16})`);
+  scan.addColorStop(0.62, `rgba(255, 211, 128, ${0.18 + impact * 0.12})`);
+  scan.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = scan;
+  roundedRectPath(ctx, bounds.x + bounds.w * 0.08, bounds.y + bounds.h * 0.2, bounds.w * 0.84, bounds.h * 0.56, bounds.h * 0.12);
+  ctx.fill();
+
+  for (let i = 0; i < 14; i += 1) {
+    const seed = i * 1.913;
+    const t = (progress * 1.25 + i * 0.071) % 1;
+    const side = i % 2 === 0 ? -1 : 1;
+    const px = cx + side * (bounds.w * (0.2 + t * 0.42)) + Math.sin(seed) * bounds.w * 0.04;
+    const py = cy + Math.sin(seed * 2.1 + progress * 7) * bounds.h * 0.34;
+    const sparkAlpha = alpha * Math.sin(t * Math.PI) * 0.76;
+    ctx.fillStyle = i % 3 === 0 ? `rgba(255, 196, 86, ${sparkAlpha})` : `rgba(255, 64, 82, ${sparkAlpha})`;
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(1.2, Math.min(w, h) * (0.006 + impact * 0.002)), 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.translate(w / 2, h * 0.54);
-  ctx.scale(pop, pop);
-  drawFxSpriteFrame(ctx, 'wrong-flag-break', progress, 0, 6 * uiScale, 190 * uiScale, 108 * uiScale, GAME_ASSET_TUNING.fx.break.spriteAlpha);
-
-  const chip = getGameUiPanel('break-chip');
-  if (chip) {
-    drawImageContained(ctx, chip, -52 * uiScale, -42 * uiScale, 104 * uiScale, 32 * uiScale, 1);
-  } else {
-    ctx.beginPath();
-    ctx.roundRect(-52 * uiScale, -42 * uiScale, 104 * uiScale, 32 * uiScale, 8 * uiScale);
-    ctx.fillStyle = 'rgba(30, 41, 59, 0.86)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.72)';
-    ctx.lineWidth = Math.max(1, 1.6 * uiScale);
-    ctx.stroke();
-  }
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
-  ctx.shadowBlur = 14 * uiScale;
-  ctx.font = `900 ${28 * uiScale}px system-ui, sans-serif`;
-  ctx.fillStyle = '#fecaca';
-  ctx.fillText('BREAK x8', 0, -6 * uiScale);
-  ctx.font = `900 ${13 * uiScale}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-  ctx.fillStyle = '#ff4d3d';
-  ctx.fillText('DEFUSE 4->0', 0, 22 * uiScale);
+  drawHudText(
+    ctx,
+    'LIFE -1',
+    bounds.x + bounds.w * 0.5,
+    bounds.y + bounds.h * 0.52,
+    bounds.w * 0.58,
+    Math.min(bounds.h * 0.34, h * 0.18),
+    '#ffe6e0',
+    'rgba(255, 58, 74, 0.92)',
+  );
   ctx.restore();
 }
 
@@ -2920,7 +2936,6 @@ function createFrames(id: EffectPanelId, sprites: TileSprites): HTMLElement {
       { label: 'x10 gold', t: HUD_FEEDBACK_V3_MS * 0.08, combo: 10 },
       { label: 'x20 hot', t: HUD_FEEDBACK_V3_MS * 0.18, combo: 20 },
       { label: 'x50 overload', t: HUD_FEEDBACK_V3_MS * 0.28, combo: 50 },
-      { label: 'x99999 reserved', t: HUD_FEEDBACK_V3_MS * 0.42, combo: 99999 },
     ].forEach((item, index) => {
       frames.append(
         createStaticFrameCanvas((ctx, w, h) => drawComboHudV3Scene(ctx, w, h, item.t, item.combo), item.label, index),
@@ -2959,9 +2974,9 @@ function createFrames(id: EffectPanelId, sprites: TileSprites): HTMLElement {
   if (id === 'life-loss-popup-v3') {
     frames.classList.add('asset-lab__frame-grid--wide');
     [
-      { label: 'Impact', t: LIFE_LOSS_POPUP_V3_MS * 0.08 },
-      { label: 'Break', t: LIFE_LOSS_POPUP_V3_MS * 0.22 },
-      { label: 'Reset', t: LIFE_LOSS_POPUP_V3_MS * 0.48 },
+      { label: 'Pop', t: LIFE_LOSS_POPUP_V3_MS * 0.08 },
+      { label: 'Damage', t: LIFE_LOSS_POPUP_V3_MS * 0.22 },
+      { label: 'Settle', t: LIFE_LOSS_POPUP_V3_MS * 0.48 },
       { label: 'Fade', t: LIFE_LOSS_POPUP_V3_MS * 0.78 },
     ].forEach((item, index) => {
       frames.append(

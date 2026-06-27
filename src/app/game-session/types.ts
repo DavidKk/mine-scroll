@@ -34,6 +34,8 @@ export interface GameSessionRuntime {
   scrollTimeoutId: number | null;
   scrollDeadlineAt: number;
   scrollIntervalMs: number;
+  scrollDetonateTimeoutId: number | null;
+  scrollPendingTick: { manual: boolean; aiReason?: string; batchRows: number } | null;
   aiHint: AiHintDisplay | null;
   aiAutoId: number | null;
   aiAutoActive: boolean;

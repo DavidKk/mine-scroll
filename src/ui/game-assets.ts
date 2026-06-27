@@ -128,6 +128,8 @@ export const GAME_ASSET_TUNING = {
       particleScale: 0.62,
     },
     scorePop: {
+      /** Bottom +score pop only; top score HUD pulse/particles stay on when false. */
+      enabled: false,
       durationMs: 760,
       spriteAlpha: 0.38,
     },
