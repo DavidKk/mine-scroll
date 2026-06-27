@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { cloneBoard } from '../src/core/board.ts';
 import { componentProbabilities } from '../src/core/ai/csp.ts';
 import { deduce, key, type Deduction } from '../src/core/ai/deduction.ts';
 import { solveBoard } from '../src/core/ai/moves.ts';
@@ -12,6 +13,7 @@ import {
 } from '../src/core/mines-defused.ts';
 import {
   collectScrollLeavingMineCells,
+  applyMinesFromSeed,
   createEndlessSession,
   endlessBeginRun,
   endlessRevealAt,
@@ -77,13 +79,37 @@ function fakeBoard(
 }
 
 function withSeed(session: ModeSession, worldSeed: number): ModeSession {
+  const board = cloneBoard(session.state.board);
+  board.worldSeed = worldSeed;
+  applyMinesFromSeed(board);
   return {
     ...session,
     state: {
       ...session.state,
-      board: { ...session.state.board, worldSeed },
+      board,
     },
   };
+}
+
+function endlessSessionWithUnsafeBottom(): ModeSession {
+  for (let seed = 0; seed < 8000; seed += 1) {
+    let session = withSeed(createEndlessSession(), seed);
+    session = endlessBeginRun(session);
+    if (session.state.status === 'playing' && !isBatchScrollSafe(session, 1)) {
+      return session;
+    }
+  }
+  throw new Error('no seed produced unsafe bottom after game start');
+}
+
+function endlessSessionWithLeavingMines(): ModeSession {
+  for (let seed = 0; seed < 8000; seed += 1) {
+    let session = withSeed(createEndlessSession(), seed);
+    session = endlessBeginRun(session);
+    const mines = collectScrollLeavingMineCells(session, 1);
+    if (mines.length > 0) return session;
+  }
+  throw new Error('no seed produced leaving mines on bottom row after game start');
 }
 
 function testScrollProfile(): void {
@@ -619,16 +645,38 @@ function testBlankBottomRowsDoNotTriggerAiScroll(): void {
 function testEndlessBeginRunStartsPlaying(): void {
   let session = withSeed(createEndlessSession(), 1);
   assert.equal(session.state.status, 'idle');
-  assert.equal(session.state.board.minesPlaced, false);
+  assert.equal(session.state.board.minesPlaced, true);
   session = endlessBeginRun(session);
   assert.equal(session.state.status, 'playing');
   assert.equal(session.state.board.minesPlaced, true);
 }
 
+function testScrollAfterStartWithoutRevealEvaluatesMines(): void {
+  const session = endlessSessionWithUnsafeBottom();
+  const beforeLives = session.lives ?? 5;
+  const next = endlessScrollTick(session, 1);
+  assert.equal((next.scrollRowCount ?? 0) > (session.scrollRowCount ?? 0), true);
+  assert.ok((next.lives ?? 0) <= beforeLives);
+}
+
+function testFirstRevealCanHitMineAndCostLife(): void {
+  let found = false;
+  for (let seed = 0; seed < 4000; seed += 1) {
+    let session = withSeed(createEndlessSession(), seed);
+    const beforeLives = session.lives ?? 5;
+    session = endlessRevealAt(session, 16, 4);
+    assert.equal(session.state.status, 'playing');
+    assert.equal(session.state.board.minesPlaced, true);
+    if ((session.lives ?? 0) < beforeLives) {
+      found = true;
+      break;
+    }
+  }
+  assert.ok(found, 'expected some seeds to hit a mine on first reveal');
+}
+
 function testScrollLeavingMinesCollectedBeforeScroll(): void {
-  let session = withSeed(createEndlessSession(), 1);
-  session = endlessRevealAt(session, 16, 4);
-  assert.equal(session.state.status, 'playing');
+  const session = endlessSessionWithLeavingMines();
   assert.equal(isBatchScrollSafe(session, 1), false);
   const mines = collectScrollLeavingMineCells(session, 1);
   assert.ok(mines.length > 0, 'expected unflagged mines on leaving bottom row');
@@ -638,9 +686,7 @@ function testScrollLeavingMinesCollectedBeforeScroll(): void {
 }
 
 function testScrollProceedsWhenBottomUnsafe(): void {
-  let session = withSeed(createEndlessSession(), 2654435761);
-  session = endlessRevealAt(session, 16, 4);
-  assert.equal(session.state.status, 'playing');
+  const session = endlessSessionWithUnsafeBottom();
   assert.equal(isBatchScrollSafe(session, 1), false);
   const beforeDepth = session.scrollRowCount ?? 0;
   const next = endlessScrollTick(session, 1);
@@ -648,10 +694,7 @@ function testScrollProceedsWhenBottomUnsafe(): void {
 }
 
 function testBatchScrollMovesMultipleRowsAndCapsDamage(): void {
-  let session = withSeed(createEndlessSession(), 2654435761);
-  session = endlessRevealAt(session, 16, 4);
-  assert.equal(session.state.status, 'playing');
-
+  let session = endlessSessionWithUnsafeBottom();
   const beforeDepth = session.scrollRowCount ?? 0;
   const beforeLives = session.lives ?? 0;
   const next = endlessScrollTick(session, 5);
@@ -825,6 +868,8 @@ const tests: Array<[string, () => void]> = [
   ['endless solver breaks through fully unknown board', testEndlessBreaksThroughFullyUnknownBoard],
   ['blank bottom rows do not trigger AI scroll', testBlankBottomRowsDoNotTriggerAiScroll],
   ['endless begin run starts playing without reveal', testEndlessBeginRunStartsPlaying],
+  ['scroll after start without reveal evaluates mines', testScrollAfterStartWithoutRevealEvaluatesMines],
+  ['first reveal can hit mine and cost life', testFirstRevealCanHitMineAndCostLife],
   ['scroll leaving mines collected before scroll', testScrollLeavingMinesCollectedBeforeScroll],
   ['scroll proceeds when bottom row is not safe', testScrollProceedsWhenBottomUnsafe],
   ['batch scroll moves multiple rows and caps damage', testBatchScrollMovesMultipleRowsAndCapsDamage],

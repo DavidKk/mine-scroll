@@ -57,6 +57,9 @@ export function computeBottomRowScrollDamage(
   localRow = board.rows - 1,
 ): number {
   if (localRow < 0 || localRow >= board.rows) return 0;
+  if (board.minesPlaced) {
+    return countBottomRowPenalty(session, board, localRow);
+  }
   if (isRowAllBlank(board, localRow)) return 0;
   return countBottomRowPenalty(session, board, localRow);
 }

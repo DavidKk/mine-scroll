@@ -46,6 +46,11 @@ const UI_OVERVIEW_ASSETS = [
     src: '/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png',
     note: 'Runtime retry button art used by the end overlay.',
   },
+  {
+    title: 'Sound toggle v3',
+    src: '/assets/candidates/hud-sound-v3/runtime/sound-toggle-v3-preview.png',
+    note: 'Runtime BGM mute icons: speaker and forbidden speaker, with subtle hover glow variants.',
+  },
 ] as const;
 
 const PANEL_PATHS: Partial<Record<GameUiPanelName, string>> = {

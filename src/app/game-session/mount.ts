@@ -238,7 +238,11 @@ export function mountGameSession(
         gameAudio.unlock();
         gameAudio.play(kind === 'danger-rise' ? 'lifeWarning' : 'scrollUp');
       },
-      onUiHover: () => gameAudio.play('uiHover'),
+      onUiHover: (target: string) => {
+        if (target === 'start') gameAudio.play('startHover');
+        else if (target === 'retry') gameAudio.play('retryHover');
+        else gameAudio.play('uiHover');
+      },
       onUiClick: () => gameAudio.play('uiClick'),
       onPointerDown: () => gameAudio.unlock(),
       getBgmMuted: () => gameAudio.isIdleBgmMuted(),

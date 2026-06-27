@@ -192,6 +192,7 @@ function logAutoHeal(runtime: GameSessionRuntime, gameLog: CanvasLogController, 
     runtime.presentation.scoreEvent = {
       id: runtime.presentation.eventId,
       scoreAdded: report.scoreAdded,
+      scoreAfter: next.score ?? 0,
       comboAfter: report.comboAfter,
     };
   }
@@ -221,6 +222,7 @@ function logDefuseScore(runtime: GameSessionRuntime, gameLog: CanvasLogControlle
     runtime.presentation.scoreEvent = {
       id: runtime.presentation.eventId,
       scoreAdded: report.scoreAdded,
+      scoreAfter: next.score ?? 0,
       comboAfter: report.comboAfter,
     };
   }

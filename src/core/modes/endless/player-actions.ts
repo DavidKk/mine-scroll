@@ -7,12 +7,10 @@ import {
 } from '../../mines-defused.ts';
 import {
   applyMinesFromSeed,
-  buildFirstClickSafeZone,
   getLocalNeighbors,
   inLocalBounds,
   visibleViewStart,
 } from './grid.ts';
-import { ENDLESS_VISIBLE_ROWS } from './constants.ts';
 import {
   actionableBounds,
   applyLifeLoss,
@@ -24,19 +22,13 @@ import {
 } from './reveal-pipeline.ts';
 import { isEndlessActionableLocalRow } from './views.ts';
 
-/** Start endless run from the title screen (mines + playing) without waiting for first reveal. */
+/** Start endless run from the title screen without waiting for first reveal. Mines are fixed at session create. */
 export function endlessBeginRun(session: ModeSession): ModeSession {
   if (session.modeId !== 'endless' || session.state.status !== 'idle') return session;
 
-  const board = cloneBoard(session.state.board);
-  const viewStart = session.endlessViewStart ?? visibleViewStart(board);
-  const localRow = Math.min(board.rows - 1, viewStart + Math.floor(ENDLESS_VISIBLE_ROWS / 2));
-  const col = Math.floor(board.cols / 2);
-  applyMinesFromSeed(board, buildFirstClickSafeZone(board, localRow, col));
-
   return {
     ...session,
-    state: { ...session.state, board, status: 'playing' },
+    state: { ...session.state, status: 'playing' },
   };
 }
 
@@ -52,20 +44,16 @@ export function endlessRevealAt(session: ModeSession, row: number, col: number):
   const before = state.board;
   const board = cloneBoard(state.board);
   let status: GameStatus = state.status;
-  const isFirstClick = !board.minesPlaced;
 
-  if (isFirstClick) {
-    applyMinesFromSeed(board, buildFirstClickSafeZone(board, row, col));
-    status = 'playing';
-  } else if (status === 'idle') {
+  if (!board.minesPlaced) {
+    applyMinesFromSeed(board);
+  }
+  if (status === 'idle') {
     status = 'playing';
   }
 
   const bounds = actionableBounds(board);
   const outcome = revealSingle(board, row, col, bounds);
-  if (isFirstClick && outcome === 'mine') {
-    throw new Error('First click must not hit a mine');
-  }
 
   if (outcome === 'mine') {
     const revealedDelta = countNewlyRevealed(before, board);

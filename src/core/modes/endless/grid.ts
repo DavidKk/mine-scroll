@@ -173,6 +173,7 @@ export function visibleViewStart(board: Board): number {
 export function createEndlessSession(): ModeSession {
   const seed = (Date.now() ^ (Math.random() * 0x1_0000_0000)) >>> 0;
   const board = createInitialBoard(seed);
+  applyMinesFromSeed(board);
 
   return {
     modeId: 'endless',
@@ -218,7 +219,9 @@ function isBlankCell(cell: Cell): boolean {
 
 export function isRowAllBlank(board: Board, localRow: number): boolean {
   for (let col = 0; col < board.cols; col += 1) {
-    if (!isBlankCell(board.cells[localRow]![col]!)) return false;
+    const cell = board.cells[localRow]![col]!;
+    if (board.minesPlaced && cell.isMine) return false;
+    if (!isBlankCell(cell)) return false;
   }
   return true;
 }

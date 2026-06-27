@@ -13,6 +13,8 @@ export const GAME_AUDIO_ASSETS = {
   scrollUp: '/assets/game/audio/sfx-scroll-up.wav',
   healReward: '/assets/game/audio/sfx-heal-reward.wav',
   uiHover: '/assets/game/audio/ui-hover.wav',
+  startHover: '/assets/game/audio/ui-start-hover.wav',
+  retryHover: '/assets/game/audio/ui-retry-hover.wav',
   uiClick: '/assets/game/audio/ui-click.wav',
 } as const;
 
@@ -38,6 +40,8 @@ const SFX_GAIN: Record<GameAudioId, number> = {
   scrollUp: 0.28,
   healReward: 0.3,
   uiHover: 0.85,
+  startHover: 0.72,
+  retryHover: 0.72,
   uiClick: 0.62,
 };
 

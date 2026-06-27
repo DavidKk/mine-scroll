@@ -173,23 +173,23 @@
       },
       "volume-on": {
         "src": "/assets/hud/icons/volume-on.png",
-        "width": 128,
-        "height": 128
+        "width": 256,
+        "height": 256
       },
       "volume-off": {
         "src": "/assets/hud/icons/volume-off.png",
-        "width": 128,
-        "height": 128
+        "width": 256,
+        "height": 256
       },
       "volume-on-hover": {
         "src": "/assets/hud/icons/volume-on-hover.png",
-        "width": 128,
-        "height": 128
+        "width": 256,
+        "height": 256
       },
       "volume-off-hover": {
         "src": "/assets/hud/icons/volume-off-hover.png",
-        "width": 128,
-        "height": 128
+        "width": 256,
+        "height": 256
       }
     }
   },

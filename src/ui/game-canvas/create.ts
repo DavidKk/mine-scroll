@@ -239,6 +239,10 @@ export function createGameCanvas(
   let comboFxStartedAt = 0;
   let lastScoreEventId = 0;
   let scoreFxStartedAt = 0;
+  let scoreCountUpFrom = 0;
+  let scoreCountUpTo = 0;
+  let scoreCountUpStartedAt = 0;
+  let lastDisplayedScore: number | null = null;
   let activeScoreEvent: GameCanvasHudStats['scoreEvent'] | null = null;
   let lastBreakEventId = 0;
   let breakFxStartedAt = 0;
@@ -441,6 +445,8 @@ export function createGameCanvas(
   const cellEffects: CellFx[] = [];
   const particles: ParticleFx[] = [];
   const SCORE_HUD_PULSE_MS = 420;
+  /** Fixed duration for score digit count-up; same whether +1 or +100. */
+  const SCORE_COUNT_UP_MS = 480;
 
   function syncFullscreenCanvasSize(): void {
     if (!fullscreen) return;
@@ -506,6 +512,13 @@ export function createGameCanvas(
     if (pendingPanelTransition) return 'full';
     if (activeDifficultyAlert && now - activeDifficultyAlert.startedAt < DIFFICULTY_ALERT_MS) return 'full';
     if (scoreFxStartedAt > 0 && now - scoreFxStartedAt < SCORE_HUD_PULSE_MS) return 'full';
+    if (
+      scoreCountUpStartedAt > 0 &&
+      now - scoreCountUpStartedAt < SCORE_COUNT_UP_MS &&
+      scoreCountUpTo > scoreCountUpFrom
+    ) {
+      return 'full';
+    }
     if (activeBreakEvent && breakFxStartedAt > 0) return 'full';
     if (activeLifeLossEvent && lifeLossFxStartedAt > 0 && now - lifeLossFxStartedAt < LIFE_LOSS_POPUP_V3_MS) {
       return 'full';
@@ -1637,6 +1650,79 @@ export function createGameCanvas(
     return size;
   }
 
+  function isScoreCountUpAnimating(now: number): boolean {
+    return (
+      scoreCountUpStartedAt > 0 &&
+      now - scoreCountUpStartedAt < SCORE_COUNT_UP_MS &&
+      scoreCountUpTo > scoreCountUpFrom
+    );
+  }
+
+  function peekScoreCountUpValue(now: number): number {
+    if (!isScoreCountUpAnimating(now)) {
+      return lastDisplayedScore ?? scoreCountUpTo;
+    }
+    const elapsed = now - scoreCountUpStartedAt;
+    const t = Math.min(1, elapsed / SCORE_COUNT_UP_MS);
+    if (t >= 1) return scoreCountUpTo;
+    const delta = scoreCountUpTo - scoreCountUpFrom;
+    return scoreCountUpFrom + Math.floor(t * delta);
+  }
+
+  /** Value currently shown in the score HUD (mid-animation or last painted frame). */
+  function currentScoreHudValue(now: number, fallback: number): number {
+    if (isScoreCountUpAnimating(now)) return peekScoreCountUpValue(now);
+    return lastDisplayedScore ?? fallback;
+  }
+
+  function resolveScoreCountUpDisplay(
+    now: number,
+    actualScore: number,
+  ): { score: number; animating: boolean } {
+    if (scoreCountUpStartedAt <= 0) {
+      return { score: actualScore, animating: false };
+    }
+    const elapsed = now - scoreCountUpStartedAt;
+    const t = Math.min(1, elapsed / SCORE_COUNT_UP_MS);
+    const delta = scoreCountUpTo - scoreCountUpFrom;
+    if (delta <= 0) {
+      scoreCountUpStartedAt = 0;
+      return { score: actualScore, animating: false };
+    }
+    if (t >= 1) {
+      scoreCountUpStartedAt = 0;
+      return { score: scoreCountUpTo, animating: false };
+    }
+    const raw = t * delta;
+    const step = Math.floor(raw);
+    return {
+      score: scoreCountUpFrom + step,
+      animating: true,
+    };
+  }
+
+  function beginScoreCountUp(scoreAfter: number, scoreAdded: number, now: number): void {
+    if (scoreAdded <= 0) return;
+
+    const replacing = isScoreCountUpAnimating(now);
+    const scoreBefore = scoreAfter - scoreAdded;
+    const fromScore = Math.min(
+      replacing ? currentScoreHudValue(now, scoreCountUpTo) : (lastDisplayedScore ?? scoreBefore),
+      scoreAfter,
+    );
+
+    if (fromScore >= scoreAfter) {
+      lastDisplayedScore = scoreAfter;
+      scoreCountUpStartedAt = 0;
+      return;
+    }
+
+    // Replace any in-flight tween: restart from the visible value toward the new total.
+    scoreCountUpFrom = fromScore;
+    scoreCountUpTo = scoreAfter;
+    scoreCountUpStartedAt = now;
+  }
+
   function drawScoreDigits(
     shellCtx: CanvasRenderingContext2D,
     text: string,
@@ -1752,9 +1838,14 @@ export function createGameCanvas(
     score: number,
     scale: number,
   ): void {
-    const pulseElapsed = scoreFxStartedAt > 0 ? performance.now() - scoreFxStartedAt : SCORE_HUD_PULSE_MS;
+    const now = performance.now();
+    const countUp = resolveScoreCountUpDisplay(now, score);
+    const displayScore = countUp.score;
+    lastDisplayedScore = displayScore;
+    const pulseElapsed = scoreFxStartedAt > 0 ? now - scoreFxStartedAt : SCORE_HUD_PULSE_MS;
     const pulseT = Math.max(0, Math.min(1, pulseElapsed / SCORE_HUD_PULSE_MS));
     const pulse = pulseElapsed < SCORE_HUD_PULSE_MS ? Math.sin(pulseT * Math.PI) * (1 - pulseT * 0.35) : 0;
+    const panelPulseScale = 1 + pulse * 0.018;
     const asset = drawFeedbackAsset(
       shellCtx,
       hudFeedbackAssets.scorePanelV6,
@@ -1762,7 +1853,7 @@ export function createGameCanvas(
       y + 27 * scale,
       248 * scale,
       80 * scale,
-      1 + pulse * 0.018,
+      panelPulseScale,
       0.92,
     );
     if (!asset) {
@@ -1776,22 +1867,32 @@ export function createGameCanvas(
       shellCtx.shadowColor = 'rgba(45, 236, 255, 0.42)';
       shellCtx.shadowBlur = 7 * scale;
       shellCtx.fillStyle = THEME.hudText;
-      const fallbackText = String(score);
+      const fallbackText = String(displayScore);
       setFittedMonoFont(shellCtx, fallbackText, 86 * scale, 15 * scale, 10 * scale, 850);
       shellCtx.fillText(fallbackText, x - 2 * scale, y + 15 * scale);
       shellCtx.restore();
       return;
     }
 
-    const text = String(score);
-    const drewDigits = drawScoreDigits(
-      shellCtx,
-      text,
-      asset.x + asset.w * 0.34,
-      asset.y + asset.h * 0.475,
-      asset.w * 0.52,
-      Math.min(asset.h * (0.16 + pulse * 0.018), 15 * scale * (1 + pulse * 0.12)),
+    const text = String(displayScore);
+    const basePanelH = asset.h / panelPulseScale;
+    const digitMaxH = Math.min(basePanelH * 0.155, 15 * scale);
+    const digitX = asset.x + asset.w * 0.34;
+    const digitCy = asset.y + asset.h * 0.475;
+    const digitMaxW = asset.w * 0.52;
+    const clipPadX = asset.w * 0.02;
+    const clipPadY = basePanelH * 0.06;
+    shellCtx.save();
+    shellCtx.beginPath();
+    shellCtx.rect(
+      digitX - clipPadX,
+      digitCy - digitMaxH / 2 - clipPadY,
+      digitMaxW + clipPadX * 2,
+      digitMaxH + clipPadY * 2,
     );
+    shellCtx.clip();
+    const drewDigits = drawScoreDigits(shellCtx, text, digitX, digitCy, digitMaxW, digitMaxH);
+    shellCtx.restore();
     if (drewDigits) return;
 
     shellCtx.save();
@@ -1800,8 +1901,8 @@ export function createGameCanvas(
     shellCtx.shadowColor = 'rgba(45, 236, 255, 0.42)';
     shellCtx.shadowBlur = 7 * scale;
     shellCtx.fillStyle = '#d8fbff';
-    setFittedMonoFont(shellCtx, text, asset.w * 0.52, 15 * scale, 10 * scale, 850);
-    shellCtx.fillText(text, asset.x + asset.w * 0.34, asset.y + asset.h * 0.475);
+    setFittedMonoFont(shellCtx, text, digitMaxW, 15 * scale, 10 * scale, 850);
+    shellCtx.fillText(text, digitX, digitCy);
     shellCtx.restore();
   }
 
@@ -1931,11 +2032,12 @@ export function createGameCanvas(
   ): void {
     const lives = parseLivesDisplay(livesRaw);
     const heartIconSize = hudHeartIconSize(scale);
-    const iconSize = Math.max(14, Math.min(18, 16 * scale));
-    const hitSize = Math.max(26, 28 * scale);
+    const gridCellSize = squareLayout?.grid.cellSize ?? 32 * scale;
+    const iconSize = Math.max(24, Math.min(34, gridCellSize * 0.82));
+    const hitSize = iconSize + Math.max(8, 10 * scale);
     const heartRowY = hudY + 31 * scale;
     const rectX = anchorX - hitSize;
-    const rectY = heartRowY + (lives ? heartIconSize / 2 : 12 * scale) + 6 * scale;
+    const rectY = heartRowY + (lives ? heartIconSize / 2 : 12 * scale) + 12 * scale;
     const cx = rectX + hitSize / 2;
     const cy = rectY + hitSize / 2;
 
@@ -1943,9 +2045,15 @@ export function createGameCanvas(
 
     shellCtx.save();
     if (hovered) {
-      fillRounded(rectX, rectY, hitSize, hitSize, 8 * scale, 'rgba(59, 130, 246, 0.14)');
+      shellCtx.globalCompositeOperation = 'lighter';
+      const glow = shellCtx.createRadialGradient(cx, cy, iconSize * 0.16, cx, cy, iconSize * 0.72);
+      glow.addColorStop(0, muted ? 'rgba(255, 64, 82, 0.2)' : 'rgba(45, 236, 255, 0.22)');
+      glow.addColorStop(1, 'rgba(45, 236, 255, 0)');
+      shellCtx.fillStyle = glow;
+      shellCtx.fillRect(rectX - iconSize * 0.35, rectY - iconSize * 0.35, hitSize + iconSize * 0.7, hitSize + iconSize * 0.7);
+      shellCtx.globalCompositeOperation = 'source-over';
     }
-    shellCtx.globalAlpha = hovered ? 1 : 0.82;
+    shellCtx.globalAlpha = hovered ? 1 : 0.9;
     const icon = muted
       ? hovered ? 'volume-off-hover' : 'volume-off'
       : hovered ? 'volume-on-hover' : 'volume-on';
@@ -2705,7 +2813,13 @@ export function createGameCanvas(
 
     if (stats?.scoreEvent && stats.scoreEvent.id !== lastScoreEventId) {
       lastScoreEventId = stats.scoreEvent.id;
-      scoreFxStartedAt = performance.now();
+      const scoreNow = performance.now();
+      scoreFxStartedAt = scoreNow;
+      beginScoreCountUp(
+        stats.scoreEvent.scoreAfter ?? stats.score ?? 0,
+        stats.scoreEvent.scoreAdded,
+        scoreNow,
+      );
       const comboAlsoIncreased = combo > lastCombo && combo > 1;
       if (!comboAlsoIncreased) spawnScoreHudParticles();
       scheduleAnimationFrame();
@@ -3158,7 +3272,7 @@ export function createGameCanvas(
     if (!fullscreen?.onUiHover) return;
     const target = hitInteractiveUi(x, y);
     if (target && target !== uiHoverTarget) {
-      fullscreen.onUiHover();
+      fullscreen.onUiHover(target);
     }
     uiHoverTarget = target;
   }
@@ -3247,6 +3361,10 @@ export function createGameCanvas(
         particles.length = 0;
         lastCombo = 0;
         comboFxStartedAt = 0;
+        scoreCountUpStartedAt = 0;
+        scoreCountUpFrom = 0;
+        scoreCountUpTo = 0;
+        lastDisplayedScore = null;
         activeDifficultyAlert = null;
         lastDifficultySpeedTier = null;
         lastDifficultyBatchTier = null;

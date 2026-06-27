@@ -21,6 +21,7 @@ export interface GameCanvasHudStats {
   scoreEvent?: {
     id: number;
     scoreAdded: number;
+    scoreAfter: number;
     comboAfter: number;
   };
   breakEvent?: {
@@ -68,7 +69,7 @@ export interface GameCanvasFullscreenOptions {
   onManualScroll?: () => void;
   /** Difficulty tier escalated (speed or batch). */
   onDifficultyAlert?: (kind: 'speed-up' | 'danger-rise') => void;
-  onUiHover?: () => void;
+  onUiHover?: (target: string) => void;
   onUiClick?: () => void;
   /** First pointer on canvas — unlock audio context (browser autoplay policy). */
   onPointerDown?: () => void;
