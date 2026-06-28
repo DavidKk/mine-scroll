@@ -1665,12 +1665,7 @@ body::-webkit-scrollbar {
   --lb-table-head-height: 32px;
   --lb-visible-rows: 10;
   --lb-ranks-height: calc(var(--lb-table-head-height) + var(--lb-entry-height) * var(--lb-visible-rows) + 12px);
-  --lb-self-zone-height: 92px;
   --lb-ranks-label-height: 24px;
-  --lb-body-height-solo: calc(var(--lb-pad-y) + var(--lb-ranks-height) + 16px);
-  --lb-body-height-with-self: calc(var(--lb-pad-y) + var(--lb-self-zone-height) + var(--lb-gap) + var(--lb-ranks-label-height) + var(--lb-ranks-height) + 16px);
-  --lb-body-height: var(--lb-body-height-with-self);
-  --lb-panel-height: calc(58px + var(--lb-body-height));
 
   position: fixed;
   inset: 0;
@@ -1697,8 +1692,7 @@ body::-webkit-scrollbar {
   display: flex;
   flex-direction: column;
   width: min(100%, 520px);
-  height: var(--lb-panel-height);
-  max-height: min(88vh, var(--lb-panel-height));
+  max-height: min(88vh, 680px);
   padding: 0;
   border-radius: 16px;
   border: 1px solid rgba(45, 236, 255, 0.22);
@@ -1709,11 +1703,6 @@ body::-webkit-scrollbar {
     0 28px 80px rgba(0, 0, 0, 0.55);
   overflow: hidden;
   outline: none;
-}
-
-.leaderboard-modal__panel:has(.leaderboard-modal__body:not(.leaderboard-modal__body--with-self)) {
-  height: calc(58px + var(--lb-body-height-solo));
-  max-height: min(88vh, calc(58px + var(--lb-body-height-solo)));
 }
 
 .leaderboard-modal__glow {
@@ -1757,11 +1746,17 @@ body::-webkit-scrollbar {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  border: 1px solid rgba(250, 204, 21, 0.42);
-  background: rgba(250, 204, 21, 0.1);
-  color: #fde68a;
-  font-size: 0.95rem;
-  box-shadow: 0 0 18px rgba(250, 204, 21, 0.14);
+  border: 1px solid rgba(45, 236, 255, 0.28);
+  background: rgba(45, 236, 255, 0.08);
+  box-shadow: 0 0 18px rgba(45, 236, 255, 0.12);
+}
+
+.leaderboard-modal__mark-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .leaderboard-modal__titles {
@@ -1853,35 +1848,20 @@ body::-webkit-scrollbar {
   flex-direction: column;
   flex: 1 1 auto;
   gap: var(--lb-gap);
-  height: var(--lb-body-height);
-  min-height: var(--lb-body-height);
-  max-height: var(--lb-body-height);
+  min-height: 0;
   padding: var(--lb-pad-y) var(--lb-pad-x) 16px;
   overflow: hidden;
   background: rgba(4, 7, 14, 0.45);
 }
 
-.leaderboard-modal__body:not(.leaderboard-modal__body--with-self) {
-  height: var(--lb-body-height-solo);
-  min-height: var(--lb-body-height-solo);
-  max-height: var(--lb-body-height-solo);
-}
-
-.leaderboard-modal__body--with-self .leaderboard-modal__ranks-zone {
-  flex: 1 1 auto;
-}
-
 .leaderboard-modal__self-zone {
-  flex: 0 0 var(--lb-self-zone-height);
-  height: var(--lb-self-zone-height);
-  min-height: var(--lb-self-zone-height);
+  flex: 0 0 auto;
   margin: 0;
   padding: 12px;
   border-radius: var(--lb-radius);
   border: 1px solid rgba(45, 236, 255, 0.24);
   background: linear-gradient(180deg, rgba(45, 236, 255, 0.1), rgba(45, 236, 255, 0.04)), rgba(8, 14, 28, 0.72);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  overflow: hidden;
 }
 
 .leaderboard-modal__self-zone[hidden] {
@@ -1913,17 +1893,43 @@ body::-webkit-scrollbar {
 .leaderboard-modal__self-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
 }
 
-.leaderboard-modal__self-identity {
+.leaderboard-modal__self-card .leaderboard-modal__cell.leaderboard-modal__rank {
+  flex: 0 0 2.4rem;
+}
+
+.leaderboard-modal__self-card .leaderboard-modal__cell.leaderboard-modal__country {
+  flex: 0 0 2.6rem;
+}
+
+.leaderboard-modal__cell {
+  display: flex;
+  align-items: center;
   min-width: 0;
-  flex: 1 1 auto;
+}
+
+.leaderboard-modal__cell-inner {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.leaderboard-modal__self-stat .leaderboard-modal__cell-inner {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
 .leaderboard-modal__self-name {
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.leaderboard-modal__self-name .leaderboard-modal__cell-inner {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1937,12 +1943,11 @@ body::-webkit-scrollbar {
   display: flex;
   align-items: center;
   gap: 14px;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .leaderboard-modal__self-stat {
-  display: grid;
-  gap: 2px;
   text-align: right;
   color: #a1a1aa;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -2050,8 +2055,12 @@ body::-webkit-scrollbar {
   grid-template-columns: 2.4rem minmax(0, 1fr) 3.2rem 5.5rem;
 }
 
+.leaderboard-modal__depth,
+.leaderboard-modal__score {
+  justify-content: flex-end;
+}
+
 .leaderboard-modal__depth {
-  text-align: right;
   color: #a1a1aa;
   font-variant-numeric: tabular-nums;
 }
@@ -2078,19 +2087,30 @@ body::-webkit-scrollbar {
   background: rgba(8, 12, 22, 0.92);
 }
 
-.leaderboard-modal__country,
-.leaderboard-modal__self-country {
+.leaderboard-modal__cell.leaderboard-modal__country + .leaderboard-modal__cell.leaderboard-modal__name,
+.leaderboard-modal__cell.leaderboard-modal__country + .leaderboard-modal__cell.leaderboard-modal__self-name {
+  margin-left: 10px;
+}
+
+.leaderboard-modal__country {
+  flex-shrink: 0;
+  justify-content: center;
+  font-size: 0.66rem;
   color: #a1a1aa;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
 }
 
-.leaderboard-modal__table-head > span:last-child {
-  text-align: right;
+.leaderboard-modal__country .leaderboard-modal__cell-inner {
+  justify-content: center;
 }
 
-.leaderboard-modal__table-head--with-depth > [data-depth-head] {
-  text-align: right;
+.leaderboard-modal__table-head > .leaderboard-modal__cell--score {
+  justify-content: flex-end;
+}
+
+.leaderboard-modal__table-head--with-depth > .leaderboard-modal__cell--depth {
+  justify-content: flex-end;
 }
 
 .leaderboard-modal__list {
@@ -2111,12 +2131,12 @@ body::-webkit-scrollbar {
   font-size: 0.78rem;
 }
 
-.leaderboard-modal__entry--self-in-list .leaderboard-modal__name {
+.leaderboard-modal__entry--self-in-list .leaderboard-modal__name .leaderboard-modal__cell-inner {
   color: #c9fdff;
   font-weight: 600;
 }
 
-.leaderboard-modal__entry--self-in-list .leaderboard-modal__score {
+.leaderboard-modal__entry--self-in-list .leaderboard-modal__score .leaderboard-modal__cell-inner {
   color: #fde68a;
 }
 
@@ -2133,12 +2153,34 @@ body::-webkit-scrollbar {
 }
 
 .leaderboard-modal__rank {
+  font-size: 0.66rem;
   color: #71717a;
   font-variant-numeric: tabular-nums;
 }
 
+.leaderboard-modal__rank--gold {
+  color: #fde68a;
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(250, 204, 21, 0.35);
+}
+
+.leaderboard-modal__rank--silver {
+  color: #d1d5db;
+  font-weight: 600;
+  text-shadow: 0 0 10px rgba(212, 212, 216, 0.2);
+}
+
+.leaderboard-modal__rank--bronze {
+  color: #f59e0b;
+  font-weight: 600;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.22);
+}
+
 .leaderboard-modal__name {
   min-width: 0;
+}
+
+.leaderboard-modal__name .leaderboard-modal__cell-inner {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2176,8 +2218,7 @@ body::-webkit-scrollbar {
   color: #c9fdff;
 }
 
-.leaderboard-modal__score {
-  text-align: right;
+.leaderboard-modal__score .leaderboard-modal__cell-inner {
   color: #bae6fd;
   font-variant-numeric: tabular-nums;
 }

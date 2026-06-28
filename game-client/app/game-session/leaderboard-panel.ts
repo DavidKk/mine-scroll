@@ -7,6 +7,7 @@ import {
   saveDisplayName,
   saveLeaderboardSelfSnapshot,
 } from '../../storage/ranked-local-store.ts'
+import { HUD_ICON_BASE } from '../../ui/boot/asset-registry.ts'
 import { wrapWithCustomScrollbar } from '../../ui/custom-scrollbar.ts'
 import { createHeroicon } from '../../ui/heroicons.ts'
 import type { GameNotificationController } from '../../ui/notification.ts'
@@ -130,6 +131,47 @@ function formatCountryCode(code: string | undefined): string {
   return normalized
 }
 
+function applyRankAccent(rankEl: HTMLElement, rank: number): void {
+  if (rank === 1) rankEl.classList.add('leaderboard-modal__rank--gold')
+  else if (rank === 2) rankEl.classList.add('leaderboard-modal__rank--silver')
+  else if (rank === 3) rankEl.classList.add('leaderboard-modal__rank--bronze')
+}
+
+function createLeaderboardCell(className: string, text: string, options: { title?: string; hidden?: boolean; rank?: number } = {}): HTMLElement {
+  const cell = document.createElement('span')
+  cell.className = `leaderboard-modal__cell ${className}`
+
+  const inner = document.createElement('span')
+  inner.className = 'leaderboard-modal__cell-inner'
+  inner.textContent = text
+
+  if (options.title) cell.title = options.title
+  if (options.hidden) cell.hidden = options.hidden
+  if (options.rank != null) applyRankAccent(cell, options.rank)
+
+  cell.append(inner)
+  return cell
+}
+
+function createSelfStatCell(label: string, value: string, score = false): HTMLElement {
+  const cell = document.createElement('span')
+  cell.className = `leaderboard-modal__cell leaderboard-modal__self-stat${score ? ' leaderboard-modal__self-stat--score' : ''}`
+
+  const inner = document.createElement('span')
+  inner.className = 'leaderboard-modal__cell-inner'
+
+  const labelEl = document.createElement('span')
+  labelEl.className = 'leaderboard-modal__self-stat-label'
+  labelEl.textContent = label
+
+  const valueEl = document.createElement('span')
+  valueEl.textContent = value
+
+  inner.append(labelEl, valueEl)
+  cell.append(inner)
+  return cell
+}
+
 function formatSubmittedAt(timestamp: number): string {
   if (!timestamp) return '—'
   return new Date(timestamp).toLocaleString('en-US', {
@@ -158,7 +200,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       <div class="leaderboard-modal__frame" aria-hidden="true"></div>
       <header class="leaderboard-modal__head">
         <div class="leaderboard-modal__brand">
-          <span class="leaderboard-modal__mark" aria-hidden="true">★</span>
+          <span class="leaderboard-modal__mark" aria-hidden="true"><img class="leaderboard-modal__mark-icon" src="${HUD_ICON_BASE}/leaderboard.png" alt="" width="20" height="20" decoding="async" /></span>
           <div class="leaderboard-modal__titles">
             <h2 id="leaderboard-modal-title" class="leaderboard-modal__title">Leaderboard</h2>
             <p class="leaderboard-modal__subtitle" data-subtitle>Endless · top 100</p>
@@ -176,7 +218,11 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
           <p class="leaderboard-modal__ranks-label">Rankings</p>
           <div class="leaderboard-modal__ranks-board">
             <div class="leaderboard-modal__table-head" aria-hidden="true">
-              <span>#</span><span data-country-head hidden>Region</span><span>Operator</span><span data-depth-head hidden>Depth</span><span>Score</span>
+              <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__rank"><span class="leaderboard-modal__cell-inner">#</span></span>
+              <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__country" data-country-head hidden><span class="leaderboard-modal__cell-inner">Region</span></span>
+              <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__name"><span class="leaderboard-modal__cell-inner">Player</span></span>
+              <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__depth" data-depth-head hidden><span class="leaderboard-modal__cell-inner">Depth</span></span>
+              <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__score"><span class="leaderboard-modal__cell-inner">Score</span></span>
             </div>
             <ol class="leaderboard-modal__list"></ol>
             <p class="leaderboard-modal__empty" hidden>No scores yet.</p>
@@ -301,35 +347,25 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     const card = document.createElement('div')
     card.className = 'leaderboard-modal__self-card'
 
-    const identity = document.createElement('div')
-    identity.className = 'leaderboard-modal__self-identity'
-
-    const country = document.createElement('span')
-    country.className = 'leaderboard-modal__self-country'
-    country.textContent = showCountry ? formatCountryCode(row.entry.countryCode) : ''
-    country.hidden = !showCountry
-    identity.append(country)
-
-    const name = document.createElement('span')
-    name.className = 'leaderboard-modal__self-name'
-    name.textContent = `${displayName} · you`
-    name.title = `${displayName} · ${formatSubmittedAt(row.entry.submittedAt)}`
-    identity.append(name)
+    const rank = createLeaderboardCell('leaderboard-modal__rank', String(row.rank).padStart(2, '0'), { rank: row.rank })
 
     const stats = document.createElement('div')
     stats.className = 'leaderboard-modal__self-stats'
     if (showDepth) {
-      const depth = document.createElement('span')
-      depth.className = 'leaderboard-modal__self-stat'
-      depth.innerHTML = `<span class="leaderboard-modal__self-stat-label">Depth</span>${row.entry.depth ?? 0}`
-      stats.append(depth)
+      stats.append(createSelfStatCell('Depth', String(row.entry.depth ?? 0)))
     }
-    const score = document.createElement('span')
-    score.className = 'leaderboard-modal__self-stat leaderboard-modal__self-stat--score'
-    score.innerHTML = `<span class="leaderboard-modal__self-stat-label">Score</span>${formatScore(row.entry.score)}`
-    stats.append(score)
+    stats.append(createSelfStatCell('Score', formatScore(row.entry.score), true))
 
-    card.append(identity, stats)
+    card.append(rank)
+    if (showCountry) {
+      card.append(createLeaderboardCell('leaderboard-modal__country', formatCountryCode(row.entry.countryCode)))
+    }
+    card.append(
+      createLeaderboardCell('leaderboard-modal__self-name', displayName, {
+        title: `${displayName} · ${formatSubmittedAt(row.entry.submittedAt)}`,
+      }),
+      stats
+    )
     return card
   }
 
@@ -340,33 +376,19 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     if (showCountry) item.classList.add('leaderboard-modal__entry--with-country')
     if (row.isSelf) item.classList.add('leaderboard-modal__entry--self-in-list')
 
-    const rank = document.createElement('span')
-    rank.className = 'leaderboard-modal__rank'
-    rank.textContent = String(row.rank).padStart(2, '0')
-
-    const country = document.createElement('span')
-    country.className = 'leaderboard-modal__country'
-    country.textContent = formatCountryCode(row.entry.countryCode)
-    country.hidden = !showCountry
-
     const displayName = row.isSelf ? resolveSelfDisplayName(row.entry.name) : row.entry.name
-    const name = document.createElement('span')
-    name.className = 'leaderboard-modal__name'
-    name.textContent = displayName
-    name.title = `${displayName} · ${formatSubmittedAt(row.entry.submittedAt)}`
 
-    const score = document.createElement('span')
-    score.className = 'leaderboard-modal__score'
-    score.textContent = formatScore(row.entry.score)
-
-    item.append(rank, country, name)
+    item.append(
+      createLeaderboardCell('leaderboard-modal__rank', String(row.rank).padStart(2, '0'), { rank: row.rank }),
+      createLeaderboardCell('leaderboard-modal__country', formatCountryCode(row.entry.countryCode), { hidden: !showCountry }),
+      createLeaderboardCell('leaderboard-modal__name', displayName, {
+        title: `${displayName} · ${formatSubmittedAt(row.entry.submittedAt)}`,
+      })
+    )
     if (showDepth) {
-      const depth = document.createElement('span')
-      depth.className = 'leaderboard-modal__depth'
-      depth.textContent = String(row.entry.depth ?? 0)
-      item.append(depth)
+      item.append(createLeaderboardCell('leaderboard-modal__depth', String(row.entry.depth ?? 0)))
     }
-    item.append(score)
+    item.append(createLeaderboardCell('leaderboard-modal__score', formatScore(row.entry.score)))
     return item
   }
 
