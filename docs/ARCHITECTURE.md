@@ -43,6 +43,7 @@ chill/
 │   │   ├── hud-feedback/        # ScorePop / ComboBurst FX
 │   │   ├── cell-fx/             # 格子特效 + gallery/ 预览场景
 │   │   ├── ambient-backdrop/
+│   │   ├── boot/                # 启动资源加载 + DOM 进度页
 │   │   └── theme.ts, game-assets.ts, …
 │   └── app/
 │       ├── app.ts               # 路由
@@ -213,7 +214,22 @@ HUD reset click
 
 ---
 
-## 9. 构建与脚本
+## 9. 启动流程
+
+```
+index.html (#boot-screen 内联 DOM + critical CSS)
+  → main.ts: bindBootScreen()
+  → runBootSequence() — Tier 1 tiles/HUD + Tier 2 manifest/feedback
+  → loadTileSprites / loadHudSprites / loadGameAssets（从 asset-cache 组装）
+  → bootScreen.dismiss() → mountApp()
+  → preloadGameAudio()（Tier 3，不阻塞）
+```
+
+详见 `docs/ASSET-BOOT-LOADER-PLAN.md`。
+
+---
+
+## 10. 构建与脚本
 
 ```json
 {
@@ -234,3 +250,4 @@ HUD reset click
 | v0.1 | 2026-06-14 | MVP 架构：Vite + TS，core/ui/app 三层 |
 | v0.2 | 2026-06-14 | UI 改为 Canvas 2D；renderer/theme 分层 |
 | v0.3 | 2026-06-28 | Endless + 模块化：`game-canvas/`、`hud-feedback/`、`primitives/`；单文件 ≤800 行 |
+| v0.4 | 2026-06-28 | 启动加载器 `ui/boot/` + DOM 进度页 |

@@ -1,64 +1,42 @@
+import { getCachedImage } from './boot/asset-cache.ts';
+import { HUD_BASE, HUD_ICON_BASE, HUD_ICON_NAMES } from './boot/asset-registry.ts';
 import { drawImageContained, getGameCutout } from './game-assets.ts';
 
-const HUD_BASE = '/assets/hud';
-const ICON_BASE = `${HUD_BASE}/icons`;
-
-export const HUD_ICON_NAMES = [
-  'play',
-  'skull',
-  'refresh',
-  'volume-on',
-  'volume-off',
-  'volume-on-hover',
-  'volume-off-hover',
-  'info',
-  'flag',
-  'wand',
-  'timer',
-] as const;
+export { HUD_ICON_NAMES };
 
 export type HudIconName = (typeof HUD_ICON_NAMES)[number];
 
 export interface HudSprites {
-  heartFull: HTMLImageElement | null;
-  heartEmpty: HTMLImageElement | null;
-  icons: Partial<Record<HudIconName, HTMLImageElement>>;
+  heartFull: HTMLImageElement;
+  heartEmpty: HTMLImageElement;
+  icons: Record<HudIconName, HTMLImageElement>;
 }
 
-let loadPromise: Promise<HudSprites | null> | null = null;
 let cached: HudSprites | null = null;
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
+function imageOrNull(url: string): HTMLImageElement | null {
+  return getCachedImage(url) ?? null;
+}
+
+function buildHudSpritesFromCache(): HudSprites | null {
+  const heartFull = imageOrNull(`${HUD_BASE}/heart-full.png`);
+  const heartEmpty = imageOrNull(`${HUD_BASE}/heart-empty.png`);
+  if (!heartFull || !heartEmpty) return null;
+
+  const icons = {} as Record<HudIconName, HTMLImageElement>;
+  for (const name of HUD_ICON_NAMES) {
+    const icon = imageOrNull(`${HUD_ICON_BASE}/${name}.png`);
+    if (!icon) return null;
+    icons[name] = icon;
+  }
+
+  return { heartFull, heartEmpty, icons };
 }
 
 export function loadHudSprites(): Promise<HudSprites | null> {
   if (cached) return Promise.resolve(cached);
-  if (loadPromise) return loadPromise;
-
-  loadPromise = (async () => {
-    const [heartFull, heartEmpty, ...iconImages] = await Promise.all([
-      loadImage(`${HUD_BASE}/heart-full.png`),
-      loadImage(`${HUD_BASE}/heart-empty.png`),
-      ...HUD_ICON_NAMES.map((name) => loadImage(`${ICON_BASE}/${name}.png`)),
-    ]);
-    const icons = Object.fromEntries(
-      HUD_ICON_NAMES.flatMap((name, i) => {
-        const image = iconImages[i];
-        return image ? [[name, image] as const] : [];
-      }),
-    ) as Partial<Record<HudIconName, HTMLImageElement>>;
-    if (Object.keys(icons).length === 0) return null;
-    cached = { heartFull, heartEmpty, icons };
-    return cached;
-  })();
-
-  return loadPromise;
+  cached = buildHudSpritesFromCache();
+  return Promise.resolve(cached);
 }
 
 export function getHudSprites(): HudSprites | null {
@@ -134,7 +112,7 @@ export function drawLivesRow(
   }
 
   const sprites = getHudSprites();
-  if (!sprites?.heartFull || !sprites.heartEmpty) return false;
+  if (!sprites) return false;
 
   let cx = x;
   const cy = y - iconSize / 2;

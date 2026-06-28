@@ -11,8 +11,90 @@
       rel="stylesheet"
     />
     <title>Minesweeper</title>
+    <link rel="stylesheet" href="/src/ui/boot/boot-screen.css" />
+    <style>
+      /* Minimal shell before boot-screen.css paints — keep in sync with boot-screen.css tokens */
+      #boot-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, #06070d 0%, #030408 100%);
+        color: #fafafa;
+      }
+
+      #boot-screen .boot-screen__error {
+        display: none !important;
+      }
+
+      .boot-screen__panel {
+        width: 400px;
+        max-width: calc(100% - 40px);
+        box-sizing: border-box;
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-screen" role="status" aria-live="polite" aria-busy="true">
+      <div class="boot-screen__backdrop">
+        <div class="boot-screen__aurora"></div>
+        <div class="boot-screen__stars boot-screen__stars--far"></div>
+        <div class="boot-screen__stars boot-screen__stars--near"></div>
+        <div class="boot-screen__grid-lines"></div>
+        <div class="boot-screen__vignette"></div>
+      </div>
+      <div class="boot-screen__panel">
+        <div class="boot-screen__panel-glow" aria-hidden="true"></div>
+        <div class="boot-screen__panel-frame" aria-hidden="true"></div>
+        <div class="boot-screen__panel-scanlines" aria-hidden="true"></div>
+        <div class="boot-screen__grid-wrap">
+          <div class="boot-screen__grid-stage">
+            <div class="boot-screen__grid-scan" aria-hidden="true"></div>
+            <div class="boot-screen__grid" role="group" aria-label="Mini minesweeper">
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+              <button type="button" class="boot-screen__cell"></button>
+            </div>
+          </div>
+          <p class="boot-screen__grid-hint">Tap cells while loading</p>
+        </div>
+        <h1 class="boot-screen__title">Minesweeper</h1>
+        <p class="boot-screen__label" id="boot-label">INITIALIZING — 0%</p>
+        <div class="boot-screen__rail-wrap">
+          <div class="boot-screen__track-shell">
+            <div class="boot-screen__track-clip">
+              <div class="boot-screen__track-glow" aria-hidden="true"></div>
+              <div
+                class="boot-screen__track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div class="boot-screen__fill" id="boot-fill">
+                  <div class="boot-screen__fill-spark" aria-hidden="true"></div>
+                  <div class="boot-screen__fill-head" aria-hidden="true"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="boot-screen__error">
+          <p class="boot-screen__error-msg"></p>
+          <button type="button" class="boot-screen__action">
+            <span class="boot-screen__action-plate" aria-hidden="true"></span>
+            <span class="boot-screen__action-text">RETRY</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

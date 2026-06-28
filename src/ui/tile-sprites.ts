@@ -1,5 +1,5 @@
-const TILE_BASE = '/assets/tiles';
-const BOARD_V3_TILE_BASE = '/assets/candidates/board-v3-square/tiles';
+import { getCachedImage } from './boot/asset-cache.ts';
+import { TILE_SPRITE_URLS } from './boot/asset-registry.ts';
 
 export interface TileSprites {
   hidden: HTMLImageElement;
@@ -12,42 +12,51 @@ export interface TileSprites {
   numbers: HTMLImageElement[];
 }
 
-let loadPromise: Promise<TileSprites | null> | null = null;
 let cached: TileSprites | null = null;
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load tile sprite: ${src}`));
-    img.src = src;
-  });
+function imageOrNull(url: string): HTMLImageElement | null {
+  return getCachedImage(url) ?? null;
+}
+
+function buildTileSpritesFromCache(): TileSprites | null {
+  const hidden = imageOrNull(TILE_SPRITE_URLS.hidden);
+  const revealed = imageOrNull(TILE_SPRITE_URLS.revealed);
+  const hover = imageOrNull(TILE_SPRITE_URLS.hover);
+  const pressed = imageOrNull(TILE_SPRITE_URLS.pressed);
+  const safe = imageOrNull(TILE_SPRITE_URLS.safe);
+  const mine = imageOrNull(TILE_SPRITE_URLS.mine);
+  const flag = imageOrNull(TILE_SPRITE_URLS.flag);
+  const numbers = TILE_SPRITE_URLS.numbers.map((url) => imageOrNull(url));
+
+  if (
+    !hidden ||
+    !revealed ||
+    !hover ||
+    !pressed ||
+    !safe ||
+    !mine ||
+    !flag ||
+    numbers.some((img) => !img)
+  ) {
+    return null;
+  }
+
+  return {
+    hidden,
+    revealed,
+    hover,
+    pressed,
+    safe,
+    mine,
+    flag,
+    numbers: numbers as HTMLImageElement[],
+  };
 }
 
 export function loadTileSprites(): Promise<TileSprites | null> {
   if (cached) return Promise.resolve(cached);
-  if (loadPromise) return loadPromise;
-
-  loadPromise = (async () => {
-    try {
-      const [hidden, revealed, hover, pressed, safe, mine, flag, ...numbers] = await Promise.all([
-        loadImage(`${BOARD_V3_TILE_BASE}/cell-hidden.png`),
-        loadImage(`${BOARD_V3_TILE_BASE}/cell-revealed.png`),
-        loadImage(`${BOARD_V3_TILE_BASE}/cell-hover.png`),
-        loadImage(`${BOARD_V3_TILE_BASE}/cell-pressed.png`),
-        loadImage(`${BOARD_V3_TILE_BASE}/cell-safe.png`),
-        loadImage(`${TILE_BASE}/mine.png`),
-        loadImage(`${TILE_BASE}/flag.png`),
-        ...Array.from({ length: 8 }, (_, i) => loadImage(`${BOARD_V3_TILE_BASE}/num-${i + 1}.png`)),
-      ]);
-      cached = { hidden, revealed, hover, pressed, safe, mine, flag, numbers };
-      return cached;
-    } catch {
-      return null;
-    }
-  })();
-
-  return loadPromise;
+  cached = buildTileSpritesFromCache();
+  return Promise.resolve(cached);
 }
 
 export function getTileSprites(): TileSprites | null {

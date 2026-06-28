@@ -1,7 +1,7 @@
 # 资源启动加载器技术方案
 
 > 版本 v0.1 · 2026-06-28  
-> 状态：待实现  
+> 状态：**Phase A 已实现**  
 > 实现后同步 `docs/MODULES.md` § `src/ui/boot/` 与 `docs/ARCHITECTURE.md` 启动流程小节。
 
 ---
@@ -438,12 +438,12 @@ function preloadGameAudio(): Promise<void>
 
 ### Phase A — 最小可用（推荐先做）
 
-- [ ] `index.html` Boot Shell + critical CSS
-- [ ] `src/ui/boot/` 全套模块（registry / loader / cache / sequence / screen）
-- [ ] 手写 registry：tiles + hud + manifest 展开 + hud-feedback URLs
-- [ ] `main.ts` 接入；现有三个 loader 改读 cache
-- [ ] 加权进度 + indeterminate shimmer + 400ms 最短展示
-- [ ] Tier 1 失败 → 错误重试 UI
+- [x] `index.html` Boot Shell + critical CSS
+- [x] `src/ui/boot/` 全套模块（registry / loader / cache / sequence / screen）
+- [x] 手写 registry：tiles + hud + manifest 展开 + hud-feedback URLs
+- [x] `main.ts` 接入；现有三个 loader 改读 cache
+- [x] 加权进度（0→100% 确定性进度条 + 光效）+ 400ms 最短展示
+- [x] Tier 1 失败 → 错误重试 UI
 
 **验收：** 弱网节流下，HTML 解析后 **<100ms** 可见加载页；进度条随下载推进；完成后正常进局无缺图。
 

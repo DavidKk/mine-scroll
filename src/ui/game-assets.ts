@@ -1,3 +1,6 @@
+import { getBootManifest, getCachedImage } from './boot/asset-cache.ts';
+import type { GameAssetManifestSnapshot } from './boot/types.ts';
+
 export const GAME_CUTOUT_NAMES = [
   'mine-standard',
   'mine-exploded',
@@ -176,35 +179,6 @@ export const GAME_ASSET_TUNING = {
   },
 } as const;
 
-interface GameAssetManifest {
-  cutouts?: {
-    items?: Partial<Record<GameCutoutName, string>>;
-  };
-  fx?: {
-    effects?: Partial<
-      Record<
-        GameFxName,
-        {
-          frames?: string[];
-          blendMode?: GlobalCompositeOperation;
-        }
-      >
-    >;
-  };
-  uiPanels?: {
-    items?: Partial<
-      Record<
-        GameUiPanelName,
-        {
-          src?: string;
-          width?: number;
-          height?: number;
-        }
-      >
-    >;
-  };
-}
-
 export interface LoadedGameAssets {
   cutouts: Partial<Record<GameCutoutName, HTMLImageElement>>;
   fx: Partial<Record<GameFxName, HTMLImageElement[]>>;
@@ -212,91 +186,50 @@ export interface LoadedGameAssets {
   uiPanels: Partial<Record<GameUiPanelName, HTMLImageElement>>;
 }
 
-const MANIFEST_URL = '/assets/game/manifest.json';
-
-let loadPromise: Promise<LoadedGameAssets | null> | null = null;
 let cached: LoadedGameAssets | null = null;
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-async function loadManifest(): Promise<GameAssetManifest | null> {
-  try {
-    const response = await fetch(MANIFEST_URL);
-    if (!response.ok) return null;
-    return (await response.json()) as GameAssetManifest;
-  } catch {
-    return null;
+function buildLoadedGameAssetsFromCache(manifest: GameAssetManifestSnapshot | null): LoadedGameAssets {
+  const cutouts = {} as Partial<Record<GameCutoutName, HTMLImageElement>>;
+  for (const name of GAME_CUTOUT_NAMES) {
+    const src = manifest?.cutouts?.items?.[name];
+    if (!src) continue;
+    const img = getCachedImage(src);
+    if (img) cutouts[name] = img;
   }
+
+  const fx = {} as Partial<Record<GameFxName, HTMLImageElement[]>>;
+  for (const name of GAME_FX_NAMES) {
+    const framePaths = manifest?.fx?.effects?.[name]?.frames ?? [];
+    if (framePaths.length === 0) continue;
+    const frames = framePaths
+      .map((src) => getCachedImage(src))
+      .filter((img): img is HTMLImageElement => Boolean(img));
+    if (frames.length > 0) fx[name] = frames;
+  }
+
+  const uiPanels = {} as Partial<Record<GameUiPanelName, HTMLImageElement>>;
+  for (const name of GAME_UI_PANEL_NAMES) {
+    const src = manifest?.uiPanels?.items?.[name]?.src;
+    if (!src) continue;
+    const img = getCachedImage(src);
+    if (img) uiPanels[name] = img;
+  }
+
+  const blendModes = Object.fromEntries(
+    GAME_FX_NAMES.map((name) => [
+      name,
+      manifest?.fx?.effects?.[name]?.blendMode ?? 'source-over',
+    ]),
+  ) as Partial<Record<GameFxName, GlobalCompositeOperation>>;
+
+  return { cutouts, fx, blendModes, uiPanels };
 }
 
 export function loadGameAssets(): Promise<LoadedGameAssets | null> {
   if (cached) return Promise.resolve(cached);
-  if (loadPromise) return loadPromise;
-
-  loadPromise = (async () => {
-    const manifest = await loadManifest();
-    if (!manifest) return null;
-
-    const cutoutEntries = await Promise.all(
-      GAME_CUTOUT_NAMES.map(async (name) => {
-        const src = manifest.cutouts?.items?.[name];
-        if (!src) return [name, null] as const;
-        return [name, await loadImage(src)] as const;
-      }),
-    );
-
-    const fxEntries = await Promise.all(
-      GAME_FX_NAMES.map(async (name) => {
-        const framePaths = manifest.fx?.effects?.[name]?.frames ?? [];
-        if (framePaths.length === 0) return [name, []] as const;
-        const frames = await Promise.all(framePaths.map((src) => loadImage(src)));
-        return [name, frames.filter((img): img is HTMLImageElement => Boolean(img))] as const;
-      }),
-    );
-
-    const panelEntries = await Promise.all(
-      GAME_UI_PANEL_NAMES.map(async (name) => {
-        const src = manifest.uiPanels?.items?.[name]?.src;
-        if (!src) return [name, null] as const;
-        return [name, await loadImage(src)] as const;
-      }),
-    );
-
-    const cutouts = Object.fromEntries(
-      cutoutEntries.filter((entry): entry is readonly [GameCutoutName, HTMLImageElement] =>
-        Boolean(entry[1]),
-      ),
-    ) as Partial<Record<GameCutoutName, HTMLImageElement>>;
-
-    const fx = Object.fromEntries(
-      fxEntries.filter(([, frames]) => frames.length > 0),
-    ) as Partial<Record<GameFxName, HTMLImageElement[]>>;
-
-    const blendModes = Object.fromEntries(
-      GAME_FX_NAMES.map((name) => [
-        name,
-        manifest.fx?.effects?.[name]?.blendMode ?? 'source-over',
-      ]),
-    ) as Partial<Record<GameFxName, GlobalCompositeOperation>>;
-
-    const uiPanels = Object.fromEntries(
-      panelEntries.filter((entry): entry is readonly [GameUiPanelName, HTMLImageElement] =>
-        Boolean(entry[1]),
-      ),
-    ) as Partial<Record<GameUiPanelName, HTMLImageElement>>;
-
-    cached = { cutouts, fx, blendModes, uiPanels };
-    return cached;
-  })();
-
-  return loadPromise;
+  const manifest = getBootManifest();
+  cached = buildLoadedGameAssetsFromCache(manifest);
+  return Promise.resolve(cached);
 }
 
 export function getGameCutout(name: GameCutoutName): HTMLImageElement | null {

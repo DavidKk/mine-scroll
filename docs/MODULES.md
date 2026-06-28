@@ -11,6 +11,9 @@ flowchart LR
     primitives --> hudFeedback
     primitives --> cellFx
     primitives --> gameCanvas
+    boot --> tileSprites[tile-sprites]
+    boot --> hudSprites[hud-sprites]
+    boot --> gameAssets[game-assets]
     board --> engine
     engine --> gameSession
     renderer --> gameCanvas
@@ -42,6 +45,25 @@ flowchart LR
 **职责：** 跨模块复用的数学、路径、资源加载。
 
 **导出：** `clamp01`, `lerp`, `easeOutCubic`, `roundedRectPath`, `fillRounded`, `loadRuntimeImage`
+
+---
+
+## `src/ui/boot/`
+
+**职责：** 启动期资源编排、加权进度、DOM 加载页（`index.html` 内联壳 + `boot-screen.ts` 更新）。
+
+| 文件 | 职责 |
+|------|------|
+| `asset-registry.ts` | tiles / HUD / manifest / hud-feedback URL 清单 |
+| `asset-loader.ts` | 并发 `Image` 加载、重试、写入 cache |
+| `asset-cache.ts` | 全局图片缓存 + manifest 快照 |
+| `boot-sequence.ts` | `runBootSequence()` Tier 1–2 阻塞加载 |
+| `boot-screen.ts` | 绑定 `#boot-screen`、进度/错误/淡出 |
+| `preload-audio.ts` | Tier 3 音频后台预热 |
+
+**导出：** `runBootSequence`, `bindBootScreen`, `preloadGameAudio`, `getCachedImage`, …
+
+**约束：** 不依赖 `game-canvas/`、`app/`；加载页零游戏 PNG。
 
 ---
 
@@ -118,3 +140,4 @@ flowchart LR
 | v0.1 | 2026-06-14 | DOM 版 grid/hud |
 | v0.2 | 2026-06-14 | Canvas 2D：theme / renderer / game-canvas |
 | v0.3 | 2026-06-28 | 模块化拆分；`primitives`, `hud-feedback/`, `game-canvas/` 子目录 |
+| v0.4 | 2026-06-28 | 新增 `src/ui/boot/` 启动加载器 |

@@ -403,3 +403,20 @@
 **结论：** ✅ 构建通过，待运行时手测确认无视觉/行为回归
 
 ---
+
+### [Boot] 资源启动加载器 Phase A — 2026-06-28
+
+**产出：** `src/ui/boot/*`、`index.html` Boot Shell、`main.ts` 启动链、`docs/ASSET-BOOT-LOADER-PLAN.md`
+
+**做法摘要：** 独立 boot 模块统一 Tier 1–2 资源加载与加权进度；`index.html` 内联纯 CSS 加载页（零游戏 PNG）；`tile-sprites` / `hud-sprites` / `game-assets` / `hud-feedback-assets` 改读 `asset-cache`；Tier 3 音频 `preloadGameAudio()` 后台预热。
+
+**Review 检查项：**
+- [x] 与 `ASSET-BOOT-LOADER-PLAN.md` Phase A 一致
+- [x] `npm run build` 通过
+- [x] 现有 loader 对外 API 不变
+- [x] `docs/MODULES.md` / `ARCHITECTURE.md` 已同步
+- [ ] 弱网 / 重试 / 进局缺图手测（建议用户验证）
+
+**结论：** ✅ 构建通过，待运行时手测
+
+---
