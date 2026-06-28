@@ -69,6 +69,8 @@ export interface CanvasRuntimeState {
   devAutoRect: HitRect | null;
   devSpeedRect: HitRect | null;
   spaceHintRect: HitRect | null;
+  /** performance.now() when scroll button reveal started; 0 when hidden. */
+  scrollButtonRevealStartedAt: number;
   bgmMuteRect: HitRect | null;
   uiHoverTarget: string | null;
   pendingPanelTransition: PendingPanelTransition | null;
@@ -130,6 +132,11 @@ export const RUNTIME_CONSTANTS = {
   DIFFICULTY_ALERT_MS: 1260,
   SCORE_HUD_PULSE_MS: 420,
   SCORE_COUNT_UP_MS: 480,
+  SCROLL_BUTTON_REVEAL_WIDTH_MS: 320,
+  SCROLL_BUTTON_REVEAL_HEIGHT_MS: 220,
+  SCROLL_BUTTON_REVEAL_HEIGHT_DELAY_MS: 260,
+  SCROLL_BUTTON_REVEAL_CONTENT_DELAY_MS: 420,
+  SCROLL_BUTTON_REVEAL_CONTENT_MS: 180,
 } as const;
 
 export function createInitialRuntimeState(
@@ -158,6 +165,7 @@ export function createInitialRuntimeState(
     devAutoRect: null,
     devSpeedRect: null,
     spaceHintRect: null,
+    scrollButtonRevealStartedAt: 0,
     bgmMuteRect: null,
     uiHoverTarget: null,
     pendingPanelTransition: null,

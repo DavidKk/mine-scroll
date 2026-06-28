@@ -15,7 +15,7 @@ import { drawBreakEvent } from './break-event.ts';
 import { drawLifeLossEvent } from './life-loss-event.ts';
 import { drawParticles, getBottomFeedbackSlots, spawnComboParticles, spawnScoreHudParticles } from '../runtime/particle-system.ts';
 import { drawScorePopV3Layer } from './score-pop-layer.ts';
-import { drawSpaceHint, getSpaceHintRect } from './space-hint.ts';
+import { drawSpaceHint, getSpaceHintRect, updateScrollButtonReveal } from './space-hint.ts';
 import { beginScoreCountUp } from '../hud/score-hud.ts';
 import { hudFxBudget, isScorePopFxEnabled } from '../runtime/paint-helpers.ts';
 
@@ -103,12 +103,15 @@ export function drawFullscreenOverlay(rt: GameCanvasRuntime,
   if (stats?.spaceEnabled) {
     const spaceRect = getSpaceHintRect(rt, scrollPressure);
     if (spaceRect) {
-      rt.state.spaceHintRect = spaceRect;
-      drawSpaceHint(rt, shellCtx, spaceRect, scrollPressure, rt.state.stageLayout?.scale ?? 1);
+      const reveal = updateScrollButtonReveal(rt, true);
+      rt.state.spaceHintRect = reveal.interactable ? spaceRect : null;
+      drawSpaceHint(rt, shellCtx, spaceRect, scrollPressure, rt.state.stageLayout?.scale ?? 1, reveal);
     } else {
+      updateScrollButtonReveal(rt, false);
       rt.state.spaceHintRect = null;
     }
   } else {
+    updateScrollButtonReveal(rt, false);
     rt.state.spaceHintRect = null;
   }
 

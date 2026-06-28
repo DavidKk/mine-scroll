@@ -217,6 +217,8 @@ export function drawComboHud(rt: GameCanvasRuntime,
     (tier >= 3 ? 0.12 + overloadProgress * 0.16 : 0);
   const text = `x${displayCombo}`;
   const label = 'COMBO';
+  /** Desktop: lift rail / digits / underline toward COMBO label; title stays at `y`. */
+  const bodyLift = isMobile ? 0 : 4 * scale;
 
   shellCtx.save();
   shellCtx.textAlign = 'center';
@@ -227,7 +229,7 @@ export function drawComboHud(rt: GameCanvasRuntime,
   const asset = drawFilteredFeedbackAsset(rt, shellCtx,
     HUD_FEEDBACK_ASSETS.comboRail,
     cx,
-    y + (isMobile ? 18 : 28) * scale,
+    y + (isMobile ? 18 : 28) * scale - bodyLift,
     (isMobile ? 132 : 180) * scale,
     (isMobile ? 36 : 48) * scale,
     getComboRailFilter(displayCombo),
@@ -240,11 +242,12 @@ export function drawComboHud(rt: GameCanvasRuntime,
   }
   if (!asset) {
     const glowR = isMobile ? 52 : 64;
-    const glow = shellCtx.createRadialGradient(cx, y + (isMobile ? 16 : 25) * scale, 2 * scale, cx, y + (isMobile ? 16 : 25) * scale, glowR * scale);
+    const glowCenterY = y + (isMobile ? 16 : 25) * scale - bodyLift;
+    const glow = shellCtx.createRadialGradient(cx, glowCenterY, 2 * scale, cx, glowCenterY, glowR * scale);
     glow.addColorStop(0, comboHudGlowRgba(displayCombo, glowAlpha));
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     shellCtx.fillStyle = glow;
-    shellCtx.fillRect(cx - glowR * scale, y - 4 * scale, glowR * 2 * scale, (isMobile ? 44 : 58) * scale);
+    shellCtx.fillRect(cx - glowR * scale, glowCenterY - 4 * scale, glowR * 2 * scale, (isMobile ? 44 : 58) * scale);
   }
 
   shellCtx.fillStyle = `rgba(${palette.main}, 0.72)`;
@@ -252,14 +255,14 @@ export function drawComboHud(rt: GameCanvasRuntime,
 
   shellCtx.globalAlpha = 1;
   const maxTextW = (asset?.w ?? (isMobile ? 120 : 168) * scale) * (tier >= 3 ? 0.78 : 0.58);
-  const comboTextY = asset ? asset.y + asset.h * 0.54 : y + (isMobile ? 22 : 29) * scale;
+  const comboTextY = asset ? asset.y + asset.h * 0.54 : y + (isMobile ? 22 : 29) * scale - bodyLift;
   drawComboHudDigits(rt, shellCtx, cx, comboTextY, text, palette, scale, displayCombo, maxTextW);
 
   const underlineW = Math.min(
     tier >= 3 ? 120 * scale : 96 * scale,
     (tier >= 3 ? 40 : 32) * scale + String(displayCombo).length * (tier >= 3 ? 17 : 15) * scale,
   );
-  const lineY = asset ? asset.y + asset.h * 0.8 : y + (isMobile ? 38 : 48) * scale;
+  const lineY = asset ? asset.y + asset.h * 0.8 : y + (isMobile ? 38 : 48) * scale - bodyLift;
   const gradient = shellCtx.createLinearGradient(cx - underlineW / 2, lineY, cx + underlineW / 2, lineY);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
   gradient.addColorStop(0.5, color);

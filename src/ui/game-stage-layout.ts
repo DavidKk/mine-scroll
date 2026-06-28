@@ -61,6 +61,7 @@ const BASE_STAGE_H = 844;
 const BASE_CELL_SIZE = 28;
 const ENDLESS_BOTTOM_RAIL_H = 30;
 const SCROLL_BUTTON_MIN_H = 44;
+const DESKTOP_SCROLL_BUTTON_MIN_H = 38;
 const DESKTOP_SCROLL_BUTTON_MIN_W = 128;
 const MOBILE_SCROLL_BUTTON_MIN_W = 104;
 const BOTTOM_RAIL_MIN_H = 54;
@@ -249,7 +250,10 @@ export function computeGameStageLayout(
     profile === 'mobile' ? MOBILE_SCROLL_BUTTON_MIN_W : DESKTOP_SCROLL_BUTTON_MIN_W,
     (profile === 'mobile' ? MOBILE_SCROLL_BUTTON_MIN_W : DESKTOP_SCROLL_BUTTON_MIN_W) * scale,
   );
-  const spaceBtnH = Math.max(SCROLL_BUTTON_MIN_H, 44 * scale);
+  const spaceBtnH = Math.max(
+    profile === 'mobile' ? SCROLL_BUTTON_MIN_H : DESKTOP_SCROLL_BUTTON_MIN_H,
+    (profile === 'mobile' ? SCROLL_BUTTON_MIN_H : DESKTOP_SCROLL_BUTTON_MIN_H) * scale,
+  );
   const spaceButtonRect: Rect = {
     x: (viewportW - spaceBtnW) / 2,
     y: bottomRailRect.y + (bottomRailRect.h - spaceBtnH) / 2,
