@@ -82,7 +82,28 @@ function drawScrollArrowIcon(shellCtx: CanvasRenderingContext2D, cx: number, cy:
   shellCtx.restore()
 }
 
+const SCROLL_LABEL_CYCLE_MS = 2400
+
+function isMobileScrollButton(rt: GameCanvasRuntime): boolean {
+  return rt.state.stageLayout?.profile === 'mobile'
+}
+
+/** Mobile always shows SCROLL; desktop alternates SCROLL ↔ SPACE as a keyboard hint. */
+function resolveScrollButtonLabel(rt: GameCanvasRuntime): string {
+  if (isMobileScrollButton(rt)) return 'SCROLL'
+  return Math.floor(Date.now() / SCROLL_LABEL_CYCLE_MS) % 2 === 0 ? 'SCROLL' : 'SPACE'
+}
+
+function measureScrollButtonLabelWidth(shellCtx: CanvasRenderingContext2D, rt: GameCanvasRuntime, fontSize: number): number {
+  shellCtx.font = `900 ${fontSize}px ${FONTS.mono}`
+  if (isMobileScrollButton(rt)) {
+    return shellCtx.measureText('SCROLL').width
+  }
+  return Math.max(shellCtx.measureText('SCROLL').width, shellCtx.measureText('SPACE').width)
+}
+
 function layoutScrollButtonContent(
+  rt: GameCanvasRuntime,
   shellCtx: CanvasRenderingContext2D,
   rect: { x: number; y: number; w: number; h: number },
   scale: number,
@@ -95,8 +116,7 @@ function layoutScrollButtonContent(
   fontSize: number
 } {
   const fontSize = Math.max(10, 11 * scale)
-  shellCtx.font = `900 ${fontSize}px ${FONTS.mono}`
-  const textW = shellCtx.measureText('SCROLL').width
+  const textW = measureScrollButtonLabelWidth(shellCtx, rt, fontSize)
   const iconSize = Math.max(18, Math.min(24 * scale, fullHeight * 0.52))
   const iconSpan = iconSize * 0.76
   const gap = Math.max(7, 9 * scale)
@@ -176,7 +196,8 @@ function drawScrollButton(
   shellCtx.globalCompositeOperation = 'source-over'
 
   if (contentAlpha > 0.01) {
-    const { iconCx, iconCy, iconSize, labelX, fontSize } = layoutScrollButtonContent(shellCtx, rect, scale, fullRect.h)
+    const { iconCx, iconCy, iconSize, labelX, fontSize } = layoutScrollButtonContent(rt, shellCtx, rect, scale, fullRect.h)
+    const label = resolveScrollButtonLabel(rt)
     shellCtx.save()
     shellCtx.globalAlpha = contentAlpha
     const iconBg = shellCtx.createRadialGradient(iconCx, iconCy, 0, iconCx, iconCy, iconSize * 0.86)
@@ -192,7 +213,7 @@ function drawScrollButton(
     shellCtx.textBaseline = 'middle'
     shellCtx.fillStyle = labelColor
     shellCtx.font = `900 ${fontSize}px ${FONTS.mono}`
-    shellCtx.fillText('SCROLL', labelX, iconCy + 0.5 * scale)
+    shellCtx.fillText(label, labelX, iconCy + 0.5 * scale)
     shellCtx.restore()
   }
 

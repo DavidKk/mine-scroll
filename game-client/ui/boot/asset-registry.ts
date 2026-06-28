@@ -10,7 +10,20 @@ export const BOARD_V3_TILE_BASE = '/assets/candidates/board-v3-square/tiles'
 export const HUD_BASE = '/assets/hud'
 export const HUD_ICON_BASE = `${HUD_BASE}/icons`
 
-export const HUD_ICON_NAMES = ['play', 'skull', 'refresh', 'volume-on', 'volume-off', 'volume-on-hover', 'volume-off-hover', 'leaderboard', 'leaderboard-hover'] as const
+export const HUD_ICON_NAMES = [
+  'play',
+  'skull',
+  'refresh',
+  'volume-on',
+  'volume-off',
+  'volume-on-hover',
+  'volume-off-hover',
+  'leaderboard',
+  'leaderboard-hover',
+  'rank-trophy-gold',
+  'rank-trophy-silver',
+  'rank-trophy-bronze',
+] as const
 
 export const HUD_FEEDBACK_URLS = {
   scoreStrip: '/assets/candidates/hud-feedback-v3/runtime/score-energy-strip-v3.png',

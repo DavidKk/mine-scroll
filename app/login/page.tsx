@@ -1,10 +1,18 @@
+import type { Metadata } from 'next'
+
 import { isAdminAuthConfigured, isJwtConfigured, isLocalLoginEnabled } from '@/lib/auth-config'
+import { NOINDEX_ROBOTS } from '@/lib/seo'
 import { getSignetAuthCenterOrigin, getSignetSdkModuleUrl } from '@/lib/signet-sdk-url'
 import { checkUnAccess } from '@/services/auth/access'
 
 import { LoginForm } from './login-form'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: '登录',
+  robots: NOINDEX_ROBOTS,
+}
 
 type LoginPageProps = {
   searchParams: Promise<{ redirectUrl?: string; vf2fa_error?: string }>

@@ -131,6 +131,13 @@ function formatCountryCode(code: string | undefined): string {
   return normalized
 }
 
+function rankTrophySrc(rank: number): string | null {
+  if (rank === 1) return `${HUD_ICON_BASE}/rank-trophy-gold.png`
+  if (rank === 2) return `${HUD_ICON_BASE}/rank-trophy-silver.png`
+  if (rank === 3) return `${HUD_ICON_BASE}/rank-trophy-bronze.png`
+  return null
+}
+
 function applyRankAccent(rankEl: HTMLElement, rank: number): void {
   if (rank === 1) rankEl.classList.add('leaderboard-modal__rank--gold')
   else if (rank === 2) rankEl.classList.add('leaderboard-modal__rank--silver')
@@ -143,7 +150,24 @@ function createLeaderboardCell(className: string, text: string, options: { title
 
   const inner = document.createElement('span')
   inner.className = 'leaderboard-modal__cell-inner'
-  inner.textContent = text
+
+  const trophySrc = options.rank != null ? rankTrophySrc(options.rank) : null
+  if (trophySrc) {
+    const trophy = document.createElement('img')
+    trophy.className = 'leaderboard-modal__rank-trophy'
+    trophy.src = trophySrc
+    trophy.alt = ''
+    trophy.width = 18
+    trophy.height = 18
+    trophy.decoding = 'async'
+    trophy.setAttribute('aria-hidden', 'true')
+    inner.append(trophy)
+  }
+
+  const textEl = document.createElement('span')
+  textEl.className = 'leaderboard-modal__cell-text'
+  textEl.textContent = text
+  inner.append(textEl)
 
   if (options.title) cell.title = options.title
   if (options.hidden) cell.hidden = options.hidden

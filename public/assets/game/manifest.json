@@ -127,6 +127,21 @@
         "src": "/assets/hud/icons/leaderboard-hover.png",
         "width": 256,
         "height": 256
+      },
+      "rank-trophy-gold": {
+        "src": "/assets/hud/icons/rank-trophy-gold.png",
+        "width": 128,
+        "height": 128
+      },
+      "rank-trophy-silver": {
+        "src": "/assets/hud/icons/rank-trophy-silver.png",
+        "width": 128,
+        "height": 128
+      },
+      "rank-trophy-bronze": {
+        "src": "/assets/hud/icons/rank-trophy-bronze.png",
+        "width": 128,
+        "height": 128
       }
     }
   },

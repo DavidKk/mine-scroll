@@ -1898,7 +1898,7 @@ body::-webkit-scrollbar {
 }
 
 .leaderboard-modal__self-card .leaderboard-modal__cell.leaderboard-modal__rank {
-  flex: 0 0 2.4rem;
+  flex: 0 0 3.4rem;
 }
 
 .leaderboard-modal__self-card .leaderboard-modal__cell.leaderboard-modal__country {
@@ -1916,6 +1916,12 @@ body::-webkit-scrollbar {
   align-items: center;
   min-width: 0;
   max-width: 100%;
+}
+
+.leaderboard-modal__cell-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .leaderboard-modal__self-stat .leaderboard-modal__cell-inner {
@@ -2044,7 +2050,7 @@ body::-webkit-scrollbar {
 .leaderboard-modal__table-head,
 .leaderboard-modal__entry {
   display: grid;
-  grid-template-columns: 2.4rem minmax(0, 1fr) 5.5rem;
+  grid-template-columns: 3.4rem minmax(0, 1fr) 5.5rem;
   gap: 8px;
   align-items: center;
   padding: 0 12px;
@@ -2052,7 +2058,7 @@ body::-webkit-scrollbar {
 
 .leaderboard-modal__entry--with-depth,
 .leaderboard-modal__table-head--with-depth {
-  grid-template-columns: 2.4rem minmax(0, 1fr) 3.2rem 5.5rem;
+  grid-template-columns: 3.4rem minmax(0, 1fr) 3.2rem 5.5rem;
 }
 
 .leaderboard-modal__depth,
@@ -2067,12 +2073,12 @@ body::-webkit-scrollbar {
 
 .leaderboard-modal__entry--with-country,
 .leaderboard-modal__table-head--with-country {
-  grid-template-columns: 2.4rem 2.6rem minmax(0, 1fr) 5.5rem;
+  grid-template-columns: 3.4rem 2.6rem minmax(0, 1fr) 5.5rem;
 }
 
 .leaderboard-modal__entry--with-country.leaderboard-modal__entry--with-depth,
 .leaderboard-modal__table-head--with-country.leaderboard-modal__table-head--with-depth {
-  grid-template-columns: 2.4rem 2.6rem minmax(0, 1fr) 3.2rem 5.5rem;
+  grid-template-columns: 3.4rem 2.6rem minmax(0, 1fr) 3.2rem 5.5rem;
 }
 
 .leaderboard-modal__table-head {
@@ -2156,6 +2162,19 @@ body::-webkit-scrollbar {
   font-size: 0.66rem;
   color: #71717a;
   font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-modal__rank .leaderboard-modal__cell-inner {
+  gap: 4px;
+}
+
+.leaderboard-modal__rank-trophy {
+  display: block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .leaderboard-modal__rank--gold {
