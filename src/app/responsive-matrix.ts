@@ -226,28 +226,30 @@ function drawHud(ctx: CanvasRenderingContext2D, state: StateSpec, viewport: View
   drawMiniBoard(ctx, layout.boardX, layout.boardY, layout.boardW, layout.boardH, state);
   drawBottomEnergyRail(ctx, layout, state, viewport);
 
-  if (state.spaceAvailable) {
-    const hintW = (viewport.w < 560 ? 52 : 60) * scale;
-    const hintH = (viewport.w < 560 ? 14 : 16) * scale;
-    const coveredRows = Math.max(1, state.coveredRows ?? 1);
-    const cell = computeEndlessBoardCellSize(BOARD_COLS, BOARD_ROWS, viewport.w, viewport.h, {
-      min: 18,
-      max: 36,
-    });
-    const dangerTop = layout.boardY + GRID_PADDING + (BOARD_ROWS - coveredRows) * (cell + CELL_GAP) - 2;
-    const hintX = layout.boardX + layout.boardW / 2 - hintW / 2;
-    const hintY = Math.max(layout.boardY + GRID_PADDING, dangerTop - hintH - 4 * scale);
-    const flash = 0.32 + Math.sin(performance.now() / 520) * 0.32;
-    const cx = hintX + hintW / 2;
-    const cy = hintY + hintH / 2;
-    ctx.save();
-    ctx.globalAlpha = flash;
-    ctx.fillStyle = state.urgent ? '#fef08a' : '#cbd5e1';
-    ctx.font = `600 ${Math.max(9, 10 * scale)}px ${FONTS.mono}`;
+  if (state.spaceAvailable && layout.spaceButtonRect) {
+    const rect = layout.spaceButtonRect;
+    const urgent = Boolean(state.urgent);
+    const progress = Math.max(0, Math.min(1, state.pressure ?? 0));
+    const radius = Math.min(12 * scale, rect.h * 0.28);
+    fillRound(ctx, rect.x, rect.y, rect.w, rect.h, radius, urgent ? 'rgba(69, 52, 8, 0.92)' : 'rgba(15, 23, 42, 0.9)');
+    strokeRound(
+      ctx,
+      rect.x + 0.5,
+      rect.y + 0.5,
+      rect.w - 1,
+      rect.h - 1,
+      radius,
+      urgent ? 'rgba(251, 191, 36, 0.8)' : 'rgba(45, 236, 255, 0.65)',
+    );
+    const chargeH = Math.max(3, 4 * scale);
+    const chargeW = Math.max(10 * scale, rect.w * (1 - progress));
+    ctx.fillStyle = urgent ? 'rgba(254, 240, 138, 0.75)' : 'rgba(125, 211, 252, 0.55)';
+    ctx.fillRect(rect.x + (rect.w - chargeW) / 2, rect.y + rect.h - chargeH, chargeW, chargeH);
+    ctx.fillStyle = urgent ? '#fef08a' : '#dbeafe';
+    ctx.font = `900 ${Math.max(10, 11 * scale)}px ${FONTS.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SPACE', cx, cy);
-    ctx.restore();
+    ctx.fillText('SCROLL', rect.x + rect.w / 2, rect.y + rect.h / 2);
   }
 
   fillRound(ctx, layout.autoRect.x, layout.autoRect.y, layout.autoRect.w, layout.autoRect.h, 16 * scale, 'rgba(18, 20, 28, 0.68)');
@@ -340,7 +342,7 @@ export function mountResponsiveMatrix(root: HTMLElement): () => void {
     <ul>
       <li>Score, Combo, and Lives do not collide at 360×640 and 390×844.</li>
       <li>Combo/score/break feedback does not cover more than one board row.</li>
-      <li>Space appears only when available as small blinking <code>SPACE</code> text above the board scroll countdown band.</li>
+      <li>Scroll button appears in the bottom rail when manual scroll is available (Space key still works on desktop).</li>
       <li>Bottom pressure band and danger overlay show no seconds or row counts.</li>
       <li>Game Over panel does not block critical button hitboxes.</li>
     </ul>

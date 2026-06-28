@@ -34,7 +34,37 @@ function drawScrollArrowIcon(
   shellCtx.restore();
 }
 
-function drawMobileScrollButton(
+function layoutScrollButtonContent(
+  shellCtx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; w: number; h: number },
+  scale: number,
+): {
+  iconCx: number;
+  iconCy: number;
+  iconSize: number;
+  labelX: number;
+  fontSize: number;
+} {
+  const fontSize = Math.max(10, 11 * scale);
+  shellCtx.font = `900 ${fontSize}px ${FONTS.mono}`;
+  const textW = shellCtx.measureText('SCROLL').width;
+  const iconSize = Math.max(18, Math.min(24 * scale, rect.h * 0.52));
+  const iconSpan = iconSize * 0.76;
+  const gap = Math.max(7, 9 * scale);
+  const contentW = iconSpan + gap + textW;
+  const padX = Math.max(12 * scale, (rect.w - contentW) / 2);
+  const startX = rect.x + padX;
+
+  return {
+    iconCx: startX + iconSpan * 0.5,
+    iconCy: rect.y + rect.h * 0.5,
+    iconSize,
+    labelX: startX + iconSpan + gap,
+    fontSize,
+  };
+}
+
+function drawScrollButton(
   rt: GameCanvasRuntime,
   shellCtx: CanvasRenderingContext2D,
   rect: { x: number; y: number; w: number; h: number },
@@ -90,9 +120,11 @@ function drawMobileScrollButton(
   shellCtx.restore();
   shellCtx.globalCompositeOperation = 'source-over';
 
-  const iconSize = Math.max(18, Math.min(24 * scale, rect.h * 0.54));
-  const iconCx = rect.x + Math.max(24, 27 * scale);
-  const iconCy = rect.y + rect.h * 0.49;
+  const { iconCx, iconCy, iconSize, labelX, fontSize } = layoutScrollButtonContent(
+    shellCtx,
+    rect,
+    scale,
+  );
   const iconBg = shellCtx.createRadialGradient(iconCx, iconCy, 0, iconCx, iconCy, iconSize * 0.86);
   iconBg.addColorStop(0, urgent ? 'rgba(251, 191, 36, 0.34)' : 'rgba(45, 236, 255, 0.24)');
   iconBg.addColorStop(1, 'rgba(15, 23, 42, 0)');
@@ -105,9 +137,8 @@ function drawMobileScrollButton(
   shellCtx.textAlign = 'left';
   shellCtx.textBaseline = 'middle';
   shellCtx.fillStyle = labelColor;
-  shellCtx.font = `900 ${Math.max(10, 11 * scale)}px ${FONTS.mono}`;
-  const labelX = rect.x + Math.max(42, 47 * scale);
-  shellCtx.fillText('SCROLL', labelX, rect.y + rect.h * 0.5 + 0.5 * scale);
+  shellCtx.font = `900 ${fontSize}px ${FONTS.mono}`;
+  shellCtx.fillText('SCROLL', labelX, iconCy + 0.5 * scale);
   shellCtx.restore();
 }
 
@@ -118,62 +149,13 @@ export function drawSpaceHint(
   pressure: ScrollPressureState | undefined,
   scale: number,
 ): void {
-  const flash = 0.32 + Math.sin(Date.now() / 520) * 0.32;
-  const urgent = Boolean(pressure?.urgent);
-  const cx = rect.x + rect.w / 2;
-  const cy = rect.y + rect.h / 2;
-  const isMobile = rt.state.stageLayout?.profile === 'mobile';
-
-  shellCtx.save();
-
-  if (isMobile) {
-    shellCtx.restore();
-    drawMobileScrollButton(rt, shellCtx, rect, pressure, scale);
-    rt.scheduleContinuousRepaint();
-    return;
-  } else {
-    shellCtx.globalAlpha = flash;
-    shellCtx.fillStyle = urgent ? '#fef08a' : '#cbd5e1';
-    shellCtx.font = `600 ${Math.max(9, 10 * scale)}px ${FONTS.mono}`;
-  }
-
-  shellCtx.textAlign = 'center';
-  shellCtx.textBaseline = 'middle';
-  shellCtx.fillText('SPACE', cx, cy);
-  shellCtx.restore();
+  drawScrollButton(rt, shellCtx, rect, pressure, scale);
   rt.scheduleContinuousRepaint();
 }
 
 export function getSpaceHintRect(
   rt: GameCanvasRuntime,
-  pressure: ScrollPressureState | undefined,
+  _pressure: ScrollPressureState | undefined,
 ): { x: number; y: number; w: number; h: number } | null {
-  if (!rt.state.stageLayout || !rt.state.squareLayout) return null;
-  const scale = rt.state.stageLayout.scale;
-  const profile = rt.state.stageLayout.profile;
-
-  if (profile === 'mobile') {
-    return rt.state.stageLayout.spaceButtonRect;
-  }
-
-  const grid = rt.state.squareLayout.grid;
-  const coveredRows = Math.max(1, Math.min(rt.state.currentRows, Math.floor(pressure?.batchRows ?? 1)));
-  const dangerTop =
-    rt.state.boardOffsetY +
-    rt.state.squareLayout.gridOriginY +
-    (rt.state.currentRows - coveredRows) * grid.cellStep -
-    2;
-  const hintH = Math.max(12 * scale, grid.cellSize * 0.28);
-  const hintW = grid.cellStep * 2;
-  const gridLeft = rt.state.boardOffsetX + rt.state.squareLayout.gridOriginX;
-  const hintX = gridLeft + (rt.state.boardWidth - hintW) / 2;
-  const hintY = dangerTop - hintH - 4 * scale;
-  const minY = rt.state.boardOffsetY + rt.state.squareLayout.gridOriginY + 4 * scale;
-
-  return {
-    x: hintX,
-    y: Math.max(minY, hintY),
-    w: hintW,
-    h: hintH,
-  };
+  return rt.state.stageLayout?.spaceButtonRect ?? null;
 }

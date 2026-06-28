@@ -31,8 +31,8 @@ export interface GameStageLayout {
   autoRect: Rect;
   devSpeedRect: Rect;
   bottomRailRect: Rect;
-  /** Mobile manual-scroll button, centered in the bottom action rail. */
-  spaceButtonRect: Rect | null;
+  /** Manual-scroll button, centered in the bottom action rail (desktop + mobile). */
+  spaceButtonRect: Rect;
   scoreAnchor: Point;
   livesAnchor: Point;
   countdownAnchor: Point;
@@ -60,9 +60,10 @@ const BASE_STAGE_W = 390;
 const BASE_STAGE_H = 844;
 const BASE_CELL_SIZE = 28;
 const ENDLESS_BOTTOM_RAIL_H = 30;
-const MOBILE_BOTTOM_RAIL_MIN_H = 54;
-const MOBILE_SCROLL_BUTTON_MIN_W = 96;
-const MOBILE_SCROLL_BUTTON_MIN_H = 44;
+const SCROLL_BUTTON_MIN_H = 44;
+const DESKTOP_SCROLL_BUTTON_MIN_W = 128;
+const MOBILE_SCROLL_BUTTON_MIN_W = 104;
+const BOTTOM_RAIL_MIN_H = 54;
 const DESKTOP_BREAKPOINT_W = 768;
 /** Extra row reserve when fitting cell size so the board does not hug top/bottom edges. */
 const BOARD_HEIGHT_ROW_RESERVE = 1;
@@ -109,10 +110,10 @@ export function getEndlessShellReserves(viewportW: number, viewportH: number): E
   const safe = 16 * scale;
   const hudH = (profile === 'mobile' ? 38 : 56) * scale;
   const hudGap = (profile === 'mobile' ? 4 : 8) * scale;
-  const bottomRailH =
-    profile === 'mobile'
-      ? Math.max(MOBILE_BOTTOM_RAIL_MIN_H, MOBILE_BOTTOM_RAIL_MIN_H * scale)
-      : ENDLESS_BOTTOM_RAIL_H * scale;
+  const bottomRailH = Math.max(
+    BOTTOM_RAIL_MIN_H,
+    (profile === 'mobile' ? BOTTOM_RAIL_MIN_H : ENDLESS_BOTTOM_RAIL_H) * scale,
+  );
   const bottomPad = profile === 'mobile' ? Math.max(8, 8 * scale) : 6 * scale;
   const boardMargin = BOARD_VERT_MARGIN_BASE * scale;
   const mobileGridOriginEstimate = GRID_PADDING + 14 * scale;
@@ -244,17 +245,17 @@ export function computeGameStageLayout(
     h: devBtnH,
   };
 
-  const spaceBtnW = Math.max(MOBILE_SCROLL_BUTTON_MIN_W, 104 * scale);
-  const spaceBtnH = Math.max(MOBILE_SCROLL_BUTTON_MIN_H, 44 * scale);
-  const spaceButtonRect: Rect | null =
-    profile === 'mobile'
-      ? {
-          x: (viewportW - spaceBtnW) / 2,
-          y: bottomRailRect.y + (bottomRailRect.h - spaceBtnH) / 2,
-          w: spaceBtnW,
-          h: spaceBtnH,
-        }
-      : null;
+  const spaceBtnW = Math.max(
+    profile === 'mobile' ? MOBILE_SCROLL_BUTTON_MIN_W : DESKTOP_SCROLL_BUTTON_MIN_W,
+    (profile === 'mobile' ? MOBILE_SCROLL_BUTTON_MIN_W : DESKTOP_SCROLL_BUTTON_MIN_W) * scale,
+  );
+  const spaceBtnH = Math.max(SCROLL_BUTTON_MIN_H, 44 * scale);
+  const spaceButtonRect: Rect = {
+    x: (viewportW - spaceBtnW) / 2,
+    y: bottomRailRect.y + (bottomRailRect.h - spaceBtnH) / 2,
+    w: spaceBtnW,
+    h: spaceBtnH,
+  };
 
   const hudBottom = hudY + hudH;
   const hudGap = (profile === 'mobile' ? 4 : 8) * scale;
