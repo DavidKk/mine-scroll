@@ -1,4 +1,4 @@
-import { type AdminModuleId, createAdminShell } from './admin-shell.ts'
+import { type AdminRailId, createAdminShell } from './admin-shell.ts'
 import { populateAdminSubnav } from './asset-gallery/editor-shell.ts'
 
 export interface AdminModuleNavItem {
@@ -9,7 +9,7 @@ export interface AdminModuleNavItem {
 }
 
 export interface MountAdminModuleShellOptions {
-  module: AdminModuleId
+  activeRail: AdminRailId
   onNavigate: (path: string) => void
   eyebrow: string
   title: string
@@ -19,6 +19,7 @@ export interface MountAdminModuleShellOptions {
   initialPanelId: string
   subnavLabel?: string
   footerNote?: string
+  onPanelSelect?: (id: string) => void
 }
 
 function resolveActivePanelId(items: AdminModuleNavItem[], panelId: string): string {
@@ -27,10 +28,10 @@ function resolveActivePanelId(items: AdminModuleNavItem[], panelId: string): str
 }
 
 export function mountAdminModuleShell(root: HTMLElement, options: MountAdminModuleShellOptions): () => void {
-  const { module, onNavigate, eyebrow, title, description, navItems, panels, initialPanelId, subnavLabel = 'Views', footerNote } = options
+  const { activeRail, onNavigate, eyebrow, title, description, navItems, panels, initialPanelId, subnavLabel = 'Views', footerNote, onPanelSelect } = options
 
   const layout = createAdminShell({
-    module,
+    activeRail,
     onNavigate,
     withSubnav: true,
     eyebrow,
@@ -52,7 +53,7 @@ export function mountAdminModuleShell(root: HTMLElement, options: MountAdminModu
   contentHost.className = 'admin-shell__panel-content'
   layout.panelHost.prepend(contentHost)
 
-  function showPanel(id: string): void {
+  function showPanel(id: string, syncUrl = true): void {
     activeId = id
     contentHost.replaceChildren()
     const panel = panels.get(id)
@@ -62,10 +63,11 @@ export function mountAdminModuleShell(root: HTMLElement, options: MountAdminModu
     if (active) {
       layout.setPageHeader(eyebrow, active.label, active.description ?? description)
     }
-    populateAdminSubnav(layout.subnavScroll!, navItems, activeId, showPanel, subnavLabel)
+    populateAdminSubnav(layout.subnavScroll!, navItems, activeId, (nextId) => showPanel(nextId), subnavLabel)
+    if (syncUrl) onPanelSelect?.(id)
   }
 
-  showPanel(activeId)
+  showPanel(activeId, false)
 
   return () => {
     contentHost.replaceChildren()

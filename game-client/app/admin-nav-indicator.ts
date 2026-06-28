@@ -1,4 +1,5 @@
 const INDICATOR_CLASS = 'admin-shell__module-indicator'
+const LINK_SELECTOR = '.admin-shell__module'
 const BOUND_ATTR = 'data-admin-nav-indicator-bound'
 const READY_CLASS = 'is-indicator-ready'
 const ENTERING_CLASS = 'is-indicator-entering'
@@ -6,6 +7,7 @@ const ENTERING_CLASS = 'is-indicator-entering'
 const ENTRANCE_DELAY_MS = 140
 
 let entrancePlayed = false
+let lastIndicatorGeom: Pick<IndicatorGeometry, 'x' | 'w'> | null = null
 
 type IndicatorGeometry = {
   x: number
@@ -14,7 +16,7 @@ type IndicatorGeometry = {
 }
 
 function getCurrentLink(nav: HTMLElement): HTMLElement | null {
-  return nav.querySelector('.admin-shell__module[aria-current="page"]')
+  return nav.querySelector(`${LINK_SELECTOR}[aria-current="page"]`)
 }
 
 function measureTarget(nav: HTMLElement, target: HTMLElement): IndicatorGeometry {
@@ -36,8 +38,9 @@ function setIndicatorTarget(nav: HTMLElement, target: HTMLElement | null, opacit
     nav.style.setProperty('--admin-nav-indicator-opacity', '0')
     return
   }
-  const { x, w } = measureTarget(nav, target)
-  applyIndicatorGeometry(nav, { x, w }, opacity)
+  const geom = measureTarget(nav, target)
+  lastIndicatorGeom = { x: geom.x, w: geom.w }
+  applyIndicatorGeometry(nav, geom, opacity)
 }
 
 function isIndicatorInteractive(nav: HTMLElement): boolean {
@@ -49,9 +52,41 @@ export function syncAdminNavIndicator(nav: HTMLElement): void {
   setIndicatorTarget(nav, getCurrentLink(nav))
 }
 
+/** Update active tab + slide indicator before route navigation. */
+export function activateAdminNavLink(nav: HTMLElement, link: HTMLElement): void {
+  for (const item of nav.querySelectorAll<HTMLElement>(LINK_SELECTOR)) {
+    item.removeAttribute('aria-current')
+  }
+  link.setAttribute('aria-current', 'page')
+  if (isIndicatorInteractive(nav)) {
+    setIndicatorTarget(nav, link)
+  }
+}
+
+function resumeAdminNavIndicator(nav: HTMLElement): void {
+  const target = getCurrentLink(nav)
+  if (!target) {
+    window.requestAnimationFrame(() => resumeAdminNavIndicator(nav))
+    return
+  }
+
+  nav.classList.remove(ENTERING_CLASS)
+  nav.classList.add(READY_CLASS)
+
+  if (lastIndicatorGeom) {
+    applyIndicatorGeometry(nav, lastIndicatorGeom, 1)
+    window.requestAnimationFrame(() => {
+      setIndicatorTarget(nav, target)
+    })
+    return
+  }
+
+  setIndicatorTarget(nav, target)
+}
+
 export function playAdminNavIndicatorEntrance(nav: HTMLElement): void {
   if (entrancePlayed) {
-    syncAdminNavIndicator(nav)
+    resumeAdminNavIndicator(nav)
     return
   }
 
@@ -69,6 +104,7 @@ export function playAdminNavIndicatorEntrance(nav: HTMLElement): void {
 
   nav.classList.remove(READY_CLASS, ENTERING_CLASS)
   applyIndicatorGeometry(nav, { x: geom.cx, w: 0 }, 0)
+  lastIndicatorGeom = { x: geom.x, w: geom.w }
 
   let finished = false
   const finishEnter = (event: TransitionEvent): void => {
@@ -94,14 +130,14 @@ function bindIndicatorInteractions(nav: HTMLElement): void {
 
   nav.addEventListener('pointerover', (event) => {
     if (!isIndicatorInteractive(nav)) return
-    const link = (event.target as HTMLElement).closest<HTMLElement>('.admin-shell__module')
+    const link = (event.target as HTMLElement).closest<HTMLElement>(LINK_SELECTOR)
     if (!link || !nav.contains(link)) return
     setIndicatorTarget(nav, link)
   })
   nav.addEventListener('pointerleave', syncToCurrent)
   nav.addEventListener('focusin', (event) => {
     if (!isIndicatorInteractive(nav)) return
-    const link = (event.target as HTMLElement).closest<HTMLElement>('.admin-shell__module')
+    const link = (event.target as HTMLElement).closest<HTMLElement>(LINK_SELECTOR)
     if (link && nav.contains(link)) setIndicatorTarget(nav, link)
   })
   nav.addEventListener('focusout', () => {

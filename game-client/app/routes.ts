@@ -9,6 +9,14 @@ export const ROUTES = {
 
 export type AssetLabSection = 'sources' | 'sprites' | 'animations' | 'game-ui' | 'background' | 'audio'
 
+export const UI_LAB_PANELS = ['asset-sheets', 'fx-loops'] as const
+export type UiLabPanelId = (typeof UI_LAB_PANELS)[number]
+export const UI_LAB_DEFAULT_PANEL: UiLabPanelId = 'asset-sheets'
+
+export const RESPONSIVE_PANELS = ['matrix', 'checklist'] as const
+export type ResponsivePanelId = (typeof RESPONSIVE_PANELS)[number]
+export const RESPONSIVE_DEFAULT_PANEL: ResponsivePanelId = 'matrix'
+
 const ASSET_SECTIONS: AssetLabSection[] = ['sources', 'sprites', 'animations', 'game-ui', 'background', 'audio']
 
 export interface AssetLabRoute {
@@ -98,6 +106,112 @@ export function canonicalAssetLabPath(pathname = window.location.pathname): stri
   if (path === ROUTES.assets) return assetLabSectionPath('sources')
   if (path.startsWith(`${ROUTES.assets}/`) && resolveAssetLabSection(path) === null) {
     return assetLabSectionPath('sources')
+  }
+  return null
+}
+
+export function isUiLabPanel(value: string): value is UiLabPanelId {
+  return (UI_LAB_PANELS as readonly string[]).includes(value)
+}
+
+export function labPanelPath(panelId: UiLabPanelId): string {
+  return `${ROUTES.lab}/${encodeURIComponent(panelId)}`
+}
+
+export function parseLabPathFromSegments(segments: string[] | undefined): { panelId: string | null } {
+  const parts = segments?.filter(Boolean) ?? []
+  if (parts.length === 0) return { panelId: null }
+
+  try {
+    const panelId = decodeURIComponent(parts.join('/'))
+    return { panelId: isUiLabPanel(panelId) ? panelId : null }
+  } catch {
+    return { panelId: null }
+  }
+}
+
+export function resolveUiLabPanelId(pathname = window.location.pathname): UiLabPanelId | null {
+  const path = normalizePath(pathname)
+  if (!path.startsWith(`${ROUTES.lab}/`)) return null
+
+  const rest = path.slice(`${ROUTES.lab}/`.length)
+  if (!rest) return null
+
+  try {
+    const panelId = decodeURIComponent(rest.split('/')[0] ?? '')
+    return isUiLabPanel(panelId) ? panelId : null
+  } catch {
+    return null
+  }
+}
+
+export function syncUiLabPanelPath(panelId: UiLabPanelId, mode: 'push' | 'replace' = 'push'): void {
+  const path = labPanelPath(panelId)
+  const current = normalizePath(window.location.pathname)
+  if (path === current) return
+
+  if (mode === 'replace') replaceAppPath(path)
+  else navigateApp(path)
+}
+
+export function canonicalUiLabPath(pathname = window.location.pathname): string | null {
+  const path = normalizePath(pathname)
+  if (path === ROUTES.lab) return labPanelPath(UI_LAB_DEFAULT_PANEL)
+  if (path.startsWith(`${ROUTES.lab}/`) && resolveUiLabPanelId(path) === null) {
+    return labPanelPath(UI_LAB_DEFAULT_PANEL)
+  }
+  return null
+}
+
+export function isResponsivePanel(value: string): value is ResponsivePanelId {
+  return (RESPONSIVE_PANELS as readonly string[]).includes(value)
+}
+
+export function responsivePanelPath(panelId: ResponsivePanelId): string {
+  return `${ROUTES.responsive}/${encodeURIComponent(panelId)}`
+}
+
+export function parseResponsivePathFromSegments(segments: string[] | undefined): { panelId: string | null } {
+  const parts = segments?.filter(Boolean) ?? []
+  if (parts.length === 0) return { panelId: null }
+
+  try {
+    const panelId = decodeURIComponent(parts.join('/'))
+    return { panelId: isResponsivePanel(panelId) ? panelId : null }
+  } catch {
+    return { panelId: null }
+  }
+}
+
+export function resolveResponsivePanelId(pathname = window.location.pathname): ResponsivePanelId | null {
+  const path = normalizePath(pathname)
+  if (!path.startsWith(`${ROUTES.responsive}/`)) return null
+
+  const rest = path.slice(`${ROUTES.responsive}/`.length)
+  if (!rest) return null
+
+  try {
+    const panelId = decodeURIComponent(rest.split('/')[0] ?? '')
+    return isResponsivePanel(panelId) ? panelId : null
+  } catch {
+    return null
+  }
+}
+
+export function syncResponsivePanelPath(panelId: ResponsivePanelId, mode: 'push' | 'replace' = 'push'): void {
+  const path = responsivePanelPath(panelId)
+  const current = normalizePath(window.location.pathname)
+  if (path === current) return
+
+  if (mode === 'replace') replaceAppPath(path)
+  else navigateApp(path)
+}
+
+export function canonicalResponsivePath(pathname = window.location.pathname): string | null {
+  const path = normalizePath(pathname)
+  if (path === ROUTES.responsive) return responsivePanelPath(RESPONSIVE_DEFAULT_PANEL)
+  if (path.startsWith(`${ROUTES.responsive}/`) && resolveResponsivePanelId(path) === null) {
+    return responsivePanelPath(RESPONSIVE_DEFAULT_PANEL)
   }
   return null
 }

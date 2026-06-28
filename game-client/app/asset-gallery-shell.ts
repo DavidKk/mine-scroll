@@ -1,6 +1,6 @@
 import { createAdminShell } from './admin-shell.ts'
-import { assetLabSectionMeta, createFooterNote, type NavItem, populateSidebar } from './asset-gallery/editor-shell.ts'
-import { type AssetSection, FOOTER_NOTES, type StaticPreviewSection, V3_BOARD_TILE_CANDIDATES, V3_CANDIDATE_CUTOUTS, V3_HUD_ALERT_CANDIDATES } from './asset-gallery-data.ts'
+import { assetLabSectionMeta, type NavItem, populateSidebar } from './asset-gallery/editor-shell.ts'
+import { type AssetSection, type StaticPreviewSection, V3_BOARD_TILE_CANDIDATES, V3_CANDIDATE_CUTOUTS, V3_HUD_ALERT_CANDIDATES } from './asset-gallery-data.ts'
 import { createSpritePanel, createStaticPreviewPanel } from './asset-gallery-panels.ts'
 import type { AssetLabSection } from './routes.ts'
 import { syncAssetLabPanelPath } from './routes.ts'
@@ -18,8 +18,7 @@ function mountAssetSectionShell(
 ): () => void {
   const meta = assetLabSectionMeta(section)
   const layout = createAdminShell({
-    module: 'assets',
-    activeAssetSection: section,
+    activeRail: section,
     onNavigate,
     withSubnav: true,
     eyebrow: meta.eyebrow,
@@ -28,9 +27,6 @@ function mountAssetSectionShell(
   })
 
   root.append(layout.root)
-
-  const footer = createFooterNote(FOOTER_NOTES[section])
-  layout.panelHost.append(footer)
 
   const disposeInner = render(layout.panelHost, layout.subnavScroll!, layout.setPageHeader)
 
@@ -51,19 +47,19 @@ export function mountSpritesSection(
   const candidateCutoutSection: StaticPreviewSection = {
     id: 'v3-cutouts',
     title: 'Runtime cutouts',
-    description: 'Manifest-wired mine, flag, and heart cutouts used by the game canvas.',
+    description: '',
     items: V3_CANDIDATE_CUTOUTS,
   }
   const candidateBoardTileSection: StaticPreviewSection = {
     id: 'board-v3-tiles',
     title: 'Board v3 square slices',
-    description: 'Runtime 128x128 square board tiles and digit glyphs from board-v3-square.',
+    description: '',
     items: V3_BOARD_TILE_CANDIDATES,
   }
   const candidateHudAlertSection: StaticPreviewSection = {
     id: 'hud-alerts-v3',
     title: 'HUD alerts v3',
-    description: 'Runtime difficulty alert badge art. Chevron acceleration streaks are Canvas-driven — see Animations → Speed up chevrons v3.',
+    description: '',
     items: V3_HUD_ALERT_CANDIDATES,
   }
   spritePanels.set(candidateCutoutSection.id, createStaticPreviewPanel(candidateCutoutSection))

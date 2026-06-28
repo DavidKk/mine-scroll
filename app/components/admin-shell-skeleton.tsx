@@ -1,10 +1,9 @@
 import '@game-client/styles/admin-theme.css'
 import './admin-shell-skeleton.css'
 
-export type AdminSkeletonModule = 'assets' | 'lab' | 'responsive'
+import { BRAND_MARK_PATH } from '@/lib/brand'
 
 export interface AdminShellSkeletonProps {
-  module?: AdminSkeletonModule
   withSubnav?: boolean
   withRail?: boolean
 }
@@ -13,16 +12,14 @@ function Block({ className = '' }: { className?: string }) {
   return <div className={`admin-skeleton__block ${className}`.trim()} aria-hidden="true" />
 }
 
-export function AdminShellSkeleton({ module = 'assets', withSubnav = module === 'assets', withRail = module === 'assets' }: AdminShellSkeletonProps) {
-  const modulePills: Array<{ key: string; wide?: boolean }> = [{ key: 'assets' }, { key: 'lab' }, { key: 'responsive', wide: true }]
-
+export function AdminShellSkeleton({ withSubnav = true, withRail = true }: AdminShellSkeletonProps) {
   return (
     <div className="app app--admin admin-skeleton" role="status" aria-live="polite" aria-busy="true" aria-label="Loading admin">
       <div className="admin-skeleton__backdrop" aria-hidden="true" />
       <div className="admin-skeleton__shell">
         <header className="admin-skeleton__header">
           <div className="admin-skeleton__brand">
-            <div className="admin-skeleton__mark" />
+            <img className="admin-skeleton__mark" src={BRAND_MARK_PATH} alt="" width={28} height={28} decoding="async" />
             <div className="admin-skeleton__brand-lines">
               <Block className="admin-skeleton__line admin-skeleton__line--title" />
               <Block className="admin-skeleton__line admin-skeleton__line--sub" />
@@ -30,18 +27,16 @@ export function AdminShellSkeleton({ module = 'assets', withSubnav = module === 
           </div>
           <div className="admin-skeleton__toolbar">
             <div className="admin-skeleton__modules">
-              {modulePills.map((pill) => (
-                <Block key={pill.key} className={`admin-skeleton__pill${pill.wide ? ' admin-skeleton__pill--wide' : ''}`} />
-              ))}
+              <Block className="admin-skeleton__pill" />
             </div>
-            <Block className="admin-skeleton__pill admin-skeleton__pill--wide" />
+            <Block className="admin-skeleton__pill admin-skeleton__pill--user" />
           </div>
         </header>
 
         <div className="admin-skeleton__frame">
           {withRail ? (
             <aside className="admin-skeleton__rail" aria-hidden="true">
-              {Array.from({ length: 6 }, (_, index) => (
+              {Array.from({ length: 8 }, (_, index) => (
                 <Block key={index} className="admin-skeleton__rail-btn" />
               ))}
             </aside>

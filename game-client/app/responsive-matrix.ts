@@ -1,10 +1,10 @@
 import { ENDLESS_COLS, ENDLESS_VISIBLE_ROWS } from '@shared/core/modes/endless/constants.ts'
 
-import { navigateApp } from '../navigation.ts'
 import { computeEndlessBoardCellSize, computeGameStageLayout } from '../ui/game-stage-layout.ts'
 import { CELL_GAP, FONTS, GRID_PADDING } from '../ui/theme.ts'
 import { mountAdminModuleShell } from './admin-module-shell.ts'
 import { createPanelHead } from './asset-gallery/editor-shell.ts'
+import { isResponsivePanel, RESPONSIVE_DEFAULT_PANEL, type ResponsivePanelId, syncResponsivePanelPath } from './routes.ts'
 
 interface ViewportSpec {
   w: number
@@ -326,7 +326,7 @@ function createChecklistPanel(): HTMLElement {
   return panel
 }
 
-export function mountResponsiveMatrix(root: HTMLElement): () => void {
+export function mountResponsiveMatrix(root: HTMLElement, initialPanelId: string | null, onNavigate: (path: string) => void): () => void {
   root.className = 'app app--admin'
   root.replaceChildren()
 
@@ -336,29 +336,35 @@ export function mountResponsiveMatrix(root: HTMLElement): () => void {
     ['checklist', createChecklistPanel()],
   ])
 
-  return mountAdminModuleShell(root, {
-    module: 'responsive',
-    onNavigate: navigateApp,
+  const resolvedPanelId: ResponsivePanelId = initialPanelId && isResponsivePanel(initialPanelId) ? initialPanelId : RESPONSIVE_DEFAULT_PANEL
+
+  const disposeShell = mountAdminModuleShell(root, {
+    activeRail: 'responsive',
+    onNavigate,
     eyebrow: 'Responsive',
     title: 'Viewport matrix',
-    description: 'Runtime stage layout checks for HUD, board, Space, Auto, and feedback overlap.',
+    description: '',
     navItems: [
       {
         id: 'matrix',
         label: 'Viewport matrix',
         count: matrixCount,
-        description: 'HUD and board layout across common viewport sizes and play states.',
       },
       {
         id: 'checklist',
         label: 'Review checklist',
         count: 5,
-        description: 'Manual checks for overlap, feedback bands, and game-over hit targets.',
       },
     ],
     panels,
-    initialPanelId: 'matrix',
+    initialPanelId: resolvedPanelId,
     subnavLabel: 'Browser',
-    footerNote: 'Matrix cards use the same stage layout math as the live game canvas.',
+    onPanelSelect: (id) => {
+      if (isResponsivePanel(id)) syncResponsivePanelPath(id)
+    },
   })
+
+  syncResponsivePanelPath(resolvedPanelId, 'replace')
+
+  return disposeShell
 }

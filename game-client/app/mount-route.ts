@@ -3,7 +3,8 @@ import { mountGameSession } from './game-session/index.ts'
 import type { AssetLabSection } from './routes.ts'
 import { assetLabSectionPath } from './routes.ts'
 
-export type ClientRoute = { type: 'game' } | { type: 'assets'; section: AssetLabSection; panelId: string | null } | { type: 'lab' } | { type: 'responsive' }
+export type ClientRoute =
+  { type: 'game' } | { type: 'assets'; section: AssetLabSection; panelId: string | null } | { type: 'lab'; panelId: string | null } | { type: 'responsive'; panelId: string | null }
 
 function mountRouteLoading(root: HTMLElement, label: string): void {
   root.className = 'app app--route-loading'
@@ -51,16 +52,16 @@ export function mountClientRoute(root: HTMLElement, route: ClientRoute): () => v
     case 'lab':
       return mountLazyRoute(root, 'Loading UI Lab…', async (mountRoot) => {
         const { mountUiLab } = await import('./ui-lab.ts')
+        const { navigateApp } = await import('../navigation.ts')
         mountRoot.replaceChildren()
-        mountUiLab(mountRoot)
-        return () => mountRoot.replaceChildren()
+        return mountUiLab(mountRoot, route.panelId, navigateApp)
       })
     case 'responsive':
       return mountLazyRoute(root, 'Loading responsive matrix…', async (mountRoot) => {
         const { mountResponsiveMatrix } = await import('./responsive-matrix.ts')
+        const { navigateApp } = await import('../navigation.ts')
         mountRoot.replaceChildren()
-        mountResponsiveMatrix(mountRoot)
-        return () => mountRoot.replaceChildren()
+        return mountResponsiveMatrix(mountRoot, route.panelId, navigateApp)
       })
     default: {
       const sessionCleanup = mountGameSession(root)

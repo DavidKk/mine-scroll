@@ -1,5 +1,4 @@
 import type { EffectPanelId } from './asset-gallery/cell-effects.ts'
-import type { AssetLabSection } from './routes.ts'
 
 export const TILE_BASE = '/assets/tiles'
 export const RUNTIME_BOARD_TILE_BASE = '/assets/candidates/board-v3-square/tiles'
@@ -40,34 +39,30 @@ export const SOURCE_SECTIONS: StaticPreviewSection[] = [
   {
     id: 'current-sources',
     title: 'Current sources',
-    description: 'Active board sources and manifest runtime previews.',
+    description: '',
     items: [
       {
         id: 'board-v3-square-tiles-source',
         label: 'Board v3 square tiles source',
         src: '/assets/candidates/board-v3-square/board-v3-square-tiles-source.png',
-        note: 'Current square tile source: normalized into 128x128 review sprites.',
         background: 'checker',
       },
       {
         id: 'board-v3-square-digits-source',
         label: 'Board v3 digit glyph source',
         src: '/assets/candidates/board-v3-square/board-v3-square-digits-source.png',
-        note: 'Current digit glyph source: numbers are sliced separately from tile backgrounds.',
         background: 'checker',
       },
       {
         id: 'runtime-cutout-preview',
         label: 'Runtime cutout preview',
         src: '/assets/game/preview-cutouts.png',
-        note: 'Manifest-driven runtime cutout preview.',
         background: 'checker',
       },
       {
         id: 'runtime-fx-preview',
         label: 'Runtime FX preview',
         src: '/assets/game/preview-fx.png',
-        note: 'Middle-frame preview from manifest FX entries (wrong-flag-break, level-up).',
         background: 'black',
       },
     ],
@@ -133,12 +128,3 @@ export const FX_NAV: Array<{ id: EffectPanelId; label: string }> = [
   { id: 'speed-up-chevron-v3', label: 'Speed up chevrons v3' },
   { id: 'danger-rise-alert-v3', label: 'Danger rise alert v3' },
 ]
-
-export const FOOTER_NOTES: Record<AssetLabSection, string> = {
-  sources: 'Board sources and manifest runtime previews',
-  sprites: 'Static runtime and candidate cutouts · transparent PNG review before manifest wiring',
-  animations: 'Motion previews and FX frame review · canvas-driven behavior lives here',
-  'game-ui': 'Runtime UI panels and HUD icons only · source sheets moved to Sources',
-  background: 'Environment and backdrop preview · game-client/ui/game-canvas/shell/background.ts',
-  audio: 'Game SFX & BGM · public/assets/game/audio · gains in game-audio.ts',
-}

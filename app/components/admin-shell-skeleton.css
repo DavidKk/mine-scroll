@@ -31,8 +31,8 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: 52px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--admin-border);
   background: rgba(8, 10, 18, 0.92);
 }
@@ -43,7 +43,6 @@
   gap: 8px;
 }
 
-.admin-skeleton__mark,
 .admin-skeleton__block {
   border-radius: 8px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.1) 45%, rgba(255, 255, 255, 0.04) 90%);
@@ -54,7 +53,10 @@
 .admin-skeleton__mark {
   width: 28px;
   height: 28px;
-  border: 1px solid var(--admin-border);
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--admin-cyan-border);
+  box-shadow: 0 0 16px rgba(45, 236, 255, 0.12);
 }
 
 .admin-skeleton__brand-lines {
@@ -86,6 +88,7 @@
 .admin-skeleton__modules {
   display: flex;
   gap: 4px;
+  height: 38px;
   padding: 3px;
   border-radius: 10px;
   border: 1px solid var(--admin-border);
@@ -94,8 +97,14 @@
 
 .admin-skeleton__pill {
   width: 56px;
-  height: 26px;
+  height: 32px;
   border-radius: 7px;
+}
+
+.admin-skeleton__pill--user {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
 }
 
 .admin-skeleton__pill--wide {

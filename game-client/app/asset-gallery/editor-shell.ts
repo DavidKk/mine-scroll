@@ -29,32 +29,32 @@ const SECTION_META: Record<AssetLabSection, { eyebrow: string; title: string; de
   sources: {
     eyebrow: 'Asset Lab',
     title: 'Source sheets',
-    description: 'Original artboards and reference sheets before runtime slicing.',
+    description: '',
   },
   sprites: {
     eyebrow: 'Asset Lab',
     title: 'Sprites',
-    description: 'Runtime tile slices, cutouts, and HUD bitmaps.',
+    description: '',
   },
   animations: {
     eyebrow: 'Asset Lab',
     title: 'Animations',
-    description: 'Cell FX frames and motion previews wired into gameplay.',
+    description: '',
   },
   'game-ui': {
     eyebrow: 'Asset Lab',
     title: 'Game UI',
-    description: 'Panels, buttons, and HUD chrome used by the canvas shell.',
+    description: '',
   },
   background: {
     eyebrow: 'Asset Lab',
     title: 'Environment',
-    description: 'Ambient backdrop tiers and parallax layers.',
+    description: '',
   },
   audio: {
     eyebrow: 'Asset Lab',
     title: 'Audio',
-    description: 'SFX, BGM, and bus routing previews.',
+    description: '',
   },
 }
 
@@ -183,9 +183,12 @@ export function createPanelHead(title: string, description: string): HTMLElement
   head.className = 'asset-lab__panel-head'
   const h2 = document.createElement('h2')
   h2.textContent = title
-  const p = document.createElement('p')
-  p.textContent = description
-  head.append(h2, p)
+  head.append(h2)
+  if (description.trim()) {
+    const p = document.createElement('p')
+    p.textContent = description
+    head.append(p)
+  }
   return head
 }
 
@@ -219,11 +222,4 @@ export function createFpsControl(initialFps: number, onChange: (fps: number) => 
   label.append(input)
   wrap.append(label, value)
   return wrap
-}
-
-export function createFooterNote(text: string): HTMLElement {
-  const foot = document.createElement('footer')
-  foot.className = 'admin-shell__footer'
-  foot.textContent = text
-  return foot
 }

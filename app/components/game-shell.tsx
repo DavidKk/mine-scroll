@@ -8,7 +8,7 @@ import { registerAppNavigator, unregisterAppNavigator } from '@game-client/navig
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
-import { AdminShellSkeleton, type AdminSkeletonModule } from '@/app/components/admin-shell-skeleton'
+import { AdminShellSkeleton } from '@/app/components/admin-shell-skeleton'
 import { BootScreenShell } from '@/app/components/boot-screen-shell'
 
 type GameShellProps = {
@@ -19,10 +19,8 @@ function isGameRoute(route: ClientRoute): boolean {
   return route.type === 'game'
 }
 
-function adminSkeletonModule(route: ClientRoute): AdminSkeletonModule {
-  if (route.type === 'lab') return 'lab'
-  if (route.type === 'responsive') return 'responsive'
-  return 'assets'
+function isAdminRoute(route: ClientRoute): boolean {
+  return route.type !== 'game'
 }
 
 export function GameShell({ route }: GameShellProps) {
@@ -62,12 +60,19 @@ export function GameShell({ route }: GameShellProps) {
       disposed = true
       cleanup?.()
     }
-  }, [isGame, route.type, route.type === 'assets' ? route.section : '', route.type === 'assets' ? route.panelId : ''])
+  }, [
+    isGame,
+    route.type,
+    route.type === 'assets' ? route.section : '',
+    route.type === 'assets' ? route.panelId : '',
+    route.type === 'lab' ? route.panelId : '',
+    route.type === 'responsive' ? route.panelId : '',
+  ])
 
   return (
     <>
       {showLoader && isGame ? <BootScreenShell ref={bootScreenRef} /> : null}
-      {showLoader && !isGame ? <AdminShellSkeleton module={adminSkeletonModule(route)} withRail={route.type === 'assets'} withSubnav={route.type === 'assets'} /> : null}
+      {showLoader && !isGame ? <AdminShellSkeleton withRail={isAdminRoute(route)} withSubnav={isAdminRoute(route)} /> : null}
       <div ref={rootRef} className="game-root" />
     </>
   )

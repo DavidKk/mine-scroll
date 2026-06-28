@@ -16,6 +16,32 @@
   height: 200px;
 }
 
+.ui-lab__grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.ui-lab__sheet-thumb,
+.ui-lab__fx-thumb {
+  aspect-ratio: 16 / 10;
+  min-height: 220px;
+}
+
+.ui-lab__sheet-thumb .asset-lab__sprite-img {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
+.ui-lab__fx-thumb .ui-lab__fx-canvas,
+.ui-lab__fx-thumb .asset-lab__preview-canvas--interactive {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+}
+
 .responsive-matrix__checklist {
   margin: 0;
   padding-left: 18px;

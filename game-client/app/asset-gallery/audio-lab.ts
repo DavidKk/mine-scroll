@@ -1,7 +1,6 @@
 import {
   BGM_IDLE_SRC,
   createGameAudio,
-  GAME_AUDIO_ASSETS,
   GAME_AUDIO_BGM_IDLE_VOLUME,
   GAME_AUDIO_MASTER_VOLUME,
   GAME_AUDIO_SFX_GAIN,
@@ -231,10 +230,8 @@ function createAudioCard(entry: AudioLabEntry, ctx: AudioLabContext): HTMLElemen
   const gain = GAME_AUDIO_SFX_GAIN[entry.id]
   const effective = getEffectiveSfxVolume(entry.id)
   meta.innerHTML = `
-    <div><dt>File</dt><dd><code>${GAME_AUDIO_ASSETS[entry.id]}</code></dd></div>
     <div><dt>Duration</dt><dd>${entry.duration}</dd></div>
     <div><dt>Trigger</dt><dd>${entry.trigger}</dd></div>
-    <div><dt>Code</dt><dd><code>${entry.codeHook}</code></dd></div>
   `
   meta.append(createVolumeRow('Output', effective, gain))
 
@@ -396,18 +393,11 @@ function createBgmPanel(ctx: AudioLabContext): HTMLElement {
   const meta = document.createElement('dl')
   meta.className = 'asset-lab__meta-list'
   meta.innerHTML = `
-    <div><dt>File</dt><dd><code>${BGM_IDLE_SRC}</code></dd></div>
     <div><dt>Volume</dt><dd>${formatPct(GAME_AUDIO_BGM_IDLE_VOLUME)}</dd></div>
     <div><dt>Loop</dt><dd>Yes</dd></div>
-    <div><dt>When</dt><dd>status === idle</dd></div>
-    <div><dt>Code</dt><dd><code>setIdleBgm · syncIdleBgm</code></dd></div>
   `
 
-  const hint = document.createElement('p')
-  hint.className = 'asset-lab__field-hint'
-  hint.textContent = 'Lab toggle uses the same GameAudioController as the game. Native player below is for inspecting the raw asset.'
-
-  workspace.append(player, meta, native, hint)
+  workspace.append(player, meta, native)
   panel.append(workspace)
   return panel
 }

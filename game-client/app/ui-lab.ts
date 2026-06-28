@@ -1,40 +1,40 @@
-import { navigateApp } from '../navigation.ts'
 import { FONTS } from '../ui/theme.ts'
 import { mountAdminModuleShell } from './admin-module-shell.ts'
+import { registerZoomableCanvas, wireAssetFrameGrid } from './asset-gallery/asset-lightbox.ts'
 import { createPanelHead } from './asset-gallery/editor-shell.ts'
+import { isUiLabPanel, syncUiLabPanelPath, UI_LAB_DEFAULT_PANEL, type UiLabPanelId } from './routes.ts'
 
 type PreviewKind = 'tile' | 'flag' | 'explode' | 'combo' | 'scroll' | 'life' | 'gameover'
 
 interface PreviewSpec {
   kind: PreviewKind
   title: string
-  note: string
 }
 
 const PREVIEWS: PreviewSpec[] = [
-  { kind: 'tile', title: 'Tile Click', note: 'hidden -> reveal pop + blue spark' },
-  { kind: 'flag', title: 'Flag Place', note: 'ring pulse + flag cloth pop' },
-  { kind: 'explode', title: 'Mine Explosion', note: 'shockwave + sparks + red flash' },
-  { kind: 'combo', title: 'Combo Burst', note: 'x99 scale pop + particles' },
-  { kind: 'scroll', title: 'Batch Scroll', note: 'bottom N rows pressure band' },
-  { kind: 'life', title: 'Life / Heal', note: 'heart loss + refill pulse' },
-  { kind: 'gameover', title: 'Game Over', note: 'modal slam-in + retry button' },
+  { kind: 'tile', title: 'Tile Click' },
+  { kind: 'flag', title: 'Flag Place' },
+  { kind: 'explode', title: 'Mine Explosion' },
+  { kind: 'combo', title: 'Combo Burst' },
+  { kind: 'scroll', title: 'Batch Scroll' },
+  { kind: 'life', title: 'Life / Heal' },
+  { kind: 'gameover', title: 'Game Over' },
 ]
+
+const LAB_PREVIEW_W = 400
+const LAB_PREVIEW_H = 250
 
 const ASSET_SHEETS = [
   {
     title: 'Sliced Cutouts Preview',
-    note: 'Runtime cutout preview from public/assets/game/manifest.json.',
     src: '/assets/game/preview-cutouts.png',
   },
   {
     title: 'Sliced FX Preview',
-    note: 'Middle-frame preview from runtime additive FX animations.',
     src: '/assets/game/preview-fx.png',
   },
   {
     title: 'Sliced UI Panel Preview',
-    note: 'Runtime UI panel reference sheet from manifest-loaded panels.',
     src: '/assets/game/preview-ui-panels.png',
   },
 ] as const
@@ -324,78 +324,115 @@ function drawGameOverPreview(ctx: CanvasRenderingContext2D, w: number, h: number
   ctx.restore()
 }
 
-function drawPreview(lab: LabCanvas): void {
-  fitCanvas(lab.canvas, lab.ctx)
-  const rect = lab.canvas.getBoundingClientRect()
-  const w = rect.width
-  const h = rect.height
+function renderLabPreview(lab: LabCanvas, ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const elapsed = (performance.now() - lab.startedAt) % 1600
   const t = elapsed / 1600
 
-  lab.ctx.clearRect(0, 0, w, h)
-  drawPreviewFrame(lab.ctx, w, h)
+  ctx.clearRect(0, 0, w, h)
+  drawPreviewFrame(ctx, w, h)
 
-  if (lab.kind === 'tile') drawTilePreview(lab.ctx, w, h, t)
-  if (lab.kind === 'flag') drawFlagPreview(lab.ctx, w, h, t)
-  if (lab.kind === 'explode') drawExplosionPreview(lab.ctx, w, h, t)
-  if (lab.kind === 'combo') drawComboPreview(lab.ctx, w, h, t)
-  if (lab.kind === 'scroll') drawScrollPreview(lab.ctx, w, h, t)
-  if (lab.kind === 'life') drawLifePreview(lab.ctx, w, h, t)
-  if (lab.kind === 'gameover') drawGameOverPreview(lab.ctx, w, h, t)
+  if (lab.kind === 'tile') drawTilePreview(ctx, w, h, t)
+  if (lab.kind === 'flag') drawFlagPreview(ctx, w, h, t)
+  if (lab.kind === 'explode') drawExplosionPreview(ctx, w, h, t)
+  if (lab.kind === 'combo') drawComboPreview(ctx, w, h, t)
+  if (lab.kind === 'scroll') drawScrollPreview(ctx, w, h, t)
+  if (lab.kind === 'life') drawLifePreview(ctx, w, h, t)
+  if (lab.kind === 'gameover') drawGameOverPreview(ctx, w, h, t)
 }
 
-function createPreviewCard(spec: PreviewSpec): { el: HTMLElement; lab: LabCanvas } {
+function drawPreview(lab: LabCanvas): void {
+  fitCanvas(lab.canvas, lab.ctx)
+  const rect = lab.canvas.getBoundingClientRect()
+  renderLabPreview(lab, lab.ctx, rect.width, rect.height)
+}
+
+function createUiLabGrid(): HTMLElement {
+  const grid = document.createElement('div')
+  grid.className = 'asset-lab__frame-grid asset-lab__frame-grid--wide ui-lab__grid'
+  return grid
+}
+
+function appendUiLabMeta(cell: HTMLElement, title: string, detail?: string): void {
+  const meta = document.createElement('div')
+  meta.className = 'asset-lab__frame-meta'
+  const name = document.createElement('strong')
+  name.textContent = title
+  meta.append(name)
+  if (detail) {
+    const span = document.createElement('span')
+    span.textContent = detail
+    meta.append(span)
+  }
+  cell.append(meta)
+}
+
+function createPreviewCard(spec: PreviewSpec, index: number): { el: HTMLElement; lab: LabCanvas } {
   const cell = document.createElement('article')
-  cell.className = 'asset-lab__frame-cell asset-lab__frame-cell--static'
+  cell.className = 'asset-lab__frame-cell asset-lab__frame-cell--static asset-lab__frame-cell--zoomable'
 
   const thumb = document.createElement('div')
-  thumb.className = 'asset-lab__frame-thumb asset-lab__checker'
+  thumb.className = 'asset-lab__frame-thumb asset-lab__frame-thumb--zoomable ui-lab__fx-thumb asset-lab__checker'
 
   const canvas = document.createElement('canvas')
-  canvas.className = 'asset-lab__preview-canvas asset-lab__preview-canvas--interactive'
+  canvas.className = 'asset-lab__preview-canvas asset-lab__preview-canvas--interactive ui-lab__fx-canvas'
   canvas.setAttribute('aria-label', spec.title)
   thumb.append(canvas)
 
-  const meta = document.createElement('div')
-  meta.className = 'asset-lab__frame-meta'
-  meta.innerHTML = `<strong>${spec.title}</strong><span>${spec.note}</span>`
+  const num = document.createElement('span')
+  num.className = 'asset-lab__frame-num'
+  num.textContent = String(index + 1).padStart(2, '0')
+  thumb.append(num)
 
-  cell.append(thumb, meta)
+  cell.append(thumb)
+  appendUiLabMeta(cell, spec.title)
 
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('UI Lab canvas context not available')
-  return { el: cell, lab: { canvas, ctx, kind: spec.kind, startedAt: performance.now() } }
+
+  const lab: LabCanvas = { canvas, ctx, kind: spec.kind, startedAt: performance.now() }
+  registerZoomableCanvas(
+    canvas,
+    (zoomCtx, w, h) => {
+      renderLabPreview(lab, zoomCtx, w, h)
+    },
+    { w: LAB_PREVIEW_W, h: LAB_PREVIEW_H, label: spec.title, pixelArt: false, checker: true }
+  )
+
+  return { el: cell, lab }
 }
 
 function createAssetSheetsPanel(): HTMLElement {
   const panel = document.createElement('section')
   panel.className = 'asset-lab__panel'
-  panel.append(createPanelHead('Runtime asset previews', 'Manifest preview sheets from public/assets/game/. Full asset review lives in Asset Lab.'))
+  panel.append(createPanelHead('Runtime sheets', ''))
 
-  const grid = document.createElement('div')
-  grid.className = 'asset-lab__frame-grid asset-lab__frame-grid--wide'
+  const grid = createUiLabGrid()
 
-  for (const sheet of ASSET_SHEETS) {
+  ASSET_SHEETS.forEach((sheet, index) => {
     const cell = document.createElement('article')
-    cell.className = 'asset-lab__frame-cell asset-lab__frame-cell--static'
+    cell.className = 'asset-lab__frame-cell asset-lab__frame-cell--static asset-lab__frame-cell--zoomable'
 
     const thumb = document.createElement('div')
-    thumb.className = 'asset-lab__frame-thumb asset-lab__thumb--dark'
+    thumb.className = 'asset-lab__frame-thumb asset-lab__frame-thumb--zoomable ui-lab__sheet-thumb asset-lab__thumb--dark'
 
     const image = document.createElement('img')
     image.className = 'asset-lab__sprite-img'
     image.src = sheet.src
     image.alt = sheet.title
+    image.loading = 'lazy'
     thumb.append(image)
 
-    const meta = document.createElement('div')
-    meta.className = 'asset-lab__frame-meta'
-    meta.innerHTML = `<strong>${sheet.title}</strong><span>${sheet.note}</span>`
+    const num = document.createElement('span')
+    num.className = 'asset-lab__frame-num'
+    num.textContent = String(index + 1).padStart(2, '0')
+    thumb.append(num)
 
-    cell.append(thumb, meta)
+    cell.append(thumb)
+    appendUiLabMeta(cell, sheet.title)
     grid.append(cell)
-  }
+  })
 
+  wireAssetFrameGrid(grid)
   panel.append(grid)
   return panel
 }
@@ -403,25 +440,27 @@ function createAssetSheetsPanel(): HTMLElement {
 function createFxLoopsPanel(): { panel: HTMLElement; labs: LabCanvas[] } {
   const panel = document.createElement('section')
   panel.className = 'asset-lab__panel'
-  panel.append(createPanelHead('FX loops', 'Loopable core FX previews for the endless mode canvas.'))
+  panel.append(createPanelHead('FX loops', ''))
 
-  const grid = document.createElement('div')
-  grid.className = 'asset-lab__frame-grid'
+  const grid = createUiLabGrid()
   const labs: LabCanvas[] = []
-  for (const spec of PREVIEWS) {
-    const { el, lab } = createPreviewCard(spec)
+  PREVIEWS.forEach((spec, index) => {
+    const { el, lab } = createPreviewCard(spec, index)
     grid.append(el)
     labs.push(lab)
-  }
+  })
+
+  wireAssetFrameGrid(grid)
   panel.append(grid)
   return { panel, labs }
 }
 
-export function mountUiLab(root: HTMLElement): () => void {
+export function mountUiLab(root: HTMLElement, initialPanelId: string | null, onNavigate: (path: string) => void): () => void {
   root.className = 'app app--admin'
   root.replaceChildren()
 
   const { panel: fxPanel, labs } = createFxLoopsPanel()
+  const resolvedPanelId: UiLabPanelId = initialPanelId && isUiLabPanel(initialPanelId) ? initialPanelId : UI_LAB_DEFAULT_PANEL
 
   const panels = new Map<string, HTMLElement>([
     ['asset-sheets', createAssetSheetsPanel()],
@@ -429,30 +468,32 @@ export function mountUiLab(root: HTMLElement): () => void {
   ])
 
   const disposeShell = mountAdminModuleShell(root, {
-    module: 'lab',
-    onNavigate: navigateApp,
+    activeRail: 'lab',
+    onNavigate,
     eyebrow: 'UI Lab',
-    title: 'Runtime asset previews',
-    description: 'Loopable core FX previews and manifest sheets for the endless mode canvas.',
+    title: 'Canvas previews',
+    description: '',
     navItems: [
       {
         id: 'asset-sheets',
         label: 'Runtime sheets',
         count: ASSET_SHEETS.length,
-        description: 'Manifest preview sheets from public/assets/game/.',
       },
       {
         id: 'fx-loops',
         label: 'FX loops',
         count: PREVIEWS.length,
-        description: 'Loopable core FX previews for the endless mode canvas.',
       },
     ],
     panels,
-    initialPanelId: 'asset-sheets',
+    initialPanelId: resolvedPanelId,
     subnavLabel: 'Browser',
-    footerNote: 'UI Lab mirrors runtime canvas FX. Authoritative slices and frames live in Asset Lab.',
+    onPanelSelect: (id) => {
+      if (isUiLabPanel(id)) syncUiLabPanelPath(id)
+    },
   })
+
+  syncUiLabPanelPath(resolvedPanelId, 'replace')
 
   let frame = 0
   const animate = (): void => {

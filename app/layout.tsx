@@ -3,10 +3,35 @@ import '@game-client/styles/main.css'
 
 import type { Metadata, Viewport } from 'next'
 
+import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_OG_IMAGE_PATH, getMetadataBase } from '@/lib/brand'
+
 export const metadata: Metadata = {
-  title: 'Minesweeper',
-  icons: {
-    icon: '/favicon.svg',
+  metadataBase: getMetadataBase(),
+  title: {
+    default: BRAND_NAME,
+    template: `%s · ${BRAND_NAME}`,
+  },
+  description: BRAND_DESCRIPTION,
+  applicationName: BRAND_NAME,
+  openGraph: {
+    type: 'website',
+    siteName: BRAND_NAME,
+    title: BRAND_NAME,
+    description: BRAND_DESCRIPTION,
+    images: [
+      {
+        url: BRAND_OG_IMAGE_PATH,
+        width: 512,
+        height: 512,
+        alt: BRAND_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary',
+    title: BRAND_NAME,
+    description: BRAND_DESCRIPTION,
+    images: [BRAND_OG_IMAGE_PATH],
   },
 }
 

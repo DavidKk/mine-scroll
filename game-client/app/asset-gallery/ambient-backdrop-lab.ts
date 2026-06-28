@@ -115,11 +115,6 @@ function createSinglePresetPanel(preset: BackdropLabPreset): { panel: HTMLElemen
     )
   )
 
-  const hint = document.createElement('p')
-  hint.className = 'asset-lab__field-hint'
-  hint.textContent = 'Layered star bloom + faint shmup vignette; dim stars stay lightweight.'
-  controls.append(hint)
-
   workspace.append(previewWrap, controls)
   panel.append(workspace)
 

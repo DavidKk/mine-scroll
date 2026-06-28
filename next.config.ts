@@ -25,9 +25,11 @@ const nextConfig: NextConfig = {
     return [
       { source: '/admin', destination: '/admin/assets/sources', permanent: false },
       { source: '/admin/assets', destination: '/admin/assets/sources', permanent: false },
+      { source: '/admin/lab', destination: '/admin/lab/asset-sheets', permanent: false },
+      { source: '/admin/responsive', destination: '/admin/responsive/matrix', permanent: false },
       ...legacyAssetLabRedirects(),
-      { source: '/lab', destination: '/admin/lab', permanent: false },
-      { source: '/responsive', destination: '/admin/responsive', permanent: false },
+      { source: '/lab', destination: '/admin/lab/asset-sheets', permanent: false },
+      { source: '/responsive', destination: '/admin/responsive/matrix', permanent: false },
     ]
   },
   webpack: (config) => {

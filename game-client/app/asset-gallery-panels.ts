@@ -28,19 +28,19 @@ export function buildSpriteSections(): AssetSection[] {
     {
       id: 'cells',
       title: 'Cell tiles',
-      description: 'Board cell surfaces at 128×128, including interaction states loaded by tile-sprites.ts.',
+      description: '',
       items: cellItems,
     },
     {
       id: 'digits',
       title: 'Digit glyphs',
-      description: 'Runtime v3 digit glyph slices (1-8), drawn over the square revealed tile.',
+      description: '',
       items: digitItems,
     },
     {
       id: 'icons',
       title: 'Icons',
-      description: 'Mine and flag markers from the tile atlas.',
+      description: '',
       items: [
         { id: 'mine', label: 'Mine', src: `${TILE_BASE}/mine.png`, image: sprites.mine },
         { id: 'flag', label: 'Flag', src: `${TILE_BASE}/flag.png`, image: sprites.flag },
@@ -78,15 +78,12 @@ export function createStaticPreviewPanel(section: StaticPreviewSection): HTMLEle
     meta.className = 'asset-lab__frame-meta'
     const name = document.createElement('strong')
     name.textContent = item.label
-    const path = document.createElement('code')
-    path.textContent = item.src
     meta.append(name)
     if (item.note) {
       const note = document.createElement('span')
       note.textContent = item.note
       meta.append(note)
     }
-    meta.append(path)
 
     cell.append(thumb, meta)
     grid.append(cell)
@@ -168,10 +165,7 @@ export function createSpritePanel(section: AssetSection): HTMLElement {
     const dims = document.createElement('span')
     dims.textContent = bb ? `${item.image.naturalWidth}×${item.image.naturalHeight} · content ${bb.w}×${bb.h}` : `${item.image.naturalWidth}×${item.image.naturalHeight}`
 
-    const path = document.createElement('code')
-    path.textContent = item.src
-
-    meta.append(name, dims, path)
+    meta.append(name, dims)
     cell.append(thumb, meta)
     grid.append(cell)
   })
