@@ -42,20 +42,16 @@ This TODO consolidates:
 ### Stage Scale
 
 ```ts
-const scale = clamp(
-  0.78,
-  1.18,
-  Math.min(viewportW / 390, viewportH / 844),
-);
+const scale = clamp(0.78, 1.18, Math.min(viewportW / 390, viewportH / 844))
 ```
 
 ### Stage Rect
 
 ```ts
-const stageW = 390 * scale;
-const stageH = 844 * scale;
-const stageX = (viewportW - stageW) / 2;
-const stageY = (viewportH - stageH) / 2;
+const stageW = 390 * scale
+const stageH = 844 * scale
+const stageX = (viewportW - stageW) / 2
+const stageY = (viewportH - stageH) / 2
 ```
 
 ### Stage Anchors
@@ -185,6 +181,7 @@ Purpose: keep the "爽感" while preventing feedback from becoming a modal over 
   - [x] `x10-x19`: gold, larger pop.
   - [x] `x20+`: orange/violet, stronger impact.
   - [x] `x50+`: fever/max styling, still short and non-blocking.
+
 ### Score Pop
 
 - [x] Show short text on mobile:

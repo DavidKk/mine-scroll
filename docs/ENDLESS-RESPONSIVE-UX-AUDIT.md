@@ -235,20 +235,16 @@ This matches the current target mobile viewport and the actual primary play styl
 Compute one scale:
 
 ```ts
-const stageScale = clamp(
-  0.78,
-  1.18,
-  Math.min(viewportW / baseW, viewportH / baseH),
-);
+const stageScale = clamp(0.78, 1.18, Math.min(viewportW / baseW, viewportH / baseH))
 ```
 
 Then compute the stage rect:
 
 ```ts
-const stageW = baseW * stageScale;
-const stageH = baseH * stageScale;
-const stageX = (viewportW - stageW) / 2;
-const stageY = (viewportH - stageH) / 2;
+const stageW = baseW * stageScale
+const stageH = baseH * stageScale
+const stageX = (viewportW - stageW) / 2
+const stageY = (viewportH - stageH) / 2
 ```
 
 All gameplay UI should be positioned inside this stage:
@@ -278,14 +274,14 @@ For wide screens:
 Board cell size should come from the stage scale, not only viewport size:
 
 ```ts
-const baseCell = 23;
-const cellSize = Math.round(baseCell * stageScale);
+const baseCell = 23
+const cellSize = Math.round(baseCell * stageScale)
 ```
 
 Then apply min/max only for readability:
 
 ```ts
-const cellSize = clamp(18, 30, Math.round(baseCell * stageScale));
+const cellSize = clamp(18, 30, Math.round(baseCell * stageScale))
 ```
 
 ### HUD Scale

@@ -1,0 +1,171 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+
+import { loadSignetSdk } from '@/lib/load-signet-sdk'
+
+import type { OAuthStatus } from './constants'
+import { OAUTH_CALLBACK_PARAMS, OAUTH_LOGIN_URL, OAUTH_SERVER_PUBLIC_KEY } from './constants'
+import { decryptOAuthPayload } from './decryptToken'
+import { exportPrivateKey, exportPublicKey, generateECDHKeyPair } from './ecdh'
+import { clearOAuthSession, persistOAuthSession, readOAuthSession } from './session'
+
+export interface UseOAuthLoginOptions {
+  redirectUrl?: string
+}
+
+export interface UseOAuthLoginResult {
+  status: OAuthStatus
+  error: string | null
+  launch: () => Promise<void>
+  resetError: () => void
+  isHandlingCallback: boolean
+  available: boolean
+}
+
+export function useOAuthLogin(options: UseOAuthLoginOptions = {}): UseOAuthLoginResult {
+  const { redirectUrl = '/admin/assets/sources' } = options
+  const isConfigReady = Boolean(OAUTH_SERVER_PUBLIC_KEY)
+  const router = useRouter()
+  const [status, setStatus] = useState<OAuthStatus>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const processingRef = useRef(false)
+  const [tokenFromUrl, setTokenFromUrl] = useState('')
+  const [stateFromUrl, setStateFromUrl] = useState('')
+
+  useLayoutEffect(() => {
+    let cancelled = false
+    void loadSignetSdk().then((signet) => {
+      if (cancelled || typeof window === 'undefined') return
+      const parsed = signet.parseLoginCallbackParams(window.location.href)
+      setTokenFromUrl(parsed.token ?? '')
+      setStateFromUrl(parsed.state ?? '')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const stripOAuthParams = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    const signet = await loadSignetSdk()
+    const next = signet.stripLoginCallbackFromUrl(window.location.href)
+    window.history.replaceState(window.history.state, '', next)
+  }, [])
+
+  const launch = useCallback(async () => {
+    if (typeof window === 'undefined') return
+
+    if (!isConfigReady) {
+      setStatus('error')
+      setError('Third-party login is not configured.')
+      return
+    }
+
+    setError(null)
+    setStatus('launching')
+
+    try {
+      const keyPair = await generateECDHKeyPair()
+      const [clientPublicKey, clientPrivateKey] = await Promise.all([exportPublicKey(keyPair), exportPrivateKey(keyPair)])
+      const state = crypto.randomUUID()
+
+      persistOAuthSession({ state, clientPublicKey, clientPrivateKey })
+
+      const callbackUrl = buildCallbackUrl()
+      const signet = await loadSignetSdk()
+      const authCenterOrigin = new URL(OAUTH_LOGIN_URL).origin
+      const loginUrl = signet.buildOAuthLoginUrl({
+        authCenterOrigin,
+        redirectUrl: callbackUrl,
+        state,
+        clientPublicKey,
+      })
+
+      setStatus('redirecting')
+      window.location.href = loginUrl
+    } catch (err) {
+      setStatus('error')
+      setError(err instanceof Error ? err.message : 'Failed to start third-party login.')
+    }
+  }, [isConfigReady])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !tokenFromUrl || processingRef.current || !isConfigReady) return
+
+    processingRef.current = true
+    setStatus('processing')
+    setError(null)
+
+    const handleCallback = async () => {
+      try {
+        const session = readOAuthSession()
+        if (!session) {
+          throw new Error('OAuth session expired. Please launch login again.')
+        }
+
+        if (!stateFromUrl) {
+          throw new Error('Callback is missing the state parameter.')
+        }
+
+        if (stateFromUrl !== session.state) {
+          throw new Error('State check failed. Please launch login again.')
+        }
+
+        const payload = await decryptOAuthPayload(tokenFromUrl, session.clientPrivateKey)
+        await exchangeOAuthToken(payload.token)
+
+        clearOAuthSession()
+        await stripOAuthParams()
+        setStatus('success')
+        router.push(redirectUrl)
+        router.refresh()
+      } catch (err) {
+        setStatus('error')
+        setError(err instanceof Error ? err.message : 'Third-party login failed. Please try again later.')
+        clearOAuthSession()
+        await stripOAuthParams()
+      } finally {
+        processingRef.current = false
+      }
+    }
+
+    void handleCallback()
+  }, [isConfigReady, redirectUrl, router, stateFromUrl, stripOAuthParams, tokenFromUrl])
+
+  const resetError = useCallback(() => setError(null), [])
+
+  const isHandlingCallback = useMemo(() => status === 'processing' || status === 'success', [status])
+
+  return {
+    status,
+    error,
+    launch,
+    resetError,
+    isHandlingCallback,
+    available: isConfigReady,
+  }
+}
+
+async function exchangeOAuthToken(token: string): Promise<void> {
+  const response = await fetch('/api/auth/oauth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+
+  const result = (await response.json().catch(() => null)) as { error?: string } | null
+  if (!response.ok) {
+    throw new Error(result?.error ?? 'Server failed to handle the third-party login.')
+  }
+}
+
+function buildCallbackUrl(): string {
+  const url = new URL(window.location.href)
+  url.hash = ''
+  url.searchParams.delete(OAUTH_CALLBACK_PARAMS.token)
+  url.searchParams.delete(OAUTH_CALLBACK_PARAMS.state)
+  const sanitizedSearch = url.searchParams.toString()
+  return sanitizedSearch ? `${url.origin}${url.pathname}?${sanitizedSearch}` : `${url.origin}${url.pathname}`
+}

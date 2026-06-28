@@ -21,6 +21,21 @@ pnpm dev
 
 ```bash
 pnpm build
-pnpm preview
+pnpm start
 pnpm test
 ```
+
+## Admin 认证
+
+`/admin/*`（Asset Lab、UI Lab、Responsive Matrix）需要登录。
+
+| 环境     | 方式                                                     |
+| -------- | -------------------------------------------------------- |
+| 生产     | Signet（`SIGNET_SDK_URL`）                               |
+| 本地 dev | 可选 Signet + 可选 `ACCESS_USERNAME` / `ACCESS_PASSWORD` |
+
+必需：`JWT_SECRET`、`JWT_EXPIRES_IN`。部署时在认证中心注册回调：
+
+`https://<域名>/auth/vercel-2fa/callback`
+
+详见 `.env.example`。

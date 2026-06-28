@@ -1,0 +1,21 @@
+# Build output
+.next
+game/dist
+coverage
+junit.xml
+
+# Generated / binary assets
+game/public
+
+# Husky
+.husky
+
+# Tooling caches
+.eslintcache
+node_modules
+pnpm-lock.yaml
+
+# Editor / OS
+.vscode
+.DS_Store
+.idea

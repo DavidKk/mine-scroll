@@ -1,0 +1,19 @@
+# Git GUIs may provide an incomplete PATH; extend it explicitly
+# Include full system PATH (GUI may only pass a minimal PATH)
+export PATH="$PATH":$PATH
+# Common pnpm install locations on Unix
+if [ -d "$HOME/.local/share/pnpm" ]; then
+  export PATH="$HOME/.local/share/pnpm:$PATH"
+fi
+if [ -d "$HOME/.pnpm" ]; then
+  export PATH="$HOME/.pnpm:$PATH"
+fi
+# Try npm global prefix for pnpm
+if command -v npm >/dev/null 2>&1; then
+  npm_prefix=$(npm config get prefix 2>/dev/null)
+  if [ -n "$npm_prefix" ] && [ -d "$npm_prefix" ]; then
+    export PATH="$npm_prefix:$PATH"
+  fi
+fi
+
+pnpm lint-staged

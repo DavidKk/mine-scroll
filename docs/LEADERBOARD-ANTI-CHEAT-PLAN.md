@@ -14,9 +14,9 @@ chill 当前为 **纯静态 SPA**（Vite + TS + Canvas），游戏逻辑在 `src
 
 若引入 **公开天梯榜**，需解决两类问题：
 
-| 问题 | 说明 |
-|------|------|
-| **分数可信** | 客户端提交的 score / depth 不可信，须服务端复算 |
+| 问题         | 说明                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| **分数可信** | 客户端提交的 score / depth 不可信，须服务端复算                                                   |
 | **操作来源** | 与 UI 操作等价的 `{ kind, row, col }` 可由脚本直接生成；须验证 **输入过程**（指针轨迹、按键时间） |
 
 ### 1.2 设计结论（推荐）
@@ -47,14 +47,14 @@ chill 当前为 **纯静态 SPA**（Vite + TS + Canvas），游戏逻辑在 `src
 
 ### 2.1 攻击面
 
-| 手段 | 难度 | 说明 |
-|------|------|------|
-| 改内存 / 控制台改 `session.score` | 低 | 仅提交终局分数时无效（服务端复算） |
-| 直接调用 `revealAt` / `applyAiMove` | 低 | 与 UI 输出相同 action 序列 |
-| 运行 `simulate-endless-ai.ts` 类脚本 | 低 | 无 pointer 事件链 |
-| 伪造 `{ kind, row, col }` 日志 | 中 | 缺 move 样本与 down/up 时序 |
-| 伪造带 jitter 的 pointer 序列 | 中高 | 需过间隔方差 + Shadow AI 检测 |
-| 录制真人操作回放 | 高 | 可能过单局检测；重复 hash / 人工复核可抓 |
+| 手段                                 | 难度 | 说明                                     |
+| ------------------------------------ | ---- | ---------------------------------------- |
+| 改内存 / 控制台改 `session.score`    | 低   | 仅提交终局分数时无效（服务端复算）       |
+| 直接调用 `revealAt` / `applyAiMove`  | 低   | 与 UI 输出相同 action 序列               |
+| 运行 `simulate-endless-ai.ts` 类脚本 | 低   | 无 pointer 事件链                        |
+| 伪造 `{ kind, row, col }` 日志       | 中   | 缺 move 样本与 down/up 时序              |
+| 伪造带 jitter 的 pointer 序列        | 中高 | 需过间隔方差 + Shadow AI 检测            |
+| 录制真人操作回放                     | 高   | 可能过单局检测；重复 hash / 人工复核可抓 |
 
 ### 2.2 信任边界
 
@@ -112,12 +112,12 @@ flowchart TB
 
 ### 3.1 与现有分层的关系
 
-| 层 | 职责 |
-|----|------|
-| `src/core/` | 不变；服务端通过 **同包或 git submodule** 引用同一 TS 源码复算 |
-| `src/ui/` | 在 `pointer-handlers.ts` 等处 **挂钩 recorder**；hit-test 逻辑服务端复用 `renderer/hit-test.ts` |
-| `src/app/game-session/` | 排位模式启用 recorder + uploader；**禁用** `createAiController` 与 DEV 快捷键 |
-| 新建 `workers/ranked/` 或独立服务 | API、复算、Policy；**不进前端 bundle** |
+| 层                                | 职责                                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/core/`                       | 不变；服务端通过 **同包或 git submodule** 引用同一 TS 源码复算                                  |
+| `src/ui/`                         | 在 `pointer-handlers.ts` 等处 **挂钩 recorder**；hit-test 逻辑服务端复用 `renderer/hit-test.ts` |
+| `src/app/game-session/`           | 排位模式启用 recorder + uploader；**禁用** `createAiController` 与 DEV 快捷键                   |
+| 新建 `workers/ranked/` 或独立服务 | API、复算、Policy；**不进前端 bundle**                                                          |
 
 ---
 
@@ -138,24 +138,24 @@ type RunInputEvent =
   | { t: number; e: 'down'; btn: 0 | 2; x: number; y: number }
   | { t: number; e: 'up'; btn: 0 | 2; x: number; y: number }
   | { t: number; e: 'key'; code: 'Space' }
-  | { t: number; e: 'layout'; w: number; h: number; ox: number; oy: number; rows: number; cols: number; cell: number };
+  | { t: number; e: 'layout'; w: number; h: number; ox: number; oy: number; rows: number; cols: number; cell: number }
 
 interface RankedRunMeta {
-  runId: string;
-  modeId: 'endless';
-  coreVersion: string;   // 与 manifest / git tag 对齐
-  clientBuild: string;   // 可选，仅服务端日志
+  runId: string
+  modeId: 'endless'
+  coreVersion: string // 与 manifest / git tag 对齐
+  clientBuild: string // 可选，仅服务端日志
 }
 ```
 
 **推导规则（服务端执行，与客户端行为对齐）：**
 
-| 输入 | 推导动作 |
-|------|----------|
-| `down` btn=0，hit 格子，非双线 | `reveal(row, col)` |
-| `contextmenu` / 等价 touch 插旗手势 | `toggleFlag(row, col)` |
-| 双线 / `dblclick` | `chord(row, col)` |
-| `key` Space | `manualScroll()` → `endlessScrollTick(batchRows)` |
+| 输入                                | 推导动作                                          |
+| ----------------------------------- | ------------------------------------------------- |
+| `down` btn=0，hit 格子，非双线      | `reveal(row, col)`                                |
+| `contextmenu` / 等价 touch 插旗手势 | `toggleFlag(row, col)`                            |
+| 双线 / `dblclick`                   | `chord(row, col)`                                 |
+| `key` Space                         | `manualScroll()` → `endlessScrollTick(batchRows)` |
 
 参考实现位置：
 
@@ -165,13 +165,13 @@ interface RankedRunMeta {
 
 ### 4.3 体量控制
 
-| 策略 | 参数（建议） |
-|------|-------------|
-| move 节流 | 间隔 ≥ 40ms 或位移 ≥ 2px |
-| 关键帧 | 每个 `down` / `up` / `key` / `layout` 必记 |
-| 动作窗口 | 每个 `down` 前 500ms 内的 move 全保留 |
-| 分批上传 | 每 30s 或每 50 个推导 action 一批 |
-| 坐标量化 | Int16 足够（canvas 逻辑像素） |
+| 策略      | 参数（建议）                               |
+| --------- | ------------------------------------------ |
+| move 节流 | 间隔 ≥ 40ms 或位移 ≥ 2px                   |
+| 关键帧    | 每个 `down` / `up` / `key` / `layout` 必记 |
+| 动作窗口  | 每个 `down` 前 500ms 内的 move 全保留      |
+| 分批上传  | 每 30s 或每 50 个推导 action 一批          |
+| 坐标量化  | Int16 足够（canvas 逻辑像素）              |
 
 ### 4.4 模块划分（建议路径）
 
@@ -217,11 +217,11 @@ src/app/game-session/
 
 ```typescript
 interface InputChainMetrics {
-  moveSamplesBeforeDown: number;   // down 前窗口内 move 条数
-  pathLengthPx: number;            // 轨迹长度
-  straightLineRatio: number;       // 路径长 / 起终点直线距离
-  clickDurationMs: number;         // down → up（若有 up）
-  idleBeforeActionMs: number;      // 上一 action → 本次 down
+  moveSamplesBeforeDown: number // down 前窗口内 move 条数
+  pathLengthPx: number // 轨迹长度
+  straightLineRatio: number // 路径长 / 起终点直线距离
+  clickDurationMs: number // down → up（若有 up）
+  idleBeforeActionMs: number // 上一 action → 本次 down
 }
 ```
 
@@ -237,10 +237,10 @@ interface InputChainMetrics {
 
 ```typescript
 interface ShadowAiMetrics {
-  aiMoveMatchRate: number;     // 玩家推导步 === analysis.move 的比例
-  certainMoveRate: number;
-  guessCount: number;
-  unflagCount: number;         // 人类较少；AI heal/scroll 策略可另计
+  aiMoveMatchRate: number // 玩家推导步 === analysis.move 的比例
+  certainMoveRate: number
+  guessCount: number
+  unflagCount: number // 人类较少；AI heal/scroll 策略可另计
 }
 ```
 
@@ -250,20 +250,20 @@ interface ShadowAiMetrics {
 ### 5.4 阶段四 — Policy Engine
 
 ```typescript
-type RankedDecision = 'accepted' | 'rejected' | 'review';
+type RankedDecision = 'accepted' | 'rejected' | 'review'
 
 interface PolicyInput {
-  replayOk: boolean;
-  inputChainScore: number;   // 0–1，内部
-  shadowAiScore: number;     // 0–1，内部，越低越像 bot
-  riskFlags: string[];       // 仅内部日志
+  replayOk: boolean
+  inputChainScore: number // 0–1，内部
+  shadowAiScore: number // 0–1，内部，越低越像 bot
+  riskFlags: string[] // 仅内部日志
 }
 
 interface PolicyConfig {
-  version: string;           // 远程配置，可随时调整
-  weights: { input: number; shadow: number; risk: number };
-  acceptThreshold: number;
-  reviewThreshold: number;
+  version: string // 远程配置，可随时调整
+  weights: { input: number; shadow: number; risk: number }
+  acceptThreshold: number
+  reviewThreshold: number
 }
 ```
 
@@ -358,17 +358,17 @@ GET /v1/ranked/leaderboard?mode=endless&limit=50
 
 ## 7. 服务端技术选型（推荐）
 
-| 组件 | 推荐 | 理由 |
-|------|------|------|
-| API | Cloudflare Worker 或 Vercel Functions | 与静态 SPA 部署一致、低运维 |
-| DB | D1 / Postgres / Supabase | 榜 + run 元数据 |
-| 原始 events | R2 / S3，TTL 30 天 | 体积大、复核后删 |
-| core 复算 | Worker 内 bundled TS 或独立 Node 服务 | 与 `src/core` 同源 |
-| 配置 | Worker env / 远程 KV | Policy 阈值不下发前端 |
+| 组件        | 推荐                                  | 理由                        |
+| ----------- | ------------------------------------- | --------------------------- |
+| API         | Cloudflare Worker 或 Vercel Functions | 与静态 SPA 部署一致、低运维 |
+| DB          | D1 / Postgres / Supabase              | 榜 + run 元数据             |
+| 原始 events | R2 / S3，TTL 30 天                    | 体积大、复核后删            |
+| core 复算   | Worker 内 bundled TS 或独立 Node 服务 | 与 `src/core` 同源          |
+| 配置        | Worker env / 远程 KV                  | Policy 阈值不下发前端       |
 
 **共享 core 方式（二选一）：**
 
-1.  monorepo：`packages/core` 被 SPA 与 Worker 同时 import  
+1.  monorepo：`packages/core` 被 SPA 与 Worker 同时 import
 2.  CI 打包时将 `src/core` + `src/ui/renderer/hit-test.ts` 复制进 Worker 构建
 
 ---
@@ -377,14 +377,14 @@ GET /v1/ranked/leaderboard?mode=endless&limit=50
 
 ### 8.1 玩家可见说明（FAQ / 隐私政策）
 
-- 参与天梯时，会处理 **操作与输入时序** 用于反作弊与成绩校验  
-- 不采集键盘除 Space 外的内容、不采集棋盘外应用数据  
-- 原始 events **保留 N 天（建议 30）** 后删除；榜单条目保留聚合字段  
+- 参与天梯时，会处理 **操作与输入时序** 用于反作弊与成绩校验
+- 不采集键盘除 Space 外的内容、不采集棋盘外应用数据
+- 原始 events **保留 N 天（建议 30）** 后删除；榜单条目保留聚合字段
 
 ### 8.2 不可向玩家承诺
 
-- 「100% 无作弊」  
-- 具体检测算法、鼠标采样率、AI 对比逻辑  
+- 「100% 无作弊」
+- 具体检测算法、鼠标采样率、AI 对比逻辑
 
 ---
 
@@ -392,11 +392,11 @@ GET /v1/ranked/leaderboard?mode=endless&limit=50
 
 ### 9.1 分层
 
-| 榜单 | 验证 | 说明 |
-|------|------|------|
-| 本地纪录 | 无 | Phase 6；IndexedDB |
-| 无尽天梯 | 全 pipeline | 本方案 |
-| 待审核 / 赛季榜 | 可选 | Top 10 `review` 人工通过 |
+| 榜单            | 验证        | 说明                     |
+| --------------- | ----------- | ------------------------ |
+| 本地纪录        | 无          | Phase 6；IndexedDB       |
+| 无尽天梯        | 全 pipeline | 本方案                   |
+| 待审核 / 赛季榜 | 可选        | Top 10 `review` 人工通过 |
 
 ### 9.2 排序键（建议）
 
@@ -410,78 +410,78 @@ GET /v1/ranked/leaderboard?mode=endless&limit=50
 
 ### Phase A — 本地 recorder（无后端）
 
-- [ ] `ranked/input-recorder.ts` + pointer 挂钩  
-- [ ] DEV 导出 JSON；人工查看轨迹是否合理  
-- [ ] 单元测试：down/up → 与 hit-test 推导 action 一致  
+- [ ] `ranked/input-recorder.ts` + pointer 挂钩
+- [ ] DEV 导出 JSON；人工查看轨迹是否合理
+- [ ] 单元测试：down/up → 与 hit-test 推导 action 一致
 
 **验收：** 一整局 endless 导出 events，能肉眼看出生疏/熟练操作差异。
 
 ### Phase B — 服务端 Replay
 
-- [ ] `POST /runs` + `/events` + `/finish`  
-- [ ] Worker 内 core 复算；仅 `replayOk` 时暂存  
-- [ ] 客户端 `pending` → `accepted` 轮询  
+- [ ] `POST /runs` + `/events` + `/finish`
+- [ ] Worker 内 core 复算；仅 `replayOk` 时暂存
+- [ ] 客户端 `pending` → `accepted` 轮询
 
 **验收：** 改 `claimedScore` 必 rejected；合法对局 accepted。
 
 ### Phase C — 输入链 + Shadow AI
 
-- [ ] Policy Engine + 远程配置  
-- [ ] 无 move 样本脚本拒榜；`simulate-endless-ai.ts` 输出拒榜  
-- [ ] 内部 dashboard 看 `riskFlags`（不对玩家）  
+- [ ] Policy Engine + 远程配置
+- [ ] 无 move 样本脚本拒榜；`simulate-endless-ai.ts` 输出拒榜
+- [ ] 内部 dashboard 看 `riskFlags`（不对玩家）
 
 **验收：** 无头 AI 模拟不上榜；正常手打多局 accepted 率可接受。
 
 ### Phase D — 产品化
 
-- [ ] mode-hub 天梯入口  
-- [ ] 排行榜 UI  
-- [ ] 隐私文案、events TTL 清理 job  
-- [ ] Top N 人工复核流程（可选）  
+- [ ] mode-hub 天梯入口
+- [ ] 排行榜 UI
+- [ ] 隐私文案、events TTL 清理 job
+- [ ] Top N 人工复核流程（可选）
 
 ---
 
 ## 11. 与现有代码对照
 
-| 现有 | 天梯方案 |
-|------|----------|
-| `applyAiMove` / `ai-loop.ts` | 排位模式不挂载；脚本仍可调 core，靠服务端检测 |
-| `logPlayerAction` | 保留 UI 日志；排位以 recorder events 为准 |
-| `import.meta.env.DEV` AUTO | 生产已隐藏；排位双重禁用 |
-| `scripts/simulate-endless-ai.ts` | 作为 Phase C 拒榜回归测试 |
-| Phase 6 本地纪录 | 并行；recorder 可复用，上传可选 |
+| 现有                             | 天梯方案                                      |
+| -------------------------------- | --------------------------------------------- |
+| `applyAiMove` / `ai-loop.ts`     | 排位模式不挂载；脚本仍可调 core，靠服务端检测 |
+| `logPlayerAction`                | 保留 UI 日志；排位以 recorder events 为准     |
+| `import.meta.env.DEV` AUTO       | 生产已隐藏；排位双重禁用                      |
+| `scripts/simulate-endless-ai.ts` | 作为 Phase C 拒榜回归测试                     |
+| Phase 6 本地纪录                 | 并行；recorder 可复用，上传可选               |
 
 ---
 
 ## 12. 风险与局限
 
-| 风险 | 缓解 |
-|------|------|
-| 高手玩法接近 AI，误伤 | `review` 档 + 申诉；阈值保守；Shadow 仅作加权 |
-| Determined 作弊者伪造 pointer | 提高成本；流式上传 + 行为 + 人工 Top 复核 |
-| core 规则变更导致旧 run 无效 | `coreVersion` 分榜；旧 run 只读归档 |
-| events 体积与成本 | 节流、TTL、分批 |
+| 风险                           | 缓解                                            |
+| ------------------------------ | ----------------------------------------------- |
+| 高手玩法接近 AI，误伤          | `review` 档 + 申诉；阈值保守；Shadow 仅作加权   |
+| Determined 作弊者伪造 pointer  | 提高成本；流式上传 + 行为 + 人工 Top 复核       |
+| core 规则变更导致旧 run 无效   | `coreVersion` 分榜；旧 run 只读归档             |
+| events 体积与成本              | 节流、TTL、分批                                 |
 | 移动端 touch 与 mouse 事件差异 | 统一 Pointer schema；见 MOBILE-TOUCH-INPUT-PLAN |
 
 ---
 
 ## 13. 开放问题（评审时决定）
 
-1. **账号体系**：匿名 deviceId vs 登录（OAuth）— 影响刷榜与申诉  
-2. **首版是否只做 endless**：classic 复算简单但竞技意义弱  
-3. **Worker 冷启动 vs 长局 replay CPU 上限** — 是否需要异步队列（Queue + 独立 worker）  
-4. **是否赛季制** — 便于 `coreVersion` 与榜重置  
+1. **账号体系**：匿名 deviceId vs 登录（OAuth）— 影响刷榜与申诉
+2. **首版是否只做 endless**：classic 复算简单但竞技意义弱
+3. **Worker 冷启动 vs 长局 replay CPU 上限** — 是否需要异步队列（Queue + 独立 worker）
+4. **是否赛季制** — 便于 `coreVersion` 与榜重置
 
 ---
 
 ## 14. 文档变更
 
-| 日期 | 版本 | 变更 |
-|------|------|------|
+| 日期       | 版本 | 变更                                           |
+| ---------- | ---- | ---------------------------------------------- |
 | 2026-06-28 | v0.1 | 初稿：客户端采集 + 服务端黑盒验证 + 分阶段落地 |
 
 实现启动时同步：
 
-- `docs/PROJECT.md` — Phase 6 / 新 Phase 条目  
-- `docs/MODULES.md` — `RankedInputRecorder`、API 模块接口  
+- `docs/PROJECT.md` — Phase 6 / 新 Phase 条目
+- `docs/MODULES.md` — `RankedInputRecorder`、API 模块接口
 - `docs/ARCHITECTURE.md` — 服务端与 ranked 目录（实现后）

@@ -23,6 +23,13 @@ description: >-
 - `docs/MOBILE-TOUCH-INPUT-PLAN.md` — 移动端触摸映射
 - `docs/ENDLESS-HUD-FEEDBACK-UX-PLAN.md` — HUD 视觉变更（与 refactor 分离）
 
+### Admin 认证（`/admin/*`）
+
+- 生产：Signet（`SIGNET_SDK_URL`）；本地 dev 可用 `ACCESS_USERNAME` / `ACCESS_PASSWORD`
+- 必需 `JWT_SECRET`；环境变量见 `.env.example`
+- 改 auth 时对齐 `vercel-web-scripts`：`services/auth/`、`app/auth/vercel-2fa/callback/`
+- Admin 页 logout 用 `game-client/app/admin-chrome.ts`
+
 ---
 
 ## 开发节奏
@@ -71,9 +78,9 @@ find src -name '*.ts' -exec wc -l {} + | awk '$1 > 800 {print}'
 
 ### 重构 vs 功能
 
-| 类型 | 要求 |
-|------|------|
-| **纯重构** | 零行为变更；`npm run build` 通过；不改 SPEC 可见 UX |
+| 类型          | 要求                                                      |
+| ------------- | --------------------------------------------------------- |
+| **纯重构**    | 零行为变更；`npm run build` 通过；不改 SPEC 可见 UX       |
 | **功能 / UX** | 先改对应 `docs/*.md`，再改代码；不与 refactor 混在同一 PR |
 
 ---
@@ -82,14 +89,14 @@ find src -name '*.ts' -exec wc -l {} + | awk '$1 > 800 {print}'
 
 ### 分层职责
 
-| 层 | 允许 | 禁止 |
-|----|------|------|
-| `core/` | 纯函数、数据结构、模式规则 | DOM、Canvas |
-| `ui/primitives/` | 数学、路径、资源加载 | 游戏状态、业务逻辑 |
-| `ui/renderer/` | 棋盘格绘制、hit-test | 事件监听、计时器 |
-| `ui/game-canvas/` | RAF、输入、HUD 编排、overlay | 布雷、胜负 |
-| `ui/hud-feedback/`、`ui/cell-fx/` | 纯 Canvas drawer | 模块级可变状态 |
-| `app/` | 路由、session 编排、Lab 面板注册 | 复杂绘制（应调 ui drawer） |
+| 层                                | 允许                             | 禁止                       |
+| --------------------------------- | -------------------------------- | -------------------------- |
+| `core/`                           | 纯函数、数据结构、模式规则       | DOM、Canvas                |
+| `ui/primitives/`                  | 数学、路径、资源加载             | 游戏状态、业务逻辑         |
+| `ui/renderer/`                    | 棋盘格绘制、hit-test             | 事件监听、计时器           |
+| `ui/game-canvas/`                 | RAF、输入、HUD 编排、overlay     | 布雷、胜负                 |
+| `ui/hud-feedback/`、`ui/cell-fx/` | 纯 Canvas drawer                 | 模块级可变状态             |
+| `app/`                            | 路由、session 编排、Lab 面板注册 | 复杂绘制（应调 ui drawer） |
 
 ### 命名约定
 
@@ -109,15 +116,15 @@ find src -name '*.ts' -exec wc -l {} + | awk '$1 > 800 {print}'
 
 ### 推荐拆分方式
 
-| 原集中区 | 拆到 |
-|----------|------|
-| `game-canvas/create.ts` | `hud/`、`overlay/`、`runtime/`、`input/`、`shell/`、`layout/` |
-| `hud-feedback-fx.ts` | `ui/hud-feedback/*` |
-| `cell-fx.ts` | `ui/cell-fx/*` + `ui/cell-fx/gallery/*` |
-| `asset-gallery/cell-effects.ts` | `cell-effect-live-previews.ts`、`cell-effect-frame-grid.ts`、瘦入口 |
-| `glyphs/geometry.ts` | `shard-shapes.ts`、`solid-mesh.ts`、`glyph-canvas.ts`、`shard-motion.ts` |
-| `asset-gallery.ts` | `asset-gallery-data.ts`、`asset-gallery-panels.ts`、`asset-gallery-shell.ts` |
-| `core/ai/moves.ts` | `core/ai/moves/*` |
+| 原集中区                        | 拆到                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `game-canvas/create.ts`         | `hud/`、`overlay/`、`runtime/`、`input/`、`shell/`、`layout/`                |
+| `hud-feedback-fx.ts`            | `ui/hud-feedback/*`                                                          |
+| `cell-fx.ts`                    | `ui/cell-fx/*` + `ui/cell-fx/gallery/*`                                      |
+| `asset-gallery/cell-effects.ts` | `cell-effect-live-previews.ts`、`cell-effect-frame-grid.ts`、瘦入口          |
+| `glyphs/geometry.ts`            | `shard-shapes.ts`、`solid-mesh.ts`、`glyph-canvas.ts`、`shard-motion.ts`     |
+| `asset-gallery.ts`              | `asset-gallery-data.ts`、`asset-gallery-panels.ts`、`asset-gallery-shell.ts` |
+| `core/ai/moves.ts`              | `core/ai/moves/*`                                                            |
 
 ### Runtime ↔ Lab 复用
 

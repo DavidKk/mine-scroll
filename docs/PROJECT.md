@@ -6,7 +6,7 @@
 
 ## Current Task
 
-**维护阶段** — 核心玩法（classic / hex / endless）已完成；后续工作见专项文档（天梯榜、资产加载等）。
+**维护阶段** — 核心玩法已完成；下一步见 `docs/NEXTJS-PLATFORM-PLAN.md`（Next 平台 + 独立游戏客户端）。
 
 ---
 
@@ -33,25 +33,28 @@
 
 ## 文档索引
 
-| 文档 | 内容 |
-|------|------|
-| `docs/SPEC.md` | 经典规则 |
-| `docs/MODES.md` | 两种模式说明 |
-| `docs/ARCHITECTURE.md` | 技术架构 |
-| `docs/LEADERBOARD-ANTI-CHEAT-PLAN.md` | 天梯榜与反作弊技术方案（推荐） |
-| `docs/CODE-OPTIMIZATION-PLAN.md` | 模块化重构方案与验收 |
+| 文档                                  | 内容                                    |
+| ------------------------------------- | --------------------------------------- |
+| `docs/SPEC.md`                        | 经典规则                                |
+| `docs/MODES.md`                       | 两种模式说明                            |
+| `docs/ARCHITECTURE.md`                | 当前 Vite SPA 技术架构                  |
+| `docs/NEXTJS-PLATFORM-PLAN.md`        | Next.js 平台 + 独立游戏客户端（待实施） |
+| `docs/ASSET-BOOT-LOADER-PLAN.md`      | 启动资源加载器（已完成）                |
+| `docs/LEADERBOARD-ANTI-CHEAT-PLAN.md` | 天梯榜与反作弊（后续）                  |
+| `docs/CODE-OPTIMIZATION-PLAN.md`      | 模块化重构方案与验收                    |
 
 ---
 
 ## 变更日志
 
-| 日期 | 变更 |
-|------|------|
-| 2026-06-14 | Phase 5：多模式原型完成 |
-| 2026-06-18 | hex 加入；distance 移除 |
-| 2026-06-18 | 精简为 classic + hex 两种模式 |
-| 2026-06-18 | hunt 寻雷 DEMO 试玩后移除 |
-| 2026-06-18 | endless 无尽模式 |
-| 2026-06-28 | 代码模块化重构（见 CODE-OPTIMIZATION-PLAN v0.2） |
-| 2026-06-28 | 移除 Phase 6（GameMode API / 本地纪录 / logic 模式） |
-| 2026-06-28 | 移除棋盘/UI 位图资产 backlog（继续 Canvas 程序绘制） |
+| 日期       | 变更                                                   |
+| ---------- | ------------------------------------------------------ |
+| 2026-06-14 | Phase 5：多模式原型完成                                |
+| 2026-06-18 | hex 加入；distance 移除                                |
+| 2026-06-18 | 精简为 classic + hex 两种模式                          |
+| 2026-06-18 | hunt 寻雷 DEMO 试玩后移除                              |
+| 2026-06-18 | endless 无尽模式                                       |
+| 2026-06-28 | 代码模块化重构（见 CODE-OPTIMIZATION-PLAN v0.2）       |
+| 2026-06-28 | 移除 Phase 6（GameMode API / 本地纪录 / logic 模式）   |
+| 2026-06-28 | 移除棋盘/UI 位图资产 backlog（继续 Canvas 程序绘制）   |
+| 2026-06-28 | 新增 Next.js 平台拆分方案（NEXTJS-PLATFORM-PLAN v0.1） |

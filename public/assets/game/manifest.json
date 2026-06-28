@@ -77,16 +77,6 @@
         "src": "/assets/candidates/game-ui-v3/panels/runtime/game-over-panel-v3.png",
         "width": 1448,
         "height": 1086
-      },
-      "retry-button": {
-        "src": "/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png",
-        "width": 1895,
-        "height": 830
-      },
-      "break-chip": {
-        "src": "/assets/game/ui/break-chip.png",
-        "width": 144,
-        "height": 48
       }
     }
   },
@@ -105,26 +95,6 @@
       },
       "refresh": {
         "src": "/assets/hud/icons/refresh.png",
-        "width": 128,
-        "height": 128
-      },
-      "info": {
-        "src": "/assets/hud/icons/info.png",
-        "width": 128,
-        "height": 128
-      },
-      "flag": {
-        "src": "/assets/hud/icons/flag.png",
-        "width": 128,
-        "height": 128
-      },
-      "wand": {
-        "src": "/assets/hud/icons/wand.png",
-        "width": 128,
-        "height": 128
-      },
-      "timer": {
-        "src": "/assets/hud/icons/timer.png",
         "width": 128,
         "height": 128
       },

@@ -17,11 +17,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-GAME_DIR = ROOT / 'public/assets/game'
-HUD_ICON_DIR = ROOT / 'public/assets/hud/icons'
+GAME_DIR = ROOT / 'game/public/assets/game'
+HUD_ICON_DIR = ROOT / 'game/public/assets/hud/icons'
 DOC_SLICED = ROOT / 'docs/design-assets/sliced'
 PRODUCTION_DIR = ROOT / 'docs/design-assets/production'
-PUBLIC_PRODUCTION_DIR = ROOT / 'public/assets/production'
+PUBLIC_PRODUCTION_DIR = ROOT / 'game/public/assets/production'
 MANIFEST = GAME_DIR / 'manifest.json'
 
 FX_W = 192
@@ -41,11 +41,8 @@ PURPLE = (168, 85, 247)
 UI_ITEMS = {
     'start-panel': (364, 246),
     'game-over-panel': (430, 269),
-    'retry-button': (218, 84),
     'auto-off': (113, 117),
     'auto-on': (116, 128),
-    'break-chip': (144, 48),
-    'heal-chip': (144, 48),
 }
 
 CUTOUT_ITEMS = ['heart-full', 'heart-empty', 'heart-refill']
@@ -54,10 +51,6 @@ HUD_ICON_ITEMS = [
     'play',
     'skull',
     'refresh',
-    'info',
-    'flag',
-    'wand',
-    'timer',
     'volume-on',
     'volume-off',
     'volume-on-hover',
@@ -263,21 +256,6 @@ def draw_auto_panel(active: bool) -> Image.Image:
     return img
 
 
-def draw_chip(name: str) -> Image.Image:
-    fill = GREEN if name == 'heal-chip' else RED
-    label = 'HEAL' if name == 'heal-chip' else 'BREAK'
-    img = Image.new('RGBA', UI_ITEMS[name], (0, 0, 0, 0))
-    w, h = img.size
-    mask = Image.new('L', img.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle((4, 5, w - 4, h - 5), radius=12, fill=255)
-    add_mask_glow(img, mask, fill, 9, 110)
-    d = ImageDraw.Draw(img, 'RGBA')
-    d.rounded_rectangle((4, 5, w - 4, h - 5), radius=12, fill=rgba(PANEL, 228), outline=rgba(fill, 210), width=2)
-    d.ellipse((17, h / 2 - 8, 33, h / 2 + 8), fill=rgba(fill, 240))
-    text_center(d, (82, h / 2), label, rgba((255, 255, 255), 246), 21)
-    return img
-
-
 def heart_points(cx: float, cy: float, scale: float) -> list[tuple[float, float]]:
     pts = []
     for i in range(160):
@@ -414,11 +392,8 @@ def generate_ui_assets() -> dict[str, object]:
     drawers = {
         'start-panel': draw_start_panel,
         'game-over-panel': draw_game_over_panel,
-        'retry-button': draw_retry_button,
         'auto-off': lambda: draw_auto_panel(False),
         'auto-on': lambda: draw_auto_panel(True),
-        'break-chip': lambda: draw_chip('break-chip'),
-        'heal-chip': lambda: draw_chip('heal-chip'),
     }
     items: dict[str, object] = {}
     for name, drawer in drawers.items():
@@ -468,11 +443,8 @@ def make_ui_sheet(ui_items: dict[str, object]) -> None:
     placements = {
         'start-panel': (32, 32),
         'game-over-panel': (430, 32),
-        'retry-button': (32, 324),
-        'auto-off': (310, 312),
-        'auto-on': (460, 304),
-        'break-chip': (630, 328),
-        'heal-chip': (790, 328),
+        'auto-off': (32, 324),
+        'auto-on': (182, 316),
     }
     for name, (x, y) in placements.items():
         rel = ui_items[name]['src'].lstrip('/')  # type: ignore[index]

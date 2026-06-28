@@ -1,0 +1,74 @@
+'use client'
+
+import '@game-client/ui/boot/boot-screen.css'
+
+import type { ClientRoute } from '@game-client/bootstrap'
+import { ensureClientBoot, isClientBootFinished, mountRoute, preloadGameAudio } from '@game-client/bootstrap'
+import { registerAppNavigator, unregisterAppNavigator } from '@game-client/navigation'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+
+import { AdminShellSkeleton, type AdminSkeletonModule } from '@/app/components/admin-shell-skeleton'
+import { BootScreenShell } from '@/app/components/boot-screen-shell'
+
+type GameShellProps = {
+  route: ClientRoute
+}
+
+function isGameRoute(route: ClientRoute): boolean {
+  return route.type === 'game'
+}
+
+function adminSkeletonModule(route: ClientRoute): AdminSkeletonModule {
+  if (route.type === 'lab') return 'lab'
+  if (route.type === 'responsive') return 'responsive'
+  return 'assets'
+}
+
+export function GameShell({ route }: GameShellProps) {
+  const isGame = isGameRoute(route)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const bootScreenRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const [showLoader, setShowLoader] = useState(() => !isClientBootFinished())
+
+  useEffect(() => {
+    registerAppNavigator(
+      (path) => router.push(path),
+      (path) => router.replace(path)
+    )
+    return () => unregisterAppNavigator()
+  }, [router])
+
+  useEffect(() => {
+    const root = rootRef.current
+    const bootScreen = bootScreenRef.current
+    if (!root) return
+
+    let disposed = false
+    let cleanup: (() => void) | undefined
+
+    void ensureClientBoot({
+      bootScreenEl: isGame ? bootScreen : null,
+      silent: !isGame,
+    }).then(() => {
+      if (disposed) return
+      if (isGame) preloadGameAudio()
+      setShowLoader(false)
+      cleanup = mountRoute(root, route)
+    })
+
+    return () => {
+      disposed = true
+      cleanup?.()
+    }
+  }, [isGame, route.type, route.type === 'assets' ? route.section : '', route.type === 'assets' ? route.panelId : ''])
+
+  return (
+    <>
+      {showLoader && isGame ? <BootScreenShell ref={bootScreenRef} /> : null}
+      {showLoader && !isGame ? <AdminShellSkeleton module={adminSkeletonModule(route)} withRail={route.type === 'assets'} withSubnav={route.type === 'assets'} /> : null}
+      <div ref={rootRef} className="game-root" />
+    </>
+  )
+}

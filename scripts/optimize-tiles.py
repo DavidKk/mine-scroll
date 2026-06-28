@@ -11,7 +11,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / 'docs/design-assets/tiles'
 REF_SHEET = ROOT / 'docs/design-assets/reference/tile-sprite-sheet-v1.png'
-OUT_DIR = ROOT / 'public/assets/tiles'
+OUT_DIR = ROOT / 'game/public/assets/tiles'
 TARGET = 128
 # Top icon row vs number strip (gap ~329–431 on 1024×682 sheet)
 TOP_ROW_Y = (100, 335)

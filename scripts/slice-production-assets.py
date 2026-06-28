@@ -11,8 +11,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTION_DIR = ROOT / 'docs/design-assets/production'
-PUBLIC_PRODUCTION_DIR = ROOT / 'public/assets/production'
-OUT_DIR = ROOT / 'public/assets/game'
+PUBLIC_PRODUCTION_DIR = ROOT / 'game/public/assets/production'
+OUT_DIR = ROOT / 'game/public/assets/game'
 DOC_OUT_DIR = ROOT / 'docs/design-assets/sliced'
 
 CORE_SRC = PRODUCTION_DIR / 'core-cutouts-production-v1.png'
@@ -62,7 +62,6 @@ UI_PANELS = [
     ('auto-on', (861, 54, 116, 128)),
     ('start-panel', (45, 208, 364, 246)),
     ('ready-panel', (435, 210, 298, 244)),
-    ('retry-button', (763, 369, 218, 84)),
     ('game-over-panel', (45, 492, 430, 269)),
     ('log-panel', (506, 486, 474, 280)),
     ('score-chip', (45, 798, 309, 132)),
@@ -72,8 +71,6 @@ UI_PANELS = [
     ('countdown-orange', (220, 962, 143, 144)),
     ('countdown-red', (388, 962, 143, 144)),
     ('defused-chip', (562, 966, 150, 151)),
-    ('heal-chip', (736, 966, 111, 151)),
-    ('break-chip', (867, 966, 114, 151)),
     ('full-life-panel', (45, 1141, 379, 137)),
     ('row-one-chip', (470, 1121, 141, 170)),
     ('row-two-chip', (654, 1121, 141, 170)),

@@ -1,0 +1,8 @@
+{
+  "name": "@shared/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./*"
+  }
+}

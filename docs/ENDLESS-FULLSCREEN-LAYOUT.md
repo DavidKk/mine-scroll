@@ -14,11 +14,11 @@
 
 两套自适应（分界 `viewportW >= 768` 为 PC）：
 
-| | PC `desktop` | 移动 `mobile`（后续细调） |
-|--|--|--|
-| Shell 缩放 | `viewportW / 390` | `min(vw/390, vh/844)` contain |
-| 棋盘格宽 | **宽度优先**，过高时再收紧 | `min(fromW, fromH)` contain |
-| 棋盘竖向 | 在 ①～③ 之间 **垂直居中** | 略偏上（0.15 slack） |
+|            | PC `desktop`               | 移动 `mobile`（后续细调）     |
+| ---------- | -------------------------- | ----------------------------- |
+| Shell 缩放 | `viewportW / 390`          | `min(vw/390, vh/844)` contain |
+| 棋盘格宽   | **宽度优先**，过高时再收紧 | `min(fromW, fromH)` contain   |
+| 棋盘竖向   | 在 ①～③ 之间 **垂直居中**  | 略偏上（0.15 slack）          |
 
 所有坐标来自 **同一套** `GameStageLayout`。
 
@@ -48,12 +48,12 @@ y = 0
 
 ### 各层「占满」含义
 
-| 层 | 水平 | 竖向 |
-|----|------|------|
+| 层     | 水平                                                                                           | 竖向                                                                        |
+| ------ | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | ① 顶栏 | **占满视口宽**：装饰线/分区从 `x=0` 到 `x=viewportW`，内容区左右 `safe` 内边距排 SCORE / LIVES | **贴顶**：`hudY = 0`（或最多 4px 呼吸），**不要**再下移一整段 `safe` 留黑边 |
-| ② 棋盘 | 水平居中；格宽 **PC 由宽度决定** | **不**按高度撑满；slack 居中（PC） |
-| ③ 底栏 | `bottomRailRect`：**x=0, w=viewportW** | 贴视口最底 |
-| ④ AI | 右下角 `autoRect`，仅 `import.meta.env.DEV` | 在 `bottomRailRect` 上方 |
+| ② 棋盘 | 水平居中；格宽 **PC 由宽度决定**                                                               | **不**按高度撑满；slack 居中（PC）                                          |
+| ③ 底栏 | `bottomRailRect`：**x=0, w=viewportW**                                                         | 贴视口最底                                                                  |
+| ④ AI   | 右下角 `autoRect`，仅 `import.meta.env.DEV`                                                    | 在 `bottomRailRect` 上方                                                    |
 
 ### 明确不画在 Canvas 上
 
@@ -68,9 +68,7 @@ y = 0
 profile = viewportW >= 768 ? 'desktop' : 'mobile'
 
 // Shell（HUD / 底栏 / 字体）
-stageScale = profile === 'desktop'
-  ? clamp(0.85, 1.35, viewportW / 390)
-  : clamp(0.72, 1.18, min(viewportW / 390, viewportH / 844))
+stageScale = profile === 'desktop' ? clamp(0.85, 1.35, viewportW / 390) : clamp(0.72, 1.18, min(viewportW / 390, viewportH / 844))
 ```
 
 `stageX/stageW` 仅作宽屏参考框，**不**裁剪棋盘区域。
@@ -81,20 +79,20 @@ stageScale = profile === 'desktop'
 
 **唯一入口**：`getEndlessShellReserves(viewportW, viewportH)` → `game-stage-layout.ts`
 
-| 字段 | 含义 | 基准（scale=1） |
-|------|------|-----------------|
-| `hudY` | 顶栏顶边 | **0**（贴顶） |
-| `hudH` | 顶栏高度 | 56 |
-| `top` | 棋盘区顶边 = `hudY + hudH + hudGap` | hudGap ≈ 8 |
-| `bottom` | 视口底留给底栏 | `bottomRailH(30) + bottomPad(6)` |
-| `side` | 格宽计算左右 safe | 16 |
+| 字段     | 含义                                | 基准（scale=1）                  |
+| -------- | ----------------------------------- | -------------------------------- |
+| `hudY`   | 顶栏顶边                            | **0**（贴顶）                    |
+| `hudH`   | 顶栏高度                            | 56                               |
+| `top`    | 棋盘区顶边 = `hudY + hudH + hudGap` | hudGap ≈ 8                       |
+| `bottom` | 视口底留给底栏                      | `bottomRailH(30) + bottomPad(6)` |
+| `side`   | 格宽计算左右 safe                   | 16                               |
 
 **格宽**（`computeEndlessBoardCellSize`）：
 
 ```ts
 // desktop
 fromW = floor((availW + gap) / cols - gap)
-cell  = clamp(min, max, fromW)
+cell = clamp(min, max, fromW)
 if (gridHeight(cell) > availH) cell = clamp(min, max, fromW, fromH)
 
 // mobile（暂用 contain，后续可改为高度优先）
@@ -124,30 +122,30 @@ cell = min(fromW, fromH)
 
 ### 为何 7 必须在 6 之后
 
-- `renderBoardOnlyFrame` 的 `clearRect` 会擦掉先画的 HUD。  
-- Start 蒙层会盖住先画的 AI。  
+- `renderBoardOnlyFrame` 的 `clearRect` 会擦掉先画的 HUD。
+- Start 蒙层会盖住先画的 AI。
 - **改 HUD 位置时不要改 1～5 的顺序**；只能改 `GameStageLayout` 坐标或 6/7 画什么。
 
 ---
 
 ## 6. 顶栏具体规范（① 层）
 
-| 元素 | 位置 | 行为 |
-|------|------|------|
-| SCORE | 左：`x = safe`，`y = hudY + 7*scale` | 标签 + 五位数字 |
-| LIVES | 右：`x = viewportW - safe`，右对齐 | 心形行 |
-| COMBO | 中：`x = viewportW/2` | **仅 `combo > 1`** 时 `drawComboHud` |
-| 底部分割线 | 全宽渐变线：`barX=0, barW=viewportW`，`y = hudY + hudH` | 贴顶栏下沿 |
+| 元素       | 位置                                                    | 行为                                 |
+| ---------- | ------------------------------------------------------- | ------------------------------------ |
+| SCORE      | 左：`x = safe`，`y = hudY + 7*scale`                    | 标签 + 五位数字                      |
+| LIVES      | 右：`x = viewportW - safe`，右对齐                      | 心形行                               |
+| COMBO      | 中：`x = viewportW/2`                                   | **仅 `combo > 1`** 时 `drawComboHud` |
+| 底部分割线 | 全宽渐变线：`barX=0, barW=viewportW`，`y = hudY + hudH` | 贴顶栏下沿                           |
 
 ---
 
 ## 7. 棋盘（② 层）
 
-| 常量 | 值 |
-|------|-----|
-| 可玩行 | `ENDLESS_VISIBLE_ROWS = 21` |
+| 常量     | 值                           |
+| -------- | ---------------------------- |
+| 可玩行   | `ENDLESS_VISIBLE_ROWS = 21`  |
 | 预览行高 | `ENDLESS_PREVIEW_ROWS = 0.5` |
-| 列数 | 会话 `board.cols`（通常 9） |
+| 列数     | 会话 `board.cols`（通常 9）  |
 
 命中、预览、渐变：只认 [`ENDLESS-TOP-PREVIEW-ROW.md`](./ENDLESS-TOP-PREVIEW-ROW.md)。
 
@@ -155,19 +153,19 @@ cell = min(fromW, fromH)
 
 ## 8. 底栏（③ 层）
 
-- 函数：`drawBottomEnergyRail`  
-- 矩形：**只用** `stageLayout.bottomRailRect`，禁止 `boardY + boardH + …` 推算  
-- 玩局中 `progress` 来自 `getScrollPressure()`；无压迫时仍保留淡轨占位  
+- 函数：`drawBottomEnergyRail`
+- 矩形：**只用** `stageLayout.bottomRailRect`，禁止 `boardY + boardH + …` 推算
+- 玩局中 `progress` 来自 `getScrollPressure()`；无压迫时仍保留淡轨占位
 
 ### 8.1 SPACE 提示（固定规范，禁止改回按钮图）
 
-| 项 | 规范 |
-|----|------|
-| 形式 | **Canvas 文字** `SPACE`，**不用** `space-active` / `space-disabled` 等 UI 面板图 |
+| 项   | 规范                                                                                                                          |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 形式 | **Canvas 文字** `SPACE`，**不用** `space-active` / `space-disabled` 等 UI 面板图                                              |
 | 位置 | 棋盘底部**卷轴倒计时/压迫带上方**居中（`getSpaceHintRect`：`dangerTop - hintH - 4*scale`），**不是**视口底栏 `bottomRailRect` |
-| 时机 | 仅 `spaceEnabled === true`（底行可安全手动上移）时显示；**不显示** disabled 态 |
-| 动效 | 小字（`9–10*scale px`）正弦闪烁：`globalAlpha = 0.32 + sin(t/520)*0.32` |
-| 函数 | `getSpaceHintRect` + `drawSpaceHint`（`game-canvas/create.ts`） |
+| 时机 | 仅 `spaceEnabled === true`（底行可安全手动上移）时显示；**不显示** disabled 态                                                |
+| 动效 | 小字（`9–10*scale px`）正弦闪烁：`globalAlpha = 0.32 + sin(t/520)*0.32`                                                       |
+| 函数 | `getSpaceHintRect` + `drawSpaceHint`（`game-canvas/create.ts`）                                                               |
 
 **禁止**：把 SPACE 画成底部按钮、keycap 面板，或优先 `drawUiPanelImage('space-active', …)`。
 
@@ -180,14 +178,14 @@ cell = min(fromW, fromH)
 
 ## 9. 代码落点速查
 
-| 职责 | 文件 |
-|------|------|
-| 布局坐标、预留、格宽 | `src/ui/game-stage-layout.ts` |
-| 绘制顺序、HUD、底栏、overlay | `src/ui/game-canvas.ts` |
-| 棋盘格、预览带 | `src/ui/renderer.ts` |
-| 会话 HUD 数据（无 defused） | `src/app/game-session.ts` → `getCanvasHudStats` |
-| 视口格宽公式 | `src/ui/theme.ts` → `computeViewportCellSize` |
-| 多分辨率预览 | `src/app/responsive-matrix.ts`（`?ui=responsive`） |
+| 职责                         | 文件                                               |
+| ---------------------------- | -------------------------------------------------- |
+| 布局坐标、预留、格宽         | `src/ui/game-stage-layout.ts`                      |
+| 绘制顺序、HUD、底栏、overlay | `src/ui/game-canvas.ts`                            |
+| 棋盘格、预览带               | `src/ui/renderer.ts`                               |
+| 会话 HUD 数据（无 defused）  | `src/app/game-session.ts` → `getCanvasHudStats`    |
+| 视口格宽公式                 | `src/ui/theme.ts` → `computeViewportCellSize`      |
+| 多分辨率预览                 | `src/app/responsive-matrix.ts`（`?ui=responsive`） |
 
 ---
 
@@ -195,14 +193,14 @@ cell = min(fromW, fromH)
 
 动布局前过一遍：
 
-- [x] 格宽是否仍走 `computeEndlessBoardCellSize` + `getEndlessShellReserves`？  
-- [x] `boardY/boardX` 是否仍走 `computeGameStageLayout`？  
-- [x] 顶栏是否**贴顶 + 全宽**？  
-- [x] 底栏是否仍锚 `bottomRailRect` 贴视口底？  
-- [x] `paint()` 是否仍为 背景 → 棋盘 → overlay → **HUD 最后**？  
-- [x] 是否仍有消雷相关 UI 文案或 `hudDefused` / `defusedAnchor` 代码？（应为否）  
-- [x] 预览行行为是否仍符合预览行文档？  
-- [x] `npm test` 是否通过？  
+- [x] 格宽是否仍走 `computeEndlessBoardCellSize` + `getEndlessShellReserves`？
+- [x] `boardY/boardX` 是否仍走 `computeGameStageLayout`？
+- [x] 顶栏是否**贴顶 + 全宽**？
+- [x] 底栏是否仍锚 `bottomRailRect` 贴视口底？
+- [x] `paint()` 是否仍为 背景 → 棋盘 → overlay → **HUD 最后**？
+- [x] 是否仍有消雷相关 UI 文案或 `hudDefused` / `defusedAnchor` 代码？（应为否）
+- [x] 预览行行为是否仍符合预览行文档？
+- [x] `npm test` 是否通过？
 - [x] 至少目视 `390×844` 与 `1280×900` 两档截图？
 
 ---

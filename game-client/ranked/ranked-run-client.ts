@@ -1,0 +1,48 @@
+import { createSessionWithSeed } from '@shared/core/modes/engine.ts'
+
+import type { RankedFinishResponse } from './types.ts'
+
+export interface RankedRunStart {
+  runId: string
+  seed: number
+  coreVersion: string
+  uploadIntervalMs: number
+}
+
+export async function createRankedRunOnServer(): Promise<RankedRunStart> {
+  const response = await fetch('/api/ranked/runs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ modeId: 'endless' }),
+  })
+  const body = (await response.json().catch(() => null)) as RankedRunStart & { error?: string }
+  if (!response.ok) {
+    throw new Error(body?.error ?? 'Failed to create ranked run')
+  }
+  return body
+}
+
+export function createRankedSession(seed: number) {
+  return createSessionWithSeed(seed)
+}
+
+export async function finishRankedRunOnServer(
+  runId: string,
+  name: string,
+  claimedScore: number,
+  claimedDepth: number
+): Promise<RankedFinishResponse & { entries?: Array<{ id: string; name: string; score: number; depth?: number; submittedAt: number }> }> {
+  const response = await fetch(`/api/ranked/runs/${runId}/finish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, claimedScore, claimedDepth }),
+  })
+  const body = (await response.json().catch(() => null)) as RankedFinishResponse & {
+    error?: string
+    entries?: Array<{ id: string; name: string; score: number; depth?: number; submittedAt: number }>
+  }
+  if (!response.ok) {
+    throw new Error(body?.error ?? 'Failed to finish ranked run')
+  }
+  return body
+}

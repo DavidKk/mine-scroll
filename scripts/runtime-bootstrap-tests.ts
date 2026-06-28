@@ -1,53 +1,54 @@
-import assert from 'node:assert/strict';
-import { toCellViews } from '../src/core/modes/engine.ts';
-import { createInitialRuntimeState } from '../src/ui/game-canvas/runtime/state.ts';
-import { createEndlessSession, endlessBeginRun, ENDLESS_COLS, ENDLESS_VISIBLE_ROWS } from '../src/core/modes/endless/index.ts';
+import assert from 'node:assert/strict'
 
-type GlobalKey = 'document' | 'window' | 'performance' | 'Image';
+import { createInitialRuntimeState } from '../game-client/ui/game-canvas/runtime/state.ts'
+import { createEndlessSession, ENDLESS_COLS, ENDLESS_VISIBLE_ROWS, endlessBeginRun } from '../shared/core/modes/endless/index.ts'
+import { toCellViews } from '../shared/core/modes/engine.ts'
+
+type GlobalKey = 'document' | 'window' | 'performance' | 'Image'
 type StubCanvas = {
-  className: string;
-  width: number;
-  height: number;
-};
+  className: string
+  width: number
+  height: number
+}
 
 function stubImage(): void {
-  if (typeof globalThis.Image !== 'undefined') return;
+  if (typeof globalThis.Image !== 'undefined') return
   class StubImage {
-    onload: (() => void) | null = null;
-    onerror: (() => void) | null = null;
-    complete = false;
-    naturalWidth = 0;
-    naturalHeight = 0;
-    private _src = '';
+    onload: (() => void) | null = null
+    onerror: (() => void) | null = null
+    complete = false
+    naturalWidth = 0
+    naturalHeight = 0
+    private _src = ''
 
     get src(): string {
-      return this._src;
+      return this._src
     }
 
     set src(value: string) {
-      this._src = value;
+      this._src = value
       queueMicrotask(() => {
-        this.complete = true;
-        this.naturalWidth = 64;
-        this.naturalHeight = 64;
-        this.onload?.();
-      });
+        this.complete = true
+        this.naturalWidth = 64
+        this.naturalHeight = 64
+        this.onload?.()
+      })
     }
   }
-  (globalThis as Record<string, unknown>).Image = StubImage;
+  ;(globalThis as Record<string, unknown>).Image = StubImage
 }
 
 function installMinimalDom(): { restore: () => void; getLastCanvas: () => StubCanvas | null } {
-  stubImage();
+  stubImage()
 
-  const originals = new Map<GlobalKey, unknown>();
-  let lastCanvas: StubCanvas | null = null;
+  const originals = new Map<GlobalKey, unknown>()
+  let lastCanvas: StubCanvas | null = null
   const stub = (key: GlobalKey, value: unknown) => {
-    originals.set(key, (globalThis as Record<string, unknown>)[key]);
-    (globalThis as Record<string, unknown>)[key] = value;
-  };
+    originals.set(key, (globalThis as Record<string, unknown>)[key])
+    ;(globalThis as Record<string, unknown>)[key] = value
+  }
 
-  const noop = () => undefined;
+  const noop = () => undefined
   const createMockCtx = () => ({
     setTransform: noop,
     scale: noop,
@@ -91,7 +92,7 @@ function installMinimalDom(): { restore: () => void; getLastCanvas: () => StubCa
     createLinearGradient: () => ({ addColorStop: noop }),
     createRadialGradient: () => ({ addColorStop: noop }),
     createPattern: () => ({}),
-  });
+  })
   const canvasEl: StubCanvas & Record<string, unknown> = {
     className: '',
     width: 0,
@@ -111,35 +112,34 @@ function installMinimalDom(): { restore: () => void; getLastCanvas: () => StubCa
       right: 400,
       bottom: 600,
     }),
-  };
+  }
 
   stub('document', {
     createElement: (tag: string) => {
       if (tag === 'canvas') {
-        lastCanvas = canvasEl;
-        return canvasEl;
+        lastCanvas = canvasEl
+        return canvasEl
       }
       return {
         appendChild(node: StubCanvas) {
-          if (node && 'width' in node) lastCanvas = node;
+          if (node && 'width' in node) lastCanvas = node
         },
         replaceChildren: noop,
         className: '',
         style: {},
-      };
+      }
     },
-  });
+  })
 
   if (!globalThis.performance) {
-    stub('performance', { now: () => Date.now() });
+    stub('performance', { now: () => Date.now() })
   }
 
   stub('window', {
     innerWidth: 390,
     innerHeight: 844,
     devicePixelRatio: 1,
-    requestAnimationFrame: (cb: FrameRequestCallback) =>
-      setTimeout(() => cb(performance.now()), 0) as unknown as number,
+    requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 0) as unknown as number,
     cancelAnimationFrame: (id: number) => clearTimeout(id),
     setInterval: (cb: () => void) => setInterval(cb, 1000) as unknown as number,
     clearInterval: (id: number) => clearInterval(id),
@@ -147,64 +147,57 @@ function installMinimalDom(): { restore: () => void; getLastCanvas: () => StubCa
     clearTimeout: (id: number) => clearTimeout(id),
     addEventListener: noop,
     removeEventListener: noop,
-  });
+  })
 
   return {
     getLastCanvas: () => lastCanvas,
     restore: () => {
       for (const [key, value] of originals) {
         if (value === undefined) {
-          delete (globalThis as Record<string, unknown>)[key];
+          delete (globalThis as Record<string, unknown>)[key]
         } else {
-          (globalThis as Record<string, unknown>)[key] = value;
+          ;(globalThis as Record<string, unknown>)[key] = value
         }
       }
     },
-  };
+  }
 }
 
 export function testCreateInitialRuntimeStateWithNullLayout(): void {
-  const state = createInitialRuntimeState(12, 9, undefined, null, 0, 0);
-  assert.equal(state.squareLayout, null);
-  assert.equal(state.boardWidth, 0);
-  assert.equal(state.boardHeight, 0);
-  assert.equal(state.currentStatus, 'idle');
+  const state = createInitialRuntimeState(12, 9, undefined, null, 0, 0)
+  assert.equal(state.squareLayout, null)
+  assert.equal(state.boardWidth, 0)
+  assert.equal(state.boardHeight, 0)
+  assert.equal(state.currentStatus, 'idle')
 }
 
 export async function testCreateGameCanvasBootstrapsLayout(): Promise<void> {
-  const dom = installMinimalDom();
+  const dom = installMinimalDom()
   try {
-    const { createGameCanvas } = await import('../src/ui/game-canvas/create.ts');
-    const container = document.createElement('div') as HTMLElement;
-    const controller = createGameCanvas(
-      container,
-      ENDLESS_VISIBLE_ROWS,
-      ENDLESS_COLS,
-      0,
-      {},
-      { fixedCellSize: 28 },
-    );
+    const { createGameCanvas } = await import('../game-client/ui/game-canvas/create.ts')
+    const container = document.createElement('div') as HTMLElement
+    const controller = createGameCanvas(container, ENDLESS_VISIBLE_ROWS, ENDLESS_COLS, 0, {}, { fixedCellSize: 28 })
 
-    const mountedCanvas = dom.getLastCanvas();
-    assert.ok(mountedCanvas, 'canvas should mount into container');
-    assert.ok(mountedCanvas!.width > 0, 'canvas width should be set after bootstrap');
-    assert.ok(mountedCanvas!.height > 0, 'canvas height should be set after bootstrap');
+    const mountedCanvas = dom.getLastCanvas()
+    assert.ok(mountedCanvas, 'canvas should mount into container')
+    assert.ok(mountedCanvas!.width > 0, 'canvas width should be set after bootstrap')
+    assert.ok(mountedCanvas!.height > 0, 'canvas height should be set after bootstrap')
 
-    controller.render([], 'idle', 0, { rows: ENDLESS_VISIBLE_ROWS, cols: ENDLESS_COLS });
-    controller.destroy();
+    controller.render([], 'idle', 0, { rows: ENDLESS_VISIBLE_ROWS, cols: ENDLESS_COLS })
+    controller.destroy()
   } finally {
-    dom.restore();
+    dom.restore()
   }
 }
 
 export async function testEndlessSessionMountsThroughGameCanvas(): Promise<void> {
-  const dom = installMinimalDom();
+  const dom = installMinimalDom()
   try {
-    const { createGameCanvas } = await import('../src/ui/game-canvas/create.ts');
-    const session = endlessBeginRun(createEndlessSession());
-    assert.equal(session.state.status, 'playing');
+    const { createGameCanvas } = await import('../game-client/ui/game-canvas/create.ts')
+    const session = endlessBeginRun(createEndlessSession())
+    assert.equal(session.state.status, 'playing')
 
-    const container = document.createElement('div') as HTMLElement;
+    const container = document.createElement('div') as HTMLElement
     const controller = createGameCanvas(
       container,
       ENDLESS_VISIBLE_ROWS,
@@ -214,20 +207,20 @@ export async function testEndlessSessionMountsThroughGameCanvas(): Promise<void>
       {
         fixedCellSize: 28,
         fixedGridRows: ENDLESS_VISIBLE_ROWS,
-      },
-    );
+      }
+    )
 
-    const views = toCellViews(session);
+    const views = toCellViews(session)
 
     controller.render(views, session.state.status, 0, {
       rows: ENDLESS_VISIBLE_ROWS,
       cols: ENDLESS_COLS,
       hudLeftDisplay: 'Score 0',
       hudRightDisplay: '♥♥♥♡♡',
-    });
-    controller.repaint();
-    controller.destroy();
+    })
+    controller.repaint()
+    controller.destroy()
   } finally {
-    dom.restore();
+    dom.restore()
   }
 }

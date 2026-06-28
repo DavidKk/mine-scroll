@@ -5,23 +5,23 @@
 
 ## 素材归档
 
-| 文件 | 说明 | 用途 |
-|------|------|------|
-| `reference/tile-sprite-sheet-v1.png` | §2 棋盘 tile 原图（隐藏/翻开/雷/旗 + 数字 1–8） | 切图源文件 |
-| `reference/design-system-sheet-brief-v1.png` | §0 Brief 设计系统总览 | 风格定调；**可切 ICON 网格**；其余复合组件见下 |
-| `tiles/*.png` | 已从 tile sheet 切出 12 张 **128×128 透明 PNG** | 已接入 `renderer.ts` |
-| `public/assets/hud/icons/*.png` | 从 brief 切出 24 个线框 icon + scroll-up | 已接入全屏 HUD / 弹层 / 日志 |
-| `public/assets/hud/heart-*.png` | 生命心形（满/空） | 已接入顶栏 Lives |
+| 文件                                         | 说明                                            | 用途                                           |
+| -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------- |
+| `reference/tile-sprite-sheet-v1.png`         | §2 棋盘 tile 原图（隐藏/翻开/雷/旗 + 数字 1–8） | 切图源文件                                     |
+| `reference/design-system-sheet-brief-v1.png` | §0 Brief 设计系统总览                           | 风格定调；**可切 ICON 网格**；其余复合组件见下 |
+| `tiles/*.png`                                | 已从 tile sheet 切出 12 张 **128×128 透明 PNG** | 已接入 `renderer.ts`                           |
+| `public/assets/hud/icons/*.png`              | 从 brief 切出 24 个线框 icon + scroll-up        | 已接入全屏 HUD / 弹层 / 日志                   |
+| `public/assets/hud/heart-*.png`              | 生命心形（满/空）                               | 已接入顶栏 Lives                               |
 
 ### `tiles/` 切图清单
 
-| 文件 | 内容 |
-|------|------|
-| `cell-hidden.png` | 未翻开格 |
-| `cell-revealed.png` | 已翻开空格 |
-| `mine.png` | 地雷 |
-| `flag.png` | 插旗 |
-| `num-1.png` … `num-8.png` | 数字格 |
+| 文件                      | 内容       |
+| ------------------------- | ---------- |
+| `cell-hidden.png`         | 未翻开格   |
+| `cell-revealed.png`       | 已翻开空格 |
+| `mine.png`                | 地雷       |
+| `flag.png`                | 插旗       |
+| `num-1.png` … `num-8.png` | 数字格     |
 
 后续 AI 出图继续放入 `reference/`（参考稿）或 `tiles/`、`hud/`（可切图素材）。
 
@@ -300,34 +300,34 @@ phone frame mockup, blurry, inconsistent lighting
 
 ## 10. 素材交付规格
 
-| 资产 | 尺寸建议 | 格式 | 备注 |
-|------|---------|------|------|
-| 单格 tile | 64×64（@1x）或 128×128（@2x） | PNG 透明 | 3px 间距可无缝拼 |
-| 数字 sheet | 512×64 或 1024×128 | PNG | 8 格横排 |
-| 心形 | 32×32 × 2 态 | PNG | |
-| HUD chip | 112×44 | PNG | 可九宫格拉伸 |
-| Space 按钮 | 280×44 | PNG | normal + disabled |
-| Auto 按钮 | 88×36 | PNG | inactive + active |
-| 全屏参考 | 1080×1920 | PNG | 仅参考不切图 |
-| 背景 | 1080×1920 | PNG/JPG | 可纵向 tile |
+| 资产       | 尺寸建议                      | 格式     | 备注              |
+| ---------- | ----------------------------- | -------- | ----------------- |
+| 单格 tile  | 64×64（@1x）或 128×128（@2x） | PNG 透明 | 3px 间距可无缝拼  |
+| 数字 sheet | 512×64 或 1024×128            | PNG      | 8 格横排          |
+| 心形       | 32×32 × 2 态                  | PNG      |                   |
+| HUD chip   | 112×44                        | PNG      | 可九宫格拉伸      |
+| Space 按钮 | 280×44                        | PNG      | normal + disabled |
+| Auto 按钮  | 88×36                         | PNG      | inactive + active |
+| 全屏参考   | 1080×1920                     | PNG      | 仅参考不切图      |
+| 背景       | 1080×1920                     | PNG/JPG  | 可纵向 tile       |
 
 ---
 
 ## 11. 配色速查（与 `src/ui/theme.ts` 一致）
 
-| Token | 色值 | 用途 |
-|-------|------|------|
-| canvasBg | `#09090b` | 页面背景 |
-| panelBg | `#18181b` | 棋盘面板 |
-| panelElevated | `#1f1f23` | 弹层 |
-| accent | `#6366f1` | 主强调 |
-| success | `#22c55e` | 成功 / 安全提示 |
-| warning | `#f59e0b` | 卷轴倒数 |
-| danger | `#ef4444` | 失败 / 危险行 |
-| hudText | `#fafafa` | 主文字 |
-| hudMuted | `#71717a` | 次要文字 |
-| cellHidden | `#27272a` | 未翻开格 |
-| cellRevealed | `#141416` | 已翻开格 |
+| Token         | 色值      | 用途            |
+| ------------- | --------- | --------------- |
+| canvasBg      | `#09090b` | 页面背景        |
+| panelBg       | `#18181b` | 棋盘面板        |
+| panelElevated | `#1f1f23` | 弹层            |
+| accent        | `#6366f1` | 主强调          |
+| success       | `#22c55e` | 成功 / 安全提示 |
+| warning       | `#f59e0b` | 卷轴倒数        |
+| danger        | `#ef4444` | 失败 / 危险行   |
+| hudText       | `#fafafa` | 主文字          |
+| hudMuted      | `#71717a` | 次要文字        |
+| cellHidden    | `#27272a` | 未翻开格        |
+| cellRevealed  | `#141416` | 已翻开格        |
 
 数字 1–8：`#60a5fa` `#4ade80` `#f472b6` `#fbbf24` `#fb923c` `#a78bfa` `#f87171` `#94a3b8`
 
@@ -335,11 +335,11 @@ phone frame mockup, blurry, inconsistent lighting
 
 ## 12. 推荐生成顺序
 
-1. **§0 Brief + §7 全屏概念图** — 定整体风格  
-2. **§2 全部 Tile** — 可进游戏替换 renderer  
-3. **§3 §4 HUD / 按钮** — UI 换皮  
-4. **§5 Overlay** — 弹层统一  
-5. **§6 高亮 + §8 背景** — 锦上添花  
+1. **§0 Brief + §7 全屏概念图** — 定整体风格
+2. **§2 全部 Tile** — 可进游戏替换 renderer
+3. **§3 §4 HUD / 按钮** — UI 换皮
+4. **§5 Overlay** — 弹层统一
+5. **§6 高亮 + §8 背景** — 锦上添花
 
 ---
 
@@ -374,11 +374,11 @@ NES minesweeper inspired, retro handheld game style
 
 ### Midjourney
 
-| 用途 | 参数 |
-|------|------|
-| 单格 tile | `--ar 1:1 --stylize 50` |
-| 全屏概念 | `--ar 9:16 --stylize 100` |
-| 背景 | `--ar 9:16 --tile`（若支持纵向 tile） |
+| 用途      | 参数                                  |
+| --------- | ------------------------------------- |
+| 单格 tile | `--ar 1:1 --stylize 50`               |
+| 全屏概念  | `--ar 9:16 --stylize 100`             |
+| 背景      | `--ar 9:16 --tile`（若支持纵向 tile） |
 
 ### Stable Diffusion
 
@@ -405,4 +405,4 @@ Negative: neon glow, pixel art, 3D, photorealistic, web dashboard, text watermar
 
 ---
 
-*文档版本：2026-06-21 · 对齐 Endless 9×20 竖长盘 + Modern Dark theme*
+_文档版本：2026-06-21 · 对齐 Endless 9×20 竖长盘 + Modern Dark theme_

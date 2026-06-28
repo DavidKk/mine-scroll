@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild public/assets/game/preview-*.png from manifest.json."""
+"""Rebuild game/public/assets/game/preview-*.png from manifest.json."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-GAME_DIR = ROOT / 'public/assets/game'
+GAME_DIR = ROOT / 'game/public/assets/game'
 MANIFEST = GAME_DIR / 'manifest.json'
 FX_W, FX_H = 192, 128
 

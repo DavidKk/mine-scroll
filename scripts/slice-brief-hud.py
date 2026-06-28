@@ -10,8 +10,8 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 BRIEF = ROOT / 'docs/design-assets/reference/design-system-sheet-brief-v1.png'
-OUT_ICONS = ROOT / 'public/assets/hud/icons'
-OUT_HEARTS = ROOT / 'public/assets/hud'
+OUT_ICONS = ROOT / 'game/public/assets/hud/icons'
+OUT_HEARTS = ROOT / 'game/public/assets/hud'
 ICON_SIZE = 32
 
 # 682×1024 brief sheet — right-side icon grid

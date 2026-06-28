@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "@game-client/*": ["./game-client/*"],
+      "@shared/core/*": ["./shared/core/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "typings.d/**/*.d.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "lib/**/*.ts",
+    "services/**/*.ts",
+    "game-client/**/*.ts",
+    "shared/core/**/*.ts",
+    "scripts/**/*.ts",
+    "__tests__/**/*.ts",
+    "jest.config.ts",
+    "jest.config.unittest.ts",
+    "next.config.ts",
+    "tailwind.config.ts",
+    "postcss.config.cjs",
+    "eslint.config.mjs",
+    "eslintrc/**/*.mjs"
+  ],
+  "exclude": ["node_modules", ".next/**/*", "dist/**/*", "public/**/*"]
+}

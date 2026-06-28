@@ -28,13 +28,13 @@ flowchart LR
 
 ## `src/core/*`
 
-| 模块 | 职责 |
-|------|------|
-| `board.ts` | 邻格、克隆、布雷辅助 |
+| 模块              | 职责                                                        |
+| ----------------- | ----------------------------------------------------------- |
+| `board.ts`        | 邻格、克隆、布雷辅助                                        |
 | `modes/engine.ts` | 门面：`createSession`, `revealAt`, `chordAt`, `applyAiMove` |
-| `modes/endless/` | 无尽规则：grid, scroll, reveal-pipeline, player-actions |
-| `ai/solver.ts` | `analyzeSession`, `getEndlessAiStepMs` |
-| `ai/moves/` | `solveBoard`, `pickTacticalMove`, `bottomRowNeedsWork` |
+| `modes/endless/`  | 无尽规则：grid, scroll, reveal-pipeline, player-actions     |
+| `ai/solver.ts`    | `analyzeSession`, `getEndlessAiStepMs`                      |
+| `ai/moves/`       | `solveBoard`, `pickTacticalMove`, `bottomRowNeedsWork`      |
 
 **约束：** 无 `document` / `window`。
 
@@ -52,14 +52,14 @@ flowchart LR
 
 **职责：** 启动期资源编排、加权进度、DOM 加载页（`index.html` 内联壳 + `boot-screen.ts` 更新）。
 
-| 文件 | 职责 |
-|------|------|
+| 文件                | 职责                                           |
+| ------------------- | ---------------------------------------------- |
 | `asset-registry.ts` | tiles / HUD / manifest / hud-feedback URL 清单 |
-| `asset-loader.ts` | 并发 `Image` 加载、重试、写入 cache |
-| `asset-cache.ts` | 全局图片缓存 + manifest 快照 |
-| `boot-sequence.ts` | `runBootSequence()` Tier 1–2 阻塞加载 |
-| `boot-screen.ts` | 绑定 `#boot-screen`、进度/错误/淡出 |
-| `preload-audio.ts` | Tier 3 音频后台预热 |
+| `asset-loader.ts`   | 并发 `Image` 加载、重试、写入 cache            |
+| `asset-cache.ts`    | 全局图片缓存 + manifest 快照                   |
+| `boot-sequence.ts`  | `runBootSequence()` Tier 1–2 阻塞加载          |
+| `boot-screen.ts`    | 绑定 `#boot-screen`、进度/错误/淡出            |
+| `preload-audio.ts`  | Tier 3 音频后台预热                            |
 
 **导出：** `runBootSequence`, `bindBootScreen`, `preloadGameAudio`, `getCachedImage`, …
 
@@ -79,13 +79,13 @@ flowchart LR
 
 **职责：** Canvas 元素、HiDPI、RAF、HUD、Overlay、指针事件、计时器。
 
-| 子目录 | 职责 |
-|--------|------|
-| `create.ts` | 工厂入口，返回 `GameCanvasController` |
-| `runtime/` | `paint`, board cache, cell FX 队列, 粒子 |
-| `hud/` | Score / Combo / Lives / Dev 控件绘制 |
-| `overlay/` | 生命损失、难度警报、Start/Retry 面板 |
-| `input/` | 指针与 UI hit-test |
+| 子目录      | 职责                                     |
+| ----------- | ---------------------------------------- |
+| `create.ts` | 工厂入口，返回 `GameCanvasController`    |
+| `runtime/`  | `paint`, board cache, cell FX 队列, 粒子 |
+| `hud/`      | Score / Combo / Lives / Dev 控件绘制     |
+| `overlay/`  | 生命损失、难度警报、Start/Retry 面板     |
+| `input/`    | 指针与 UI hit-test                       |
 
 **导出：** `createGameCanvas`, `GameCanvasController`, `GameCanvasOptions`, …
 
@@ -135,9 +135,9 @@ flowchart LR
 
 ## 版本
 
-| 版本 | 日期 | 说明 |
-|------|------|------|
-| v0.1 | 2026-06-14 | DOM 版 grid/hud |
-| v0.2 | 2026-06-14 | Canvas 2D：theme / renderer / game-canvas |
+| 版本 | 日期       | 说明                                                             |
+| ---- | ---------- | ---------------------------------------------------------------- |
+| v0.1 | 2026-06-14 | DOM 版 grid/hud                                                  |
+| v0.2 | 2026-06-14 | Canvas 2D：theme / renderer / game-canvas                        |
 | v0.3 | 2026-06-28 | 模块化拆分；`primitives`, `hud-feedback/`, `game-canvas/` 子目录 |
-| v0.4 | 2026-06-28 | 新增 `src/ui/boot/` 启动加载器 |
+| v0.4 | 2026-06-28 | 新增 `src/ui/boot/` 启动加载器                                   |

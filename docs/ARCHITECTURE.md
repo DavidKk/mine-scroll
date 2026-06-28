@@ -1,20 +1,21 @@
-# 扫雷 Web 游戏 — 技术架构 v0.3
+# 扫雷 Web 游戏 — 技术架构 v0.4
 
 > 实现层面的单一参考。规则以 `docs/SPEC.md` 为准。  
-> 模块化结构见 `docs/CODE-OPTIMIZATION-PLAN.md` v0.2。
+> 平台与游戏分仓目录见 `docs/NEXTJS-PLATFORM-PLAN.md`。
 
 ---
 
 ## 1. 技术选型
 
-| 层 | 选型 | 理由 |
-|----|------|------|
-| 构建 | Vite 6 | 零配置、HMR 快、适合纯静态 SPA |
-| 语言 | TypeScript 5 | 棋盘/状态类型安全，便于后续单测 |
-| UI | **Canvas 2D** + 少量 DOM（标题） | 统一渲染面，便于扩展新玩法与特效；core 仍无 Canvas 依赖 |
-| 测试 | Vitest（Phase 4+） | 与 Vite 同源；MVP 阶段 core 可后补 |
+| 层       | 选型                           | 理由                                  |
+| -------- | ------------------------------ | ------------------------------------- |
+| 平台     | **Next.js 16** App Router      | 首页、Hub、将来 API/账号              |
+| 游戏构建 | **Vite 8**                     | 独立 SPA；boot / SW / Canvas HMR 不动 |
+| 语言     | TypeScript 6                   | 棋盘/状态类型安全                     |
+| 游戏 UI  | **Canvas 2D** + 少量 DOM       | core 仍无 Canvas 依赖                 |
+| 测试     | `scripts/run-tests.ts`（Node） | 覆盖 core + 关键 UI 路径              |
 
-**刻意不引入：** React/Vue、状态管理库、CSS 框架。
+**刻意不引入：** 把 Canvas 写进 React 组件树、状态管理库、CSS 框架。
 
 ---
 
@@ -22,33 +23,18 @@
 
 ```
 chill/
-├── docs/
-├── src/
-│   ├── main.ts
-│   ├── core/                    # 纯逻辑，无 DOM
-│   │   ├── board.ts, types.ts, mines-defused.ts
-│   │   ├── modes/
-│   │   │   ├── engine.ts        # 门面：createSession / revealAt / …
-│   │   │   ├── catalog.ts
-│   │   │   └── endless/         # 无尽模式：grid, scroll, reveal-pipeline
-│   │   └── ai/
-│   │       ├── solver.ts, deduction.ts, csp.ts
-│   │       └── moves/           # solveBoard, pickTacticalMove
-│   ├── ui/
-│   │   ├── primitives/          # clamp01, path, loadRuntimeImage
-│   │   ├── renderer/            # 棋盘绘制 + hit-test（无事件）
-│   │   ├── game-canvas/         # Canvas 生命周期、HUD、输入、RAF
-│   │   │   ├── create.ts        # 工厂 (~190 行)
-│   │   │   ├── hud/, overlay/, runtime/, input/, shell/
-│   │   ├── hud-feedback/        # ScorePop / ComboBurst FX
-│   │   ├── cell-fx/             # 格子特效 + gallery/ 预览场景
-│   │   ├── ambient-backdrop/
-│   │   ├── boot/                # 启动资源加载 + DOM 进度页
-│   │   └── theme.ts, game-assets.ts, …
-│   └── app/
-│       ├── app.ts               # 路由
-│       ├── game-session/        # mount, scroll, ai-loop, logging
-│       └── asset-gallery/       # 资产 Lab（复用 runtime drawer）
+├── app/                         # Next.js 平台壳（首页、/play 占位）
+├── game/                        # Vite 游戏客户端
+│   ├── index.html, vite.config.ts
+│   ├── public/assets/
+│   └── src/
+│       ├── main.ts
+│       ├── ui/                  # Canvas、boot、renderer…
+│       └── app/                 # game-session、asset-gallery、routes
+├── shared/core/                 # 纯逻辑（@shared/core workspace 包）
+│   ├── board.ts, types.ts, modes/, ai/
+├── scripts/                     # boot 构建链、run-tests
+└── docs/
 ```
 
 ---
@@ -80,11 +66,11 @@ flowchart TB
     R -->|读取| T
 ```
 
-| 层 | 允许 | 禁止 |
-|----|------|------|
-| `core/` | 纯函数、类、数据结构 | `document`、`window`、DOM API |
-| `ui/` | Canvas 绘制、hit-test、指针事件 | 布雷算法、胜负判定 |
-| `app/` | 编排、事件路由、render 调度 | 复杂游戏规则（应委托 `game`） |
+| 层      | 允许                            | 禁止                          |
+| ------- | ------------------------------- | ----------------------------- |
+| `core/` | 纯函数、类、数据结构            | `document`、`window`、DOM API |
+| `ui/`   | Canvas 绘制、hit-test、指针事件 | 布雷算法、胜负判定            |
+| `app/`  | 编排、事件路由、render 调度     | 复杂游戏规则（应委托 `game`） |
 
 ---
 
@@ -94,10 +80,10 @@ flowchart TB
 
 ```typescript
 interface Cell {
-  isMine: boolean;
-  adjacentMines: number; // 0–8，雷格恒为 0
-  revealed: boolean;
-  flagged: boolean;
+  isMine: boolean
+  adjacentMines: number // 0–8，雷格恒为 0
+  revealed: boolean
+  flagged: boolean
 }
 ```
 
@@ -105,23 +91,23 @@ interface Cell {
 
 ```typescript
 interface Board {
-  rows: number;
-  cols: number;
-  mineCount: number;
-  cells: Cell[][];       // [row][col]
-  minesPlaced: boolean;  // 首次点击前置 false
+  rows: number
+  cols: number
+  mineCount: number
+  cells: Cell[][] // [row][col]
+  minesPlaced: boolean // 首次点击前置 false
 }
 ```
 
 ### 4.3 GameState
 
 ```typescript
-type GameStatus = 'idle' | 'playing' | 'won' | 'lost';
+type GameStatus = 'idle' | 'playing' | 'won' | 'lost'
 
 interface GameState {
-  status: GameStatus;
-  board: Board;
-  firstClickDone: boolean;
+  status: GameStatus
+  board: Board
+  firstClickDone: boolean
 }
 ```
 
@@ -134,12 +120,12 @@ UI 不直接 mutate `Board`；`app` 从 `GameState` 投影：
 
 ```typescript
 interface CellView {
-  row: number;
-  col: number;
-  revealed: boolean;
-  flagged: boolean;
-  adjacentMines: number | null; // revealed 时可见，否则 null
-  isMine: boolean | null;       // 仅 won/lost 时对 UI 暴露
+  row: number
+  col: number
+  revealed: boolean
+  flagged: boolean
+  adjacentMines: number | null // revealed 时可见，否则 null
+  isMine: boolean | null // 仅 won/lost 时对 UI 暴露
 }
 ```
 
@@ -184,23 +170,23 @@ HUD reset click
 
 ## 6. 状态变更策略
 
-| 策略 | 说明 |
-|------|------|
+| 策略            | 说明                                                                                    |
+| --------------- | --------------------------------------------------------------------------------------- |
 | Core 不可变倾向 | `reveal` / `toggleFlag` 返回**新** `GameState`（浅拷贝 board + 变更格），便于调试与单测 |
-| UI 全量重绘 | 状态变化时 `renderFrame`；81 格 + HUD 开销极低，便于换肤/动画 |
-| 计时器 | `game-canvas.ts` 内 `setInterval`，每秒触发 `paint()` |
+| UI 全量重绘     | 状态变化时 `renderFrame`；81 格 + HUD 开销极低，便于换肤/动画                           |
+| 计时器          | `game-canvas.ts` 内 `setInterval`，每秒触发 `paint()`                                   |
 
 ---
 
 ## 7. 关键算法位置
 
-| 算法 | 模块 | 函数（规划） |
-|------|------|--------------|
-| 随机布雷（排除安全区） | `board.ts` | `placeMines(board, exclude)` |
-| 邻雷数 | `board.ts` | `computeAdjacentMines(board)` |
-| Flood fill | `game.ts` | `revealCell` 内 BFS/DFS |
-| 胜负判定 | `game.ts` | `checkWin(board)` |
-| 首次点击安全 | `game.ts` | `reveal` 首击时传入 exclude 九宫格 |
+| 算法                   | 模块       | 函数（规划）                       |
+| ---------------------- | ---------- | ---------------------------------- |
+| 随机布雷（排除安全区） | `board.ts` | `placeMines(board, exclude)`       |
+| 邻雷数                 | `board.ts` | `computeAdjacentMines(board)`      |
+| Flood fill             | `game.ts`  | `revealCell` 内 BFS/DFS            |
+| 胜负判定               | `game.ts`  | `checkWin(board)`                  |
+| 首次点击安全           | `game.ts`  | `reveal` 首击时传入 exclude 九宫格 |
 
 ---
 
@@ -245,9 +231,9 @@ index.html (#boot-screen 内联 DOM + critical CSS)
 
 ## 10. 版本
 
-| 版本 | 日期 | 说明 |
-|------|------|------|
-| v0.1 | 2026-06-14 | MVP 架构：Vite + TS，core/ui/app 三层 |
-| v0.2 | 2026-06-14 | UI 改为 Canvas 2D；renderer/theme 分层 |
+| 版本 | 日期       | 说明                                                                             |
+| ---- | ---------- | -------------------------------------------------------------------------------- |
+| v0.1 | 2026-06-14 | MVP 架构：Vite + TS，core/ui/app 三层                                            |
+| v0.2 | 2026-06-14 | UI 改为 Canvas 2D；renderer/theme 分层                                           |
 | v0.3 | 2026-06-28 | Endless + 模块化：`game-canvas/`、`hud-feedback/`、`primitives/`；单文件 ≤800 行 |
-| v0.4 | 2026-06-28 | 启动加载器 `ui/boot/` + DOM 进度页 |
+| v0.4 | 2026-06-28 | 启动加载器 `ui/boot/` + DOM 进度页                                               |

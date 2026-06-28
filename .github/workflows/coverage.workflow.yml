@@ -1,0 +1,40 @@
+name: Coverage
+
+on:
+  push:
+    branches:
+      - '**'
+
+env:
+  CI_COVERAGE_ARTIFACT_FILE: coverage-${{ github.sha }}
+
+jobs:
+  test:
+    name: test#node-${{ matrix.node_version }}#${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        node_version: ['20']
+        os: [macOS-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+
+      - name: Enable corepack
+        shell: bash
+        run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm install
+
+      - name: Run CI checks
+        shell: bash
+        run: pnpm ci
+        env:
+          NODE_OPTIONS: '--max_old_space_size=4096'

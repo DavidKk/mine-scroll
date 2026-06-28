@@ -1,0 +1,13 @@
+packages:
+  - shared/core
+
+allowBuilds:
+  sharp: true
+  esbuild: true
+  unrs-resolver: true
+  core-js: true
+
+onlyBuiltDependencies:
+  - sharp
+  - unrs-resolver
+  - core-js

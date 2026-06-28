@@ -1,0 +1,524 @@
+/* Admin app shell — compact vercel-openapi layout, game HUD palette */
+
+.app--admin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--admin-text);
+  background: var(--admin-bg);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.admin-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.admin-shell .game-admin-backdrop {
+  opacity: 0.55;
+}
+
+.admin-shell__header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--admin-border);
+  background: rgba(8, 10, 18, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.admin-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+  transition:
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.admin-shell__brand:hover {
+  color: var(--admin-cyan);
+}
+
+.admin-shell__brand:hover .admin-shell__mark {
+  border-color: var(--admin-cyan-border);
+  box-shadow: 0 0 16px rgba(45, 236, 255, 0.2);
+}
+
+.admin-shell__mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-cyan-border);
+  background: rgba(45, 236, 255, 0.08);
+  color: var(--admin-cyan);
+  font-size: 14px;
+  box-shadow: 0 0 16px rgba(45, 236, 255, 0.12);
+}
+
+.admin-shell__brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.admin-shell__brand-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-text);
+  line-height: 1.1;
+}
+
+.admin-shell__brand-sub {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--admin-cyan);
+  line-height: 1.1;
+}
+
+.admin-shell__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.admin-shell__modules {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border);
+  background: rgba(6, 8, 14, 0.78);
+  --admin-nav-outer-r: 10px;
+  --admin-nav-pad: 3px;
+  --admin-nav-inner-r: 7px;
+  --admin-nav-indicator-x: 0px;
+  --admin-nav-indicator-w: 0px;
+  --admin-nav-indicator-opacity: 0;
+}
+
+.admin-shell__modules::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-shell__module-indicator {
+  position: absolute;
+  z-index: 0;
+  top: var(--admin-nav-pad);
+  bottom: var(--admin-nav-pad);
+  left: var(--admin-nav-indicator-x);
+  width: var(--admin-nav-indicator-w);
+  border-radius: var(--admin-nav-inner-r);
+  border: 1px solid var(--admin-cyan-border);
+  background: rgba(45, 236, 255, 0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(45, 236, 255, 0.06),
+    0 0 14px rgba(45, 236, 255, 0.1);
+  opacity: var(--admin-nav-indicator-opacity);
+  pointer-events: none;
+  transition: none;
+}
+
+.admin-shell__modules.is-indicator-entering .admin-shell__module-indicator {
+  transition:
+    left 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    width 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 260ms ease-out;
+}
+
+.admin-shell__modules.is-indicator-ready .admin-shell__module-indicator {
+  transition:
+    left 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    width 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 140ms ease;
+}
+
+.admin-shell__module {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--admin-nav-inner-r);
+  border: 1px solid transparent;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  white-space: nowrap;
+  background: transparent;
+  transition: color 140ms ease;
+}
+
+.admin-shell__module:hover {
+  color: var(--admin-text);
+}
+
+.admin-shell__module[aria-current='page'] {
+  color: var(--admin-text);
+}
+
+.admin-shell__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.admin-shell__logout {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-strong);
+  background: rgba(12, 16, 28, 0.9);
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
+}
+
+.admin-shell__logout:hover {
+  color: var(--admin-cyan);
+  border-color: var(--admin-cyan-border);
+  background: rgba(45, 236, 255, 0.08);
+}
+
+.admin-shell__frame {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-shell__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 52px;
+  padding: 8px 6px;
+  border-right: 1px solid var(--admin-border);
+  background: rgba(6, 8, 14, 0.88);
+}
+
+.admin-shell__rail-btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: var(--admin-muted);
+  text-decoration: none;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.admin-shell__rail-short {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.admin-shell__rail-btn:hover {
+  color: var(--admin-cyan);
+  background: rgba(45, 236, 255, 0.06);
+  border-color: rgba(45, 236, 255, 0.14);
+}
+
+.admin-shell__rail-btn--active {
+  color: #041018;
+  background: linear-gradient(180deg, var(--admin-cyan) 0%, #1bc4d9 100%);
+  border-color: rgba(45, 236, 255, 0.5);
+  box-shadow: 0 0 18px rgba(45, 236, 255, 0.28);
+}
+
+.admin-shell__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: rgba(10, 12, 20, 0.72);
+}
+
+.admin-shell__page-head {
+  flex-shrink: 0;
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--admin-border);
+  background: rgba(8, 10, 18, 0.65);
+}
+
+.admin-shell__page-head[hidden] {
+  display: none;
+}
+
+.admin-shell__eyebrow {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--admin-cyan);
+}
+
+.admin-shell__page-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--admin-text);
+}
+
+.admin-shell__page-desc {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--admin-muted);
+}
+
+.admin-shell__workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-shell__workspace > .scroll-host {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.admin-shell__subnav-host {
+  flex-shrink: 0;
+  width: min(240px, 34vw);
+  min-width: 180px;
+  border-right: 1px solid var(--admin-border);
+  background: rgba(6, 8, 14, 0.55);
+}
+
+.admin-shell__subnav {
+  height: 100%;
+  padding: 10px;
+}
+
+.admin-shell__subnav-list {
+  display: grid;
+  gap: 2px;
+}
+
+.scroll-host--admin .scroll-indicator__thumb {
+  background: rgba(45, 236, 255, 0.45);
+}
+
+.admin-shell__subnav-label {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.admin-shell__subnav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--admin-text);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.admin-shell__subnav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell__subnav-item--active {
+  color: var(--admin-cyan);
+  background: rgba(45, 236, 255, 0.08);
+  border-color: var(--admin-cyan-border);
+}
+
+.admin-shell__subnav-count {
+  flex-shrink: 0;
+  min-width: 1.4rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--admin-muted);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-align: center;
+}
+
+.admin-shell__subnav-item--active .admin-shell__subnav-count {
+  color: var(--admin-cyan);
+  background: rgba(45, 236, 255, 0.12);
+}
+
+.admin-shell__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 14px 16px;
+}
+
+.admin-shell__panel-host {
+  display: grid;
+  gap: 12px;
+  min-height: 100%;
+  width: 100%;
+}
+
+.admin-shell__panel-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-shell__panel-host > .asset-lab__panel {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: rgba(12, 16, 28, 0.82);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+
+.admin-shell__footer {
+  margin-top: 4px;
+  padding: 8px 2px 0;
+  border-top: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-page {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+}
+
+.admin-page__section {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: rgba(12, 16, 28, 0.82);
+  overflow: hidden;
+}
+
+.admin-page__section-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--admin-border);
+  background: rgba(8, 10, 18, 0.55);
+}
+
+.admin-page__section-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--admin-text);
+}
+
+.admin-page__section-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--admin-muted);
+}
+
+.admin-page__section-body {
+  padding: 12px;
+}
+
+@media (max-width: 900px) {
+  .admin-shell__header {
+    flex-wrap: wrap;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .admin-shell__toolbar {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .admin-shell__modules {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .admin-shell__subnav-host {
+    width: 100%;
+    min-width: 0;
+    max-height: 180px;
+    border-right: none;
+    border-bottom: 1px solid var(--admin-border);
+  }
+
+  .admin-shell__workspace {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,864 @@
+#boot-screen {
+  --boot-cyan: #2decff;
+  --boot-cyan-dim: rgba(45, 236, 255, 0.78);
+  --boot-cyan-soft: rgba(45, 236, 255, 0.35);
+  --boot-gold: #fde047;
+  --boot-panel-fill: rgba(3, 8, 20, 0.96);
+  --boot-danger: rgba(255, 76, 86, 0.82);
+  --boot-progress: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fafafa;
+  font-family:
+    'DM Sans',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: linear-gradient(180deg, #06070d 0%, #030408 100%);
+  transition:
+    opacity 280ms ease,
+    visibility 280ms ease;
+}
+
+#boot-screen.boot-screen--dismissed {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#boot-screen.boot-screen--ready .boot-screen__title {
+  animation: boot-title-ready 600ms ease-out;
+}
+
+#boot-screen.boot-screen--ready .boot-screen__label {
+  color: var(--boot-gold);
+  text-shadow: 0 0 16px rgba(253, 224, 71, 0.55);
+}
+
+#boot-screen.boot-screen--error .boot-screen__panel {
+  box-shadow:
+    0 0 0 1.5px var(--boot-danger),
+    0 0 28px rgba(255, 76, 86, 0.22),
+    0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+#boot-screen.boot-screen--error .boot-screen__panel-frame {
+  border-color: rgba(255, 76, 86, 0.32);
+}
+
+.boot-screen__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.boot-screen__aurora {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(45, 236, 255, 0.12), transparent 40%), radial-gradient(circle at 78% 68%, rgba(59, 130, 246, 0.1), transparent 36%),
+    radial-gradient(circle at 52% 88%, rgba(56, 189, 248, 0.05), transparent 32%);
+  animation: boot-aurora 16s ease-in-out infinite alternate;
+}
+
+.boot-screen__stars {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+}
+
+.boot-screen__stars--far {
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.55), transparent), radial-gradient(1px 1px at 30% 65%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 55% 15%, rgba(255, 255, 255, 0.45), transparent), radial-gradient(1px 1px at 72% 42%, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(1px 1px at 88% 78%, rgba(255, 255, 255, 0.4), transparent), radial-gradient(1px 1px at 22% 88%, rgba(255, 255, 255, 0.25), transparent),
+    radial-gradient(1.5px 1.5px at 64% 55%, rgba(165, 180, 252, 0.5), transparent), radial-gradient(1px 1px at 42% 38%, rgba(255, 255, 255, 0.35), transparent);
+  background-size: 100% 100%;
+  animation: boot-twinkle-far 5s ease-in-out infinite alternate;
+}
+
+.boot-screen__stars--near {
+  opacity: 0.75;
+  background-image:
+    radial-gradient(1.5px 1.5px at 15% 35%, rgba(199, 210, 254, 0.75), transparent), radial-gradient(1px 1px at 48% 72%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(2px 2px at 82% 28%, rgba(129, 140, 248, 0.65), transparent), radial-gradient(1px 1px at 68% 82%, rgba(255, 255, 255, 0.45), transparent);
+  animation: boot-twinkle-near 3.2s ease-in-out infinite alternate;
+}
+
+.boot-screen__grid-lines {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background: linear-gradient(rgba(33, 48, 85, 0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(33, 48, 85, 0.18) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 50% 45%, black 15%, transparent 72%);
+}
+
+.boot-screen__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 42%, transparent 30%, rgba(3, 4, 8, 0.72) 100%);
+}
+
+.boot-screen__panel {
+  position: relative;
+  z-index: 1;
+  width: 400px;
+  max-width: calc(100% - 40px);
+  box-sizing: border-box;
+  padding: 28px 24px 24px;
+  border-radius: 12px;
+  background: var(--boot-panel-fill);
+  overflow-x: clip;
+  box-shadow:
+    0 0 0 1.5px var(--boot-cyan-dim),
+    0 0 28px rgba(45, 236, 255, 0.16),
+    0 24px 64px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  animation: boot-panel-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.boot-screen__panel-frame {
+  position: absolute;
+  inset: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(45, 236, 255, 0.28);
+  pointer-events: none;
+}
+
+.boot-screen__panel-scanlines {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.28;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 3px);
+}
+
+.boot-screen__panel-glow {
+  position: absolute;
+  inset: -30%;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 40%, rgba(45, 236, 255, 0.1), transparent 55%);
+  animation: boot-panel-glow 3s ease-in-out infinite alternate;
+}
+
+.boot-screen__grid-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+}
+
+/* 3×28 + 2×6 gap = 96px — scan clipped to grid bounds (+4px soft mask bleed) */
+.boot-screen__grid-stage {
+  --boot-grid-size: 96px;
+  --boot-grid-mask-bleed: 4px;
+  position: relative;
+  width: var(--boot-grid-size);
+  height: var(--boot-grid-size);
+  overflow: hidden;
+  border-radius: 7px;
+  isolation: isolate;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--boot-grid-mask-bleed), #000 calc(100% - var(--boot-grid-mask-bleed)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--boot-grid-mask-bleed), #000 calc(100% - var(--boot-grid-mask-bleed)), transparent 100%);
+}
+
+.boot-screen__grid-scan {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, transparent 42%, rgba(45, 236, 255, 0.1) 48%, rgba(45, 236, 255, 0.28) 50%, rgba(45, 236, 255, 0.1) 52%, transparent 58%);
+  animation: boot-grid-scan 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.boot-screen__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: 6px;
+}
+
+.boot-screen__cell {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(145deg, #1a1f2e 0%, #12161f 100%);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35) inset;
+  cursor: pointer;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.boot-screen__cell:focus-visible {
+  outline: 2px solid rgba(45, 236, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.boot-screen__cell:nth-child(1):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out infinite;
+}
+.boot-screen__cell:nth-child(2):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 0.15s infinite;
+}
+.boot-screen__cell:nth-child(3):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 0.3s infinite;
+}
+.boot-screen__cell:nth-child(4):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 0.45s infinite;
+}
+.boot-screen__cell:nth-child(5):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 0.6s infinite;
+}
+.boot-screen__cell:nth-child(6):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 0.75s infinite;
+}
+.boot-screen__cell:nth-child(7):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 0.9s infinite;
+}
+.boot-screen__cell:nth-child(8):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 1.05s infinite;
+}
+.boot-screen__cell:nth-child(9):not(.boot-screen__cell--revealed) {
+  animation: boot-cell-idle 2.8s ease-in-out 1.2s infinite;
+}
+
+.boot-screen__cell--scan {
+  transform: translateY(-2px) scale(1.06);
+  border-color: rgba(45, 236, 255, 0.55);
+  background: linear-gradient(145deg, #243148 0%, #172033 100%);
+  box-shadow:
+    0 0 0 1px rgba(45, 236, 255, 0.22),
+    0 0 16px rgba(45, 236, 255, 0.35),
+    0 2px 0 rgba(0, 0, 0, 0.25) inset;
+  animation: none;
+}
+
+.boot-screen__cell--pressed:not(.boot-screen__cell--revealed) {
+  transform: translateY(1px) scale(0.94);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45) inset;
+}
+
+.boot-screen__cell--revealed {
+  cursor: default;
+  animation: boot-cell-reveal 180ms ease-out both;
+  transform: none;
+  background: linear-gradient(145deg, #1e2436 0%, #1a1f2e 100%);
+  border-color: rgba(129, 140, 248, 0.32);
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, 0.08) inset,
+    0 0 10px rgba(99, 102, 241, 0.12);
+}
+
+.boot-screen__cell--zero {
+  color: transparent;
+}
+
+.boot-screen__cell--mine {
+  color: #ef4444;
+  font-size: 13px;
+  text-shadow:
+    0 0 10px rgba(239, 68, 68, 0.85),
+    0 0 18px rgba(255, 76, 86, 0.45);
+  background: linear-gradient(145deg, #3f1a22 0%, #1a1f2e 100%);
+  border-color: rgba(255, 76, 86, 0.55);
+}
+
+.boot-screen__cell--hit {
+  animation: boot-cell-mine-hit 420ms ease-out;
+}
+
+.boot-screen__grid-wrap--shake {
+  animation: boot-grid-shake 420ms ease-out;
+}
+
+@keyframes boot-cell-reveal {
+  from {
+    opacity: 0.4;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes boot-cell-mine-hit {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.12);
+  }
+  40% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes boot-grid-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+.boot-screen__grid-hint {
+  margin: 8px 0 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.45);
+}
+
+#boot-screen.boot-screen--playing .boot-screen__grid-hint {
+  color: rgba(45, 236, 255, 0.45);
+}
+
+#boot-screen.boot-screen--playing .boot-screen__grid-scan {
+  opacity: 0;
+}
+
+.boot-screen__title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--boot-gold);
+  text-shadow:
+    0 0 18px rgba(253, 224, 71, 0.35),
+    0 0 32px rgba(45, 236, 255, 0.18);
+}
+
+.boot-screen__label {
+  display: block;
+  margin: 0 0 14px;
+  width: 100%;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(45, 236, 255, calc(0.62 + var(--boot-progress, 0) * 0.2));
+  min-height: 1.2em;
+  transition: color 200ms ease;
+}
+
+.boot-screen__rail-wrap {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  --boot-progress: 0;
+}
+
+.boot-screen__track-shell {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 0;
+  margin: -8px 0;
+}
+
+.boot-screen__track-clip {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 4px;
+  isolation: isolate;
+}
+
+.boot-screen__track-glow {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 0;
+  width: calc(var(--boot-progress, 0) * 100%);
+  height: 18px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse 120% 100% at 100% 50%, rgba(125, 211, 252, 0.85), transparent 62%),
+    radial-gradient(ellipse 80% 140% at 88% 50%, rgba(45, 236, 255, 0.45), transparent 70%);
+  filter: blur(6px);
+  opacity: calc(var(--boot-progress, 0) * 0.85);
+}
+
+.boot-screen__track-glow::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  transform: translate(25%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(240, 253, 255, 0.9) 0%, rgba(45, 236, 255, 0.4) 35%, transparent 72%);
+  filter: blur(1px);
+  opacity: calc(var(--boot-progress, 0) * 1.1);
+}
+
+.boot-screen__track {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+  height: 10px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 8px), rgba(2, 6, 18, 0.92);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(45, 236, 255, 0.28) inset,
+    0 0 14px rgba(45, 236, 255, 0.14);
+}
+
+.boot-screen__track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 16px rgba(45, 236, 255, 0.12);
+  animation: boot-track-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.boot-screen__fill {
+  position: absolute;
+  inset: 1px;
+  transform-origin: left center;
+  transform: scaleX(var(--boot-progress, 0));
+  border-radius: 3px;
+  background: linear-gradient(90deg, #0891b2 0%, #2decff 42%, #bae6fd 78%, #f0fdff 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(8, 145, 178, 0.35);
+  overflow: hidden;
+}
+
+.boot-screen__fill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.08) 38%, transparent 62%, rgba(8, 145, 178, 0.18) 100%);
+  pointer-events: none;
+}
+
+.boot-screen__fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.42) 48%, transparent 100%);
+  transform: translateX(-120%);
+  animation: boot-fill-sheen 2.1s ease-in-out infinite;
+}
+
+.boot-screen__fill-spark {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 48px;
+  height: 140%;
+  transform: translate(35%, -50%);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(240, 253, 255, 0.15) 35%, rgba(255, 255, 255, 0.75) 50%, rgba(45, 236, 255, 0.35) 65%, transparent);
+  mix-blend-mode: screen;
+  opacity: calc(0.35 + var(--boot-progress, 0) * 0.65);
+  animation: boot-spark-flicker 1.4s ease-in-out infinite;
+}
+
+.boot-screen__fill--indeterminate {
+  width: 34%;
+  transform: none;
+  animation: boot-shimmer 1.2s ease-in-out infinite;
+}
+
+.boot-screen__fill--indeterminate::after {
+  animation: none;
+  opacity: 0.35;
+}
+
+.boot-screen__fill-head {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  transform: translate(30%, -50%) rotate(45deg);
+  background: linear-gradient(135deg, #ffffff 0%, #bae6fd 100%);
+  box-shadow:
+    0 0 8px rgba(240, 253, 255, 0.95),
+    0 0 14px rgba(45, 236, 255, 0.65);
+  opacity: calc(var(--boot-progress, 0) * 1.15);
+  pointer-events: none;
+  animation: boot-head-pulse 1.1s ease-in-out infinite;
+}
+
+#boot-screen.boot-screen--ready .boot-screen__track-glow {
+  opacity: 1;
+  animation: boot-ready-glow 600ms ease-out;
+}
+
+#boot-screen.boot-screen--ready .boot-screen__fill-head {
+  animation: boot-head-ready 600ms ease-out;
+}
+
+.boot-screen__error {
+  display: none;
+  margin-top: 18px;
+  gap: 12px;
+  justify-items: center;
+}
+
+#boot-screen.boot-screen--error .boot-screen__error {
+  display: grid;
+}
+
+.boot-screen__error-msg {
+  margin: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(252, 165, 165, 0.92);
+}
+
+.boot-screen__action {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  display: none;
+  place-items: center;
+  min-width: 176px;
+  height: 46px;
+  margin: 0;
+  padding: 0 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  transition: transform 90ms ease;
+}
+
+#boot-screen.boot-screen--error .boot-screen__action {
+  display: inline-grid;
+}
+
+.boot-screen__action:focus-visible .boot-screen__action-plate {
+  box-shadow:
+    0 0 0 2px rgba(253, 224, 71, 0.65),
+    0 0 0 1.5px var(--boot-cyan-dim),
+    0 0 24px rgba(45, 236, 255, 0.35);
+}
+
+.boot-screen__action-plate {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(8, 18, 40, 0.98) 0%, rgba(3, 8, 18, 1) 100%);
+  box-shadow:
+    0 0 0 1.5px var(--boot-cyan-dim),
+    0 0 16px rgba(45, 236, 255, 0.2),
+    inset 0 1px 0 rgba(45, 236, 255, 0.12),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45);
+  transition:
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+
+.boot-screen__action-plate::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(45, 236, 255, 0.22);
+}
+
+.boot-screen__action-text {
+  position: relative;
+  z-index: 1;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: var(--boot-gold);
+  text-shadow: 0 0 14px rgba(253, 224, 71, 0.42);
+}
+
+.boot-screen__action:hover .boot-screen__action-plate {
+  filter: brightness(1.08);
+  box-shadow:
+    0 0 0 1.5px rgba(45, 236, 255, 0.95),
+    0 0 28px rgba(45, 236, 255, 0.38),
+    inset 0 0 14px rgba(45, 236, 255, 0.1),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.boot-screen__action:active {
+  transform: translateY(2px);
+}
+
+.boot-screen__action:active .boot-screen__action-plate {
+  box-shadow:
+    0 0 0 1.5px var(--boot-cyan-dim),
+    0 0 10px rgba(45, 236, 255, 0.18),
+    inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+#boot-screen.boot-screen--error .boot-screen__action-plate {
+  box-shadow:
+    0 0 0 1.5px var(--boot-danger),
+    0 0 18px rgba(255, 76, 86, 0.28),
+    inset 0 1px 0 rgba(255, 120, 120, 0.1),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45);
+}
+
+@keyframes boot-aurora {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.05);
+  }
+}
+
+@keyframes boot-twinkle-far {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.65;
+  }
+}
+
+@keyframes boot-twinkle-near {
+  from {
+    opacity: 0.55;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0.9;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes boot-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes boot-panel-glow {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes boot-grid-scan {
+  0% {
+    transform: translateY(-105%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(105%);
+    opacity: 0;
+  }
+}
+
+@keyframes boot-cell-idle {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes boot-shimmer {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes boot-fill-sheen {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(230%);
+  }
+}
+
+@keyframes boot-track-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes boot-head-pulse {
+  0%,
+  100% {
+    transform: translate(30%, -50%) rotate(45deg) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translate(30%, -50%) rotate(45deg) scale(1.12);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes boot-head-ready {
+  0% {
+    filter: brightness(1);
+    box-shadow:
+      0 0 12px rgba(240, 253, 255, 1),
+      0 0 22px rgba(45, 236, 255, 0.85);
+  }
+  50% {
+    filter: brightness(1.4);
+    box-shadow:
+      0 0 18px rgba(253, 224, 71, 0.95),
+      0 0 32px rgba(45, 236, 255, 1);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@keyframes boot-ready-glow {
+  0% {
+    opacity: calc(0.2 + var(--boot-progress, 0) * 0.75);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(12px) brightness(1.35);
+  }
+  100% {
+    opacity: calc(0.2 + var(--boot-progress, 0) * 0.75);
+  }
+}
+
+@keyframes boot-spark-flicker {
+  0%,
+  100% {
+    opacity: calc(0.25 + var(--boot-progress, 0) * 0.55);
+  }
+  50% {
+    opacity: calc(0.55 + var(--boot-progress, 0) * 0.45);
+  }
+}
+
+@keyframes boot-title-ready {
+  0% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.25);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .boot-screen__panel {
+    padding: 24px 18px 20px;
+  }
+
+  .boot-screen__title {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-screen__aurora,
+  .boot-screen__stars,
+  .boot-screen__panel-glow,
+  .boot-screen__grid-scan,
+  .boot-screen__cell,
+  .boot-screen__fill::after,
+  .boot-screen__fill-head,
+  .boot-screen__fill-spark,
+  .boot-screen__track-glow,
+  .boot-screen__track::before {
+    animation: none !important;
+  }
+
+  .boot-screen__panel {
+    animation: none;
+  }
+
+  .boot-screen__fill--indeterminate {
+    animation: none;
+    width: 40%;
+    margin-left: 30%;
+  }
+}
