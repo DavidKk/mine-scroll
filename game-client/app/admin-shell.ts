@@ -1,5 +1,4 @@
-import { BRAND_MARK_PATH, BRAND_NAME } from '@/lib/brand'
-
+import { BRAND_MARK_PATH, BRAND_NAME } from '../../lib/brand.ts'
 import { wrapWithCustomScrollbar } from '../ui/custom-scrollbar.ts'
 import { createAdminUserMenu } from './admin-chrome.ts'
 import { bindAdminNavIndicator, playAdminNavIndicatorEntrance } from './admin-nav-indicator.ts'

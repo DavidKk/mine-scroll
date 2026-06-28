@@ -1,5 +1,5 @@
 export { deleteLeaderboardEntry, replaceLeaderboardEntries, updateLeaderboardEntry } from './admin.ts'
-export { LEADERBOARD_DISPLAY_ROWS,padLeaderboardDisplay } from './display.ts'
+export { LEADERBOARD_DISPLAY_ROWS, padLeaderboardDisplay } from './display.ts'
 export { isLeaderboardServiceError, LeaderboardServiceError } from './errors.ts'
 export {
   entryPlayerId,

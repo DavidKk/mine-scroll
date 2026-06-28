@@ -1,5 +1,7 @@
 import { forwardRef } from 'react'
 
+import { BRAND_NAME } from '@/lib/brand'
+
 export const BootScreenShell = forwardRef<HTMLDivElement>(function BootScreenShell(_props, ref) {
   return (
     <div ref={ref} id="boot-screen" role="status" aria-live="polite" aria-busy="true">
@@ -17,7 +19,7 @@ export const BootScreenShell = forwardRef<HTMLDivElement>(function BootScreenShe
         <div className="boot-screen__grid-wrap">
           <div className="boot-screen__grid-stage">
             <div className="boot-screen__grid-scan" aria-hidden="true" />
-            <div className="boot-screen__grid" role="group" aria-label="Mini minesweeper">
+            <div className="boot-screen__grid" role="group" aria-label={`Mini ${BRAND_NAME}`}>
               {Array.from({ length: 9 }, (_, index) => (
                 <button key={index} type="button" className="boot-screen__cell" />
               ))}
@@ -25,7 +27,7 @@ export const BootScreenShell = forwardRef<HTMLDivElement>(function BootScreenShe
           </div>
           <p className="boot-screen__grid-hint">Tap cells while loading</p>
         </div>
-        <h1 className="boot-screen__title">Minesweeper</h1>
+        <h1 className="boot-screen__title">{BRAND_NAME}</h1>
         <p className="boot-screen__label" id="boot-label">
           INITIALIZING — 0%
         </p>

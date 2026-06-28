@@ -320,7 +320,7 @@ type BootProgressLabel =
     <div class="boot-screen__grid" aria-hidden="true">
       <!-- 9 × .boot-screen__cell，其中 1 格 .boot-screen__cell--active -->
     </div>
-    <h1 class="boot-screen__title">Minesweeper</h1>
+    <h1 class="boot-screen__title">MineScroll</h1>
     <p class="boot-screen__label" id="boot-label">正在启动…</p>
     <div class="boot-screen__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div class="boot-screen__fill" id="boot-fill"></div>

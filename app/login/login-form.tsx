@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 
 import { OAuthLoginButton } from '@/app/components/oauth-login-button'
 import { SignetLoginButton } from '@/app/components/signet-login-button'
+import { BRAND_NAME } from '@/lib/brand'
 import { useOAuthLoginContext, withOAuthLogin } from '@/services/oauth-login/withOAuthLogin'
 
 type LoginFormProps = {
@@ -92,7 +93,7 @@ function LoginFormInner({ redirectUrl, enableSignet, signetOrigin, signetSdkModu
         <div className="login-page__panel">
           <div className="login-page__panel-glow" aria-hidden="true" />
           <div className="login-page__panel-frame" aria-hidden="true" />
-          <h1 className="login-page__title">Minesweeper</h1>
+          <h1 className="login-page__title">{BRAND_NAME}</h1>
           <p className="login-page__label">VERIFYING THIRD-PARTY LOGIN</p>
           <p className="login-page__oauth-status">Completing sign-in…</p>
         </div>
@@ -119,7 +120,7 @@ function LoginFormInner({ redirectUrl, enableSignet, signetOrigin, signetSdkModu
           <div className="login-page__brand-mark">◫</div>
         </div>
 
-        <h1 className="login-page__title">Minesweeper</h1>
+        <h1 className="login-page__title">{BRAND_NAME}</h1>
         <p className="login-page__label">ADMIN ACCESS</p>
 
         {enableSignet && signetOrigin ? (

@@ -10,13 +10,7 @@ const META_KEYS = {
   migratedFromLocalStorage: 'migratedFromLocalStorage',
 } as const
 
-const LEGACY_LOCAL_STORAGE_KEYS = [
-  'chill-player-id',
-  'chill-score-history',
-  'chill-leaderboard-name',
-  'chill-leaderboard-anon-id',
-  'chill-leaderboard-self',
-] as const
+const LEGACY_LOCAL_STORAGE_KEYS = ['chill-player-id', 'chill-score-history', 'chill-leaderboard-name', 'chill-leaderboard-anon-id', 'chill-leaderboard-self'] as const
 
 const MAX_HISTORY_ENTRIES = 200
 const MAX_RUN_TRACES = 50
@@ -386,10 +380,7 @@ export async function appendRunTraceEvents(runId: string, batch: RunInputEvent[]
   })
 }
 
-export async function finalizeRunTrace(
-  runId: string,
-  patch: Pick<RunTraceRecord, 'finishStatus' | 'claimedScore' | 'claimedDepth' | 'cheating' | 'events'>,
-): Promise<void> {
+export async function finalizeRunTrace(runId: string, patch: Pick<RunTraceRecord, 'finishStatus' | 'claimedScore' | 'claimedDepth' | 'cheating' | 'events'>): Promise<void> {
   await ensureRankedLocalStore()
   const existing = await idbGet<RunTraceRecord>(IDB_STORES.runTraces, runId)
   if (!existing) return

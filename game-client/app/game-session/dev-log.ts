@@ -1,6 +1,7 @@
+import { brandLogPrefix } from '../../../lib/brand.ts'
 import { isDev } from '../../env.ts'
 
-const PREFIX = '[minesweeper]'
+const PREFIX = brandLogPrefix()
 
 export function devLog(message: string, ...details: unknown[]): void {
   if (!isDev) return

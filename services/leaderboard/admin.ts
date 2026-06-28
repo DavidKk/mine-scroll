@@ -1,4 +1,4 @@
-import { isKvConfigured,setJsonKv } from '../kv/client.ts'
+import { isKvConfigured, setJsonKv } from '../kv/client.ts'
 import { LeaderboardServiceError } from './errors.ts'
 import { logger } from './logger.ts'
 import { entryPlayerId, normalizeLeaderboardEntries, sanitizeLeaderboardName, sanitizeLeaderboardScore } from './merge.ts'

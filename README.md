@@ -1,6 +1,6 @@
-# Minesweeper
+# MineScroll
 
-Neon-styled minesweeper built with **Next.js** and a **Canvas 2D** game client. Play classic, hex, and endless modes in the browser, with ranked leaderboards and internal asset tooling for development.
+Neon-styled endless-scroll minesweeper built with **Next.js** and a **Canvas 2D** game client. Play classic, hex, and endless modes in the browser, with ranked leaderboards and internal asset tooling for development.
 
 Package manager: **pnpm** (see `packageManager` in `package.json`).
 

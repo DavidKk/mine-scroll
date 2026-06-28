@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '../../../lib/brand.ts'
 import { layoutSnapshotFromRuntime } from '../../ranked/layout-snapshot.ts'
 import { createFpsOverlay } from './fps-overlay.ts'
 import {
@@ -86,7 +87,7 @@ export function createGameCanvas(
 
   rt.canvas.className = fullscreen ? 'game-canvas game-canvas--fullscreen' : 'game-canvas'
   rt.canvas.setAttribute('role', 'application')
-  rt.canvas.setAttribute('aria-label', 'Minesweeper board')
+  rt.canvas.setAttribute('aria-label', `${BRAND_NAME} board`)
   wrap.appendChild(rt.canvas)
   container.appendChild(wrap)
   rt.fpsOverlay = createFpsOverlay(wrap)

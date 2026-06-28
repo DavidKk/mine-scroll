@@ -20,7 +20,7 @@ let clientBootFinished = false
 let scrollbarAttached = false
 
 export interface EnsureClientBootOptions {
-  /** Minesweeper boot overlay element; omit for admin silent boot. */
+  /** MineScroll boot overlay element; omit for admin silent boot. */
   bootScreenEl?: HTMLElement | null
   /** Load assets in the background without the game boot UI (admin). */
   silent?: boolean
