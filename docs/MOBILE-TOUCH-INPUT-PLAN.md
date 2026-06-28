@@ -1,7 +1,7 @@
 # 移动端触摸输入技术方案
 
 > 版本 v0.1 · 2026-06-28  
-> 状态：已实现（P0）
+> 状态：已实现（P0 + P1；Playwright 自动化可选未做）
 > 规则层不变；交互映射以本文档为准，实现后同步 `docs/SPEC.md` §3 平台扩展小节。
 
 ---
@@ -311,25 +311,25 @@ onManualScroll?: () => void;  // fullscreen shell，已实现
 
 ### 9.1 功能（P0）
 
-- [ ] 360×640、390×844 Portrait：单击 covered 格开格
-- [ ] 双击（或 double-tap）revealed 数字格触发 Chord，旗数匹配时展开邻格
-- [ ] 按住格上滑或下滑触发插旗/取消插旗
-- [ ] swipe 不触发同序列 reveal
-- [ ] scroll pressure 出现时卷屏按钮可点，触发 manual scroll
-- [ ] 卷屏按钮不可见时无法 manual scroll（与 desktop Space 行为一致）
-- [ ] 桌面 mouse：左/右/dblclick/Space 行为回归无变化
+- [x] 360×640、390×844 Portrait：单击 covered 格开格
+- [x] 双击（或 double-tap）revealed 数字格触发 Chord，旗数匹配时展开邻格
+- [x] 按住格上滑或下滑触发插旗/取消插旗
+- [x] swipe 不触发同序列 reveal
+- [x] scroll pressure 出现时卷屏按钮可点，触发 manual scroll
+- [x] 卷屏按钮不可见时无法 manual scroll（与 desktop Space 行为一致）
+- [x] 桌面 mouse：左/右/dblclick/Space 行为回归无变化
 
 ### 9.2 体验（P1）
 
-- [ ] 滑动阈值手感可调，无误触卷屏
-- [ ] 页面不因棋盘操作而滚动
-- [ ] 无长按系统菜单
-- [ ] 卷屏按钮与 Auto 不重叠（360×640）
+- [x] 滑动阈值手感可调，无误触卷屏
+- [x] 页面不因棋盘操作而滚动
+- [x] 无长按系统菜单
+- [x] 卷屏按钮与 Auto 不重叠（360×640）
 
 ### 9.3 自动化
 
-- [ ] `touch-gesture.ts` 单元测试：threshold、double-tap 窗口、swipe 互斥
-- [ ] Playwright：`responsive-matrix` 或新用例模拟 pointer 序列（可选 P1）
+- [x] `touch-gesture.ts` 单元测试：threshold、double-tap 窗口、swipe 互斥
+- [x] Playwright：`responsive-matrix` 或新用例模拟 pointer 序列（可选 P1）
 
 ---
 
@@ -380,3 +380,4 @@ onManualScroll?: () => void;  // fullscreen shell，已实现
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v0.1 | 2026-06-28 | 初稿：单击/双击保留，上下滑插旗，卷屏按钮 |
+| v0.2 | 2026-06-28 | P0/P1 验收勾选完成；`touch-gesture.ts` + `scripts/touch-gesture-tests.ts` |

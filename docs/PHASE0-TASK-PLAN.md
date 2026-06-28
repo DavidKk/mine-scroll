@@ -150,9 +150,9 @@ flowchart TD
 每个 Phase 最后一项子任务 Review 通过后，再做 Phase 级汇总：
 
 - [x] **Gate A → Phase 1**：Phase 0 Review 通过
-- [ ] **Gate B → Phase 2**：1.1–1.5 全部 Review 通过
-- [ ] **Gate C → Phase 3**：2.1–2.4 全部 Review 通过
-- [ ] **Gate D → Phase 4**：3.1–3.6 全部 Review 通过
+- [x] **Gate B → Phase 2**：1.1–1.5 全部 Review 通过（2026-06-14，见 REVIEW-LOG）
+- [x] **Gate C → Phase 3**：2.1–2.4 全部 Review 通过（MVP 脚手架已完成）
+- [x] **Gate D → Phase 4**：3.1–3.6 全部 Review 通过（经典扫雷 MVP 已完成；当前 Phase 6）
 
 ---
 

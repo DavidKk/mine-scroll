@@ -5,6 +5,7 @@ import {
   BOOT_AUTO_RETRY_DELAY_MS,
   BOOT_RETRY_UI_DELAY_MS,
   preloadGameAudio,
+  registerBootServiceWorker,
   resetBootSequence,
   retryBootSequence,
   runBootSequence,
@@ -67,6 +68,7 @@ async function startApp(): Promise<void> {
   mountApp(appRoot);
   window.addEventListener('popstate', () => mountApp(appRoot));
   preloadGameAudio();
+  registerBootServiceWorker();
 }
 
 void startApp().catch(async (error) => {

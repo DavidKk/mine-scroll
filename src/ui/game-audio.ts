@@ -1,6 +1,7 @@
 import type { Board } from '../core/types.ts';
 import { countNewlyRevealed } from '../core/modes/endless/reveal-pipeline.ts';
 import type { ModeSession } from '../core/types.ts';
+import { cloneAudioTemplate } from './boot/audio-cache.ts';
 
 export const GAME_AUDIO_ASSETS = {
   cellReveal: '/assets/game/audio/sfx-cell-reveal-01.wav',
@@ -144,14 +145,13 @@ export function createGameAudio(options: GameAudioOptions = {}): GameAudioContro
   let idleBgmMuted = options.bgmMuted ?? false;
   let idleBgmPlayPending = false;
 
-  const idleBgm = new Audio(BGM_IDLE_SRC);
+  const idleBgm = cloneAudioTemplate(BGM_IDLE_SRC);
   idleBgm.loop = true;
   idleBgm.preload = 'auto';
   idleBgm.volume = BGM_IDLE_VOLUME;
 
   for (const [id, src] of Object.entries(GAME_AUDIO_ASSETS) as [GameAudioId, string][]) {
-    const audio = new Audio(src);
-    audio.preload = 'auto';
+    const audio = cloneAudioTemplate(src);
     audio.volume = clipVolume(id);
     clips.set(id, audio);
   }

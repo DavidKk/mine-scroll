@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node --experimental-strip-types scripts/optimize-boot-webp.ts && node --experimental-strip-types scripts/gen-boot-manifest.ts && node --experimental-strip-types scripts/gen-service-worker.ts && tsc && vite build",
     "preview": "vite preview",
     "test": "node --experimental-strip-types scripts/run-tests.ts",
+    "assets:boot-manifest": "node --experimental-strip-types scripts/gen-boot-manifest.ts",
+    "assets:boot-webp": "node --experimental-strip-types scripts/optimize-boot-webp.ts",
+    "assets:service-worker": "node --experimental-strip-types scripts/gen-service-worker.ts",
     "simulate:ai": "node --experimental-strip-types scripts/simulate-endless-ai.ts",
     "assets:tiles": "python3 scripts/optimize-tiles.py",
     "assets:hud": "python3 scripts/slice-brief-hud.py",
@@ -16,6 +19,7 @@
     "assets:all": "python3 scripts/optimize-tiles.py && python3 scripts/slice-brief-hud.py && python3 scripts/slice-production-assets.py && python3 scripts/generate-gameplay-assets.py"
   },
   "devDependencies": {
+    "sharp": "^0.35.2",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
   },

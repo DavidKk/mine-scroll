@@ -3,6 +3,8 @@ import {
   GAME_FX_NAMES,
   GAME_UI_PANEL_NAMES,
 } from '../game-assets.ts';
+import { applyBootWeightMap, BOOT_WEIGHTS_URL } from './boot-weights.ts';
+import { BOOT_WEBP_MAP_URL } from './image-format.ts';
 import type { BootAsset, GameAssetManifestSnapshot } from './types.ts';
 
 export const MANIFEST_URL = '/assets/game/manifest.json';
@@ -191,18 +193,47 @@ export async function fetchGameManifest(): Promise<GameAssetManifestSnapshot | n
   }
 }
 
-export async function buildBootAssetList(): Promise<{
-  assets: BootAsset[];
-  manifest: GameAssetManifestSnapshot | null;
-}> {
-  const manifest = await fetchGameManifest();
+export async function fetchBootWebpMap(): Promise<Record<string, string>> {
+  try {
+    const response = await fetch(BOOT_WEBP_MAP_URL);
+    if (!response.ok) return {};
+    return (await response.json()) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+export async function fetchBootWeights(): Promise<Record<string, number>> {
+  try {
+    const response = await fetch(BOOT_WEIGHTS_URL);
+    if (!response.ok) return {};
+    return (await response.json()) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+export function collectBootAssets(manifest: GameAssetManifestSnapshot | null): BootAsset[] {
   const combined = [
     ...tileAssets(),
     ...hudIconAssets(),
     ...hudFeedbackAssets(),
     ...(manifest ? manifestAssets(manifest) : []),
   ];
-  return { assets: dedupeBootAssets(combined), manifest };
+  return dedupeBootAssets(combined);
+}
+
+export async function buildBootAssetList(): Promise<{
+  assets: BootAsset[];
+  manifest: GameAssetManifestSnapshot | null;
+}> {
+  const [manifest, weights, webpMap] = await Promise.all([
+    fetchGameManifest(),
+    fetchBootWeights(),
+    fetchBootWebpMap(),
+  ]);
+  const assets = applyBootWeightMap(collectBootAssets(manifest), weights, webpMap);
+  return { assets, manifest };
 }
 
 /** Tile sprite URLs in load order — used by tile-sprites.ts */

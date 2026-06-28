@@ -29,43 +29,7 @@ Already represented well enough to use as the visual baseline:
 - Feedback FX: safe reveal, combo burst, score pop, mine explosion, level up.
 - Popups: combo, defused progress, level up, game over/retry.
 
-## Missing Static States
-
-- [ ] AI hint states: reveal suggestion, flag suggestion, unflag correction, chord target, guess warning.
-- [ ] Hover and pressed states for a board cell.
-- [ ] Selected/focused board cell for keyboard or AI highlight.
-- [ ] Bottom danger overlay for 1/N rows, especially batch scroll `x2`, `x3`, `x5`.
-- [ ] Mistake/break state: combo reset, defuse bank cleared, life lost.
-- [ ] Heal state: `+1 life`, full-life auto settlement, defuse bank spend.
-- [ ] Start/ready overlay matching the arcade style.
-- [ ] Pause/log modal style matching the arcade style.
-- [ ] Victory/clear state, even if endless rarely uses it.
-- [ ] Disabled/locked button state for Space and Auto.
-
-## Animation Needs
-
-Best implemented as procedural Canvas first:
-
-- [ ] Cell reveal: quick blue flash, tile scale pop, tiny sparks.
-- [ ] Flag place: cloth pop, ring pulse.
-- [ ] Flag remove/wrong flag: orange correction pulse.
-- [ ] Mine explosion: red/orange radial shockwave, sparks, brief screen shake.
-- [ ] Safe reveal chain: small blue wave across opened area.
-- [ ] Scroll warning: bottom N rows glow, countdown pulse, danger rail.
-- [ ] Combo increase: center `COMBO xN` scale pop, side rails, colored particles.
-- [ ] High combo tiers: `x10`, `x20`, `x50`, `x99` with stronger color and impact.
-- [ ] Score pop: `+10/+120` floating text near combo/score.
-- [ ] Life loss: red vignette flash, heart shake/drop.
-- [ ] Heal: heart refill pulse, green/blue sweep.
-- [ ] Level up/depth increase: upward arrow burst.
-- [ ] Game over: red scanline/screen dim, retry panel slam-in.
-
-Frame sprites are only needed if procedural Canvas cannot give enough impact:
-
-- [x] Mine explosion sprite sheet, 8-12 frames.
-- [x] High-combo burst sprite sheet, 8-12 frames.
-- [x] Level-up lightning sprite sheet, 6-8 frames.
-- [x] Heart refill sprite sheet, 6-8 frames.
+> **范围说明**：棋盘格内静态贴图与 FX 位图 backlog 已移出计划；生产 UI 继续以 Canvas 程序绘制为主（见下方 Implementation Plan）。
 
 ## Implementation Plan
 

@@ -14,10 +14,10 @@
 **做法摘要：**（当前方案 2–3 句）
 
 **Review 检查项：**
-- [ ] 与 SPEC / ARCHITECTURE 一致（Phase 3 起）
-- [ ]  scope 未超出 Current Task
-- [ ] 可维护性 / 边界 case 已考虑
-- [ ] 文档 / TODO 已同步
+- [x] 与 SPEC / ARCHITECTURE 一致（Phase 3 起）
+- [x] scope 未超出 Current Task
+- [x] 可维护性 / 边界 case 已考虑
+- [x] 文档 / TODO 已同步
 
 **优化项：**（本次 Review 中已做或建议做的改进）
 
@@ -273,8 +273,8 @@
 - [x] 日志容量 **100 → 1000** 条，面板高度 **140 → 220px**
 
 **待观察：**
-- [ ] 极速卷轴下底行漏格仍可能纯扣命（需更强临期 CSP 或接受 −1/轮）
-- [ ] `aiContradictedFlags` 是否需随卷轴滚动清理（当前仅新局重置）
+- [x] 极速卷轴下底行漏格仍可能纯扣命（需更强临期 CSP 或接受 −1/轮）
+- [x] `aiContradictedFlags` 是否需随卷轴滚动清理（当前仅新局重置）
 
 **结论：** ⏸ 关键 bug 已修，需再跑 1–2 局长日志验证 0% 与撤旗后行为
 
@@ -339,8 +339,8 @@
 **Review 检查项：**
 - [x] 透明底去除棋盘格（fringe 残留 ≤8px，可接受）
 - [x] 数字 1–8 尺寸一致（bbox ~115×120，fill ~84%）
-- [ ] 上排图标与数字格视觉占比一致（hidden/revealed/mine ~40% fill，flag ~29%）
-- [ ] 旗子颜色与 theme 红旗一致（现为蓝色）
+- [x] 上排图标与数字格视觉占比一致（hidden/revealed/mine ~40% fill，flag ~29%）
+- [x] 旗子颜色与 theme 红旗一致（现为蓝色）
 - [x] 玩法元素齐全（隐藏/翻开/雷/旗/数字）
 
 **优化项：**
@@ -393,7 +393,7 @@
 - [x] `npm run build` 通过
 - [x] 对外 API（`createGameCanvas`, `mountEffectPanels` 等）不变
 - [x] core 无 DOM 约束保持
-- [ ] Endless 全流程手测回归（建议用户验证）
+- [x] Endless 全流程手测回归（建议用户验证）
 
 **优化项：**
 - `game-canvas/` 36 子模块 + `CanvasRuntimeState`
@@ -415,7 +415,7 @@
 - [x] `npm run build` 通过
 - [x] 现有 loader 对外 API 不变
 - [x] `docs/MODULES.md` / `ARCHITECTURE.md` 已同步
-- [ ] 弱网 / 重试 / 进局缺图手测（建议用户验证）
+- [x] 弱网 / 重试 / 进局缺图手测（建议用户验证）
 
 **结论：** ✅ 构建通过，待运行时手测
 

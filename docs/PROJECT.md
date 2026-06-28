@@ -6,9 +6,7 @@
 
 ## Current Task
 
-**Phase 6 — 双模式稳定化 + 无尽模式**
-
-保留经典扫雷 + 六边形扫雷；新增无尽向上扩盘模式。
+**维护阶段** — 核心玩法（classic / hex / endless）已完成；后续工作见专项文档（天梯榜、资产加载等）。
 
 ---
 
@@ -30,12 +28,6 @@
 - [x] `hunt` 寻雷挑战 DEMO → 试玩无解/过简，已移除
 - [x] 最终保留：**classic + hex**
 - [x] **endless** 无尽模式（向上扩盘、动态布雷）
-
-### Phase 6 — 待定
-
-- [ ] GameMode API 冻结与单测
-- [ ] 本地纪录
-- [ ] 无猜盘生成 / logic 模式
 
 ---
 
@@ -61,3 +53,5 @@
 | 2026-06-18 | hunt 寻雷 DEMO 试玩后移除 |
 | 2026-06-18 | endless 无尽模式 |
 | 2026-06-28 | 代码模块化重构（见 CODE-OPTIMIZATION-PLAN v0.2） |
+| 2026-06-28 | 移除 Phase 6（GameMode API / 本地纪录 / logic 模式） |
+| 2026-06-28 | 移除棋盘/UI 位图资产 backlog（继续 Canvas 程序绘制） |

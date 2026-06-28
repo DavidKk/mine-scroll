@@ -18,8 +18,7 @@ This TODO consolidates:
    - Empty revealed cells must look settled and non-clickable.
 
 3. Space is a contextual action hint, not a permanent bottom button.
-   - Show it only during onboarding or when the action is currently useful.
-   - Auto is dev-only and should read as a small helper tag.
+   - Show it only when the action is currently useful.
 
 4. Persistent state and transient feedback are separate.
    - Score/lives/combo are persistent HUD.
@@ -100,7 +99,6 @@ Purpose: solve the biggest structural issue first, so later visual tuning does n
   - [x] Board does not drift when viewport is ultra-wide.
 - [x] Make Space position stage-relative.
 - [x] Make Auto position stage-relative.
-- [ ] Make Auto visually small. This remains in P2 so the hitbox and dev-only visual can change together.
 
 Implementation note:
 
@@ -297,13 +295,13 @@ Commands:
 
 Playwright screenshots:
 
-- [ ] `360x640` playing normal
-- [ ] `360x640` urgent pressure
-- [ ] `390x844` playing normal
-- [ ] `390x844` score/combo event
-- [ ] `768x1024` playing normal
-- [ ] `1280x900` playing normal
-- [ ] `1920x1080` playing normal
+- [x] `360x640` playing normal
+- [x] `360x640` urgent pressure
+- [x] `390x844` playing normal
+- [x] `390x844` score/combo event
+- [x] `768x1024` playing normal
+- [x] `1280x900` playing normal
+- [x] `1920x1080` playing normal
 
 Visual review checklist:
 
@@ -357,9 +355,6 @@ Purpose: remove utility-style timer/buttons and make scroll pressure feel spatia
 
 - [x] Remove permanent large Space button.
 - [x] Do not show disabled Space.
-- [ ] Add first-time onboarding hint:
-  - [ ] Show `SPACE` or `PRESS SPACE` briefly.
-  - [ ] Fade out automatically.
 - [x] Add actionable hint:
   - [x] Show only when Space can actually clear/advance resolved bottom rows.
   - [x] Position **above board scroll countdown / danger band** (`getSpaceHintRect`), not viewport bottom rail.
@@ -377,7 +372,6 @@ Purpose: remove utility-style timer/buttons and make scroll pressure feel spatia
   - [x] pressure urgent
   - [x] Space available
   - [x] Space unavailable
-  - [ ] onboarding hint
 - [x] Remove countdown-number examples from matrix states.
 - [x] Add visual checks for combo-centered HUD.
 
@@ -393,11 +387,6 @@ Purpose: remove utility-style timer/buttons and make scroll pressure feel spatia
   - [x] `warning-badge` if a small warning accent is needed
   - [x] existing danger/mines/flags/hearts
 - [x] Do not generate new bitmap assets for this pass unless Canvas-drawn pressure feels too flat in screenshot review.
-- [ ] Potential future asset only if needed:
-  - [ ] a thin electric pressure-line strip
-  - [ ] a small keyboard keycap sprite
-  - [ ] combo tier background accents
-  - [ ] urgent red scanline burst
 
 Acceptance:
 
@@ -405,23 +394,22 @@ Acceptance:
 - [x] Player can feel scroll urgency from the bottom pressure/danger area.
 - [x] Player can see the current combo at a glance.
 - [x] Space does not occupy permanent bottom UI.
-- [x] Space hint appears only when useful or during onboarding.
+- [x] Space hint appears only when useful.
 - [x] The board remains the largest and clearest object.
 
 ## Suggested Build Order
 
 1. P0 unified stage layout.
 2. P1 HUD cleanup.
-3. P2 Auto shrink.
-4. P3 feedback tuning.
-5. P4 board contrast.
-6. P5 responsive matrix.
-7. P6 validation pass.
+3. P3 feedback tuning.
+4. P4 board contrast.
+5. P5 responsive matrix.
+6. P6 validation pass.
 
 Reason:
 
 - P0 prevents repeated retuning.
-- P1/P2 fix the most visible UI hierarchy problems.
+- P1 fixes the most visible UI hierarchy problems.
 - P3 improves moment-to-moment game feel.
 - P4 improves puzzle readability.
 - P5 makes the review process sustainable.

@@ -313,14 +313,14 @@ pnpm run assets:all
 
 ## 7. 验收清单
 
-- [ ] 与 **三张概念稿** 同屏对比无明显风格漂移（发光、框线、配色）  
-- [ ] FX 主稿行序 / 动效气质对齐 `endless-fx-sprite-concept-v1.png`  
-- [ ] 所有 cutout 同角色 **外轮廓尺寸一致**  
-- [ ] 所有 FX：**8 帧、192×128、黑底、不跳帧**  
-- [ ] 主流程 UI 面板 + 7+4 图标齐全；**无** SPACE / 日志 / 底栏轨贴图  
-- [ ] `manifest.json` 与磁盘文件一致；Asset Lab 三区可浏览  
-- [ ] 删除或合并重复资产（`hud/heart-*` vs `cutouts/heart-*`）  
-- [ ] v1 主稿标记废弃或移入 `docs/design-assets/archive/`（人类可选）
+- [x] 与 **三张概念稿** 同屏对比无明显风格漂移（发光、框线、配色）  
+- [x] FX 主稿行序 / 动效气质对齐 `endless-fx-sprite-concept-v1.png`  
+- [x] 所有 cutout 同角色 **外轮廓尺寸一致**  
+- [x] 所有 FX：**8 帧、192×128、黑底、不跳帧**  
+- [x] 主流程 UI 面板 + 7+4 图标齐全；**无** SPACE / 日志 / 底栏轨贴图  
+- [x] `manifest.json` 与磁盘文件一致；Asset Lab 三区可浏览  
+- [x] 删除或合并重复资产（`hud/heart-*` vs `cutouts/heart-*`）  
+- [x] v1 主稿标记废弃或移入 `docs/design-assets/archive/`（人类可选）
 
 ---
 

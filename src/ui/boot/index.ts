@@ -32,5 +32,6 @@ export {
 
 export { bindBootScreen } from './boot-screen.ts';
 export { preloadGameAudio } from './preload-audio.ts';
+export { registerBootServiceWorker } from './register-service-worker.ts';
 export { computeBootProgress, resetBootSequence, retryBootSequence, runBootSequence } from './boot-sequence.ts';
 export { BOOT_AUTO_RETRY_DELAY_MS, BOOT_RETRY_UI_DELAY_MS } from './types.ts';

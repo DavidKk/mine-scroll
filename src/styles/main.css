@@ -94,6 +94,18 @@ body::-webkit-scrollbar {
   background: #09090b;
 }
 
+.app--route-loading {
+  place-content: center;
+}
+
+.route-loading {
+  color: #a5b4fc;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .app--ui-lab {
   overflow: auto;
   background:

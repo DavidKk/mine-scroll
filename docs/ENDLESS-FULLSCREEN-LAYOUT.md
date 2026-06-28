@@ -195,15 +195,15 @@ cell = min(fromW, fromH)
 
 动布局前过一遍：
 
-- [ ] 格宽是否仍走 `computeEndlessBoardCellSize` + `getEndlessShellReserves`？  
-- [ ] `boardY/boardX` 是否仍走 `computeGameStageLayout`？  
-- [ ] 顶栏是否**贴顶 + 全宽**？  
-- [ ] 底栏是否仍锚 `bottomRailRect` 贴视口底？  
-- [ ] `paint()` 是否仍为 背景 → 棋盘 → overlay → **HUD 最后**？  
-- [ ] 是否仍有消雷相关 UI 文案或 `hudDefused` / `defusedAnchor` 代码？（应为否）  
-- [ ] 预览行行为是否仍符合预览行文档？  
-- [ ] `npm test` 是否通过？  
-- [ ] 至少目视 `390×844` 与 `1280×900` 两档截图？
+- [x] 格宽是否仍走 `computeEndlessBoardCellSize` + `getEndlessShellReserves`？  
+- [x] `boardY/boardX` 是否仍走 `computeGameStageLayout`？  
+- [x] 顶栏是否**贴顶 + 全宽**？  
+- [x] 底栏是否仍锚 `bottomRailRect` 贴视口底？  
+- [x] `paint()` 是否仍为 背景 → 棋盘 → overlay → **HUD 最后**？  
+- [x] 是否仍有消雷相关 UI 文案或 `hudDefused` / `defusedAnchor` 代码？（应为否）  
+- [x] 预览行行为是否仍符合预览行文档？  
+- [x] `npm test` 是否通过？  
+- [x] 至少目视 `390×844` 与 `1280×900` 两档截图？
 
 ---
 

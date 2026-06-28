@@ -1,7 +1,7 @@
 import type { GameCanvasRuntime } from '../runtime/context.ts';
 import { FONTS } from '../../theme.ts';
 import type { ScrollPressureState } from '../../renderer/index.ts';
-import { fillRounded, roundedRectPath, strokeRounded } from '../../primitives/index.ts';
+import { fillRounded, roundedRectPath, strokeRounded, clamp01, easeOutCubic } from '../../primitives/index.ts';
 import { RUNTIME_CONSTANTS } from '../runtime/state.ts';
 
 export interface ScrollButtonRevealState {
@@ -10,15 +10,6 @@ export interface ScrollButtonRevealState {
   contentAlpha: number;
   animating: boolean;
   interactable: boolean;
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function easeOutCubic(t: number): number {
-  const x = clamp01(t);
-  return 1 - (1 - x) ** 3;
 }
 
 export function updateScrollButtonReveal(

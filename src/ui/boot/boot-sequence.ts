@@ -1,6 +1,8 @@
 import { markBootComplete, setBootManifest } from './asset-cache.ts';
 import { loadBootAssets } from './asset-loader.ts';
 import { buildBootAssetList } from './asset-registry.ts';
+import { initBootImageFormat } from './image-format.ts';
+import { sortBootAssetsForLoad } from './load-priority.ts';
 import type {
   BootAsset,
   BootAssetGroup,
@@ -65,7 +67,10 @@ async function runOnce(options: BootSequenceOptions = {}): Promise<BootResult> {
 
   emit(0);
 
-  const { assets, manifest } = await buildBootAssetList();
+  const [{ assets, manifest }] = await Promise.all([
+    buildBootAssetList(),
+    initBootImageFormat(),
+  ]);
   if (manifest) setBootManifest(manifest);
 
   const { blocking, background } = partitionByTier(assets);
@@ -90,24 +95,32 @@ async function runOnce(options: BootSequenceOptions = {}): Promise<BootResult> {
   const failedRequired: BootAsset[] = [];
   const failedOptional: BootAsset[] = [];
 
-  await loadBootAssets({
-    assets: blocking,
-    maxConcurrent,
-    signal,
-    onAssetComplete: (asset, result) => {
-      loadedCount += 1;
-      if (result.ok) {
-        completedWeight += asset.weight;
-      } else if (asset.optional) {
-        failedOptional.push(asset);
-      } else {
-        failedRequired.push(asset);
-      }
-      currentGroup = asset.group;
-      currentLabel = groupLabel(asset.group);
-      emitAssets();
-    },
-  });
+  const blockingTiers = [1, 2] as const;
+  for (const tier of blockingTiers) {
+    const tierAssets = sortBootAssetsForLoad(blocking.filter((asset) => asset.tier === tier));
+    if (tierAssets.length === 0) continue;
+
+    await loadBootAssets({
+      assets: tierAssets,
+      maxConcurrent,
+      signal,
+      onAssetComplete: (asset, result) => {
+        loadedCount += 1;
+        if (result.ok) {
+          completedWeight += asset.weight;
+        } else if (asset.optional) {
+          failedOptional.push(asset);
+        } else {
+          failedRequired.push(asset);
+        }
+        currentGroup = asset.group;
+        currentLabel = groupLabel(asset.group);
+        emitAssets();
+      },
+    });
+
+    if (failedRequired.length > 0) break;
+  }
 
   if (failedRequired.length > 0) {
     return {

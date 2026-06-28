@@ -1,4 +1,5 @@
 import { GAME_AUDIO_ASSETS, BGM_IDLE_SRC } from '../game-audio.ts';
+import { warmAudioClip } from './audio-cache.ts';
 import type { BootAsset } from './types.ts';
 
 const AUDIO_WEIGHT = 1024 * 1024;
@@ -29,8 +30,6 @@ export function buildAudioBootAssets(): BootAsset[] {
 /** Tier 3 — warm browser cache; does not block mountApp. */
 export function preloadGameAudio(): void {
   for (const asset of buildAudioBootAssets()) {
-    const audio = new Audio(asset.url);
-    audio.preload = 'auto';
-    audio.load();
+    warmAudioClip(asset.url);
   }
 }

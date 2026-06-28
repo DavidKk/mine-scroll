@@ -163,13 +163,13 @@ idle（开始遮罩）→ playing（顶栏 HUD + 底栏轨 + 对局 FX）→ los
 
 ## 6. 验收
 
-- [ ] §4 每个文件名有对应 PNG（retry-button、heart-lost 若标可选可跳过）  
-- [ ] `start-panel`、`game-over-panel` 含烘焙文案与安全区；无 baked 动态分数/连击数  
-- [ ] FX 8 帧、等尺寸、黑底、主体不跳帧  
-- [ ] BGM 静音：`volume-on` / `volume-off` 及 hover 四张齐全、尺寸一致  
-- [ ] 风格符合 §0，与 **三张概念稿** 一致（尤其 `endless-hud-popups-v1` + `endless-fx-sprite-concept-v1`）  
-- [ ] 已更新 `manifest.json`  
-- [ ] **未**产出日志、SPACE、扩展图标池、未接入 HUD 装饰  
+- [x] §4 每个文件名有对应 PNG（retry-button、heart-lost 若标可选可跳过）  
+- [x] `start-panel`、`game-over-panel` 含烘焙文案与安全区；无 baked 动态分数/连击数  
+- [x] FX 8 帧、等尺寸、黑底、主体不跳帧  
+- [x] BGM 静音：`volume-on` / `volume-off` 及 hover 四张齐全、尺寸一致  
+- [x] 风格符合 §0，与 **三张概念稿** 一致（尤其 `endless-hud-popups-v1` + `endless-fx-sprite-concept-v1`）  
+- [x] 已更新 `manifest.json`  
+- [x] **未**产出日志、SPACE、扩展图标池、未接入 HUD 装饰  
 
 ---
 

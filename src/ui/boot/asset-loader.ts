@@ -1,4 +1,6 @@
 import { getCachedImage, hasCachedImage, setCachedImage } from './asset-cache.ts';
+import { resolveRasterUrl } from './image-format.ts';
+import { sortBootAssetsForLoad } from './load-priority.ts';
 import type { BootAsset, BootAssetResult } from './types.ts';
 
 const MAX_RETRIES = 2;
@@ -22,8 +24,12 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function loadImageOnce(url: string, signal?: AbortSignal): Promise<HTMLImageElement> {
-  const cached = getCachedImage(url);
+function loadImageOnce(
+  fetchUrl: string,
+  cacheKey: string,
+  signal?: AbortSignal,
+): Promise<HTMLImageElement> {
+  const cached = getCachedImage(cacheKey);
   if (cached) return Promise.resolve(cached);
 
   return new Promise((resolve, reject) => {
@@ -45,25 +51,29 @@ function loadImageOnce(url: string, signal?: AbortSignal): Promise<HTMLImageElem
 
     img.onload = () => {
       cleanup();
-      setCachedImage(url, img);
+      setCachedImage(cacheKey, img);
       resolve(img);
     };
     img.onerror = () => {
       cleanup();
-      reject(new Error(`Failed to load image: ${url}`));
+      reject(new Error(`Failed to load image: ${fetchUrl}`));
     };
 
     signal?.addEventListener('abort', onAbort, { once: true });
-    img.src = url;
+    img.src = fetchUrl;
   });
 }
 
-async function loadImageWithRetry(url: string, signal?: AbortSignal): Promise<HTMLImageElement> {
+async function loadImageWithRetry(
+  canonicalUrl: string,
+  signal?: AbortSignal,
+): Promise<HTMLImageElement> {
+  const fetchUrl = resolveRasterUrl(canonicalUrl);
   let lastError: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-    if (hasCachedImage(url)) return getCachedImage(url)!;
+    if (hasCachedImage(canonicalUrl)) return getCachedImage(canonicalUrl)!;
     try {
-      return await loadImageOnce(url, signal);
+      return await loadImageOnce(fetchUrl, canonicalUrl, signal);
     } catch (error) {
       lastError = error;
       if (signal?.aborted) throw error;
@@ -93,15 +103,16 @@ export interface LoadBootAssetsOptions {
 
 export async function loadBootAssets(options: LoadBootAssetsOptions): Promise<BootAssetResult[]> {
   const { assets, maxConcurrent = 8, onAssetComplete, signal } = options;
+  const sorted = sortBootAssetsForLoad(assets);
   const results: BootAssetResult[] = [];
   let cursor = 0;
 
   async function worker(): Promise<void> {
-    while (cursor < assets.length) {
+    while (cursor < sorted.length) {
       if (signal?.aborted) return;
       const index = cursor;
       cursor += 1;
-      const asset = assets[index];
+      const asset = sorted[index];
       if (!asset) continue;
 
       const result = await loadBootAsset(asset, signal);
@@ -110,7 +121,7 @@ export async function loadBootAssets(options: LoadBootAssetsOptions): Promise<Bo
     }
   }
 
-  const workers = Array.from({ length: Math.min(maxConcurrent, assets.length) }, () => worker());
+  const workers = Array.from({ length: Math.min(maxConcurrent, sorted.length) }, () => worker());
   await Promise.all(workers);
   return results;
 }

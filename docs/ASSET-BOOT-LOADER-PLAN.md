@@ -1,7 +1,7 @@
 # 资源启动加载器技术方案
 
 > 版本 v0.1 · 2026-06-28  
-> 状态：**Phase A 已实现**  
+> 状态：**Phase A + B + C 已实现**  
 > 实现后同步 `docs/MODULES.md` § `src/ui/boot/` 与 `docs/ARCHITECTURE.md` 启动流程小节。
 
 ---
@@ -449,17 +449,17 @@ function preloadGameAudio(): Promise<void>
 
 ### Phase B — 体验与维护
 
-- [ ] `scripts/gen-boot-manifest.mjs` 生成 weight
-- [ ] 大文件优先队列
-- [ ] `loadRuntimeImage` 严格 cache-only
-- [ ] `preloadGameAudio` + `createGameAudio` 复用
-- [ ] 单元测试：`asset-loader` mock fetch、progress 计算
+- [x] `scripts/gen-boot-manifest.ts` 生成 weight → `public/assets/boot-weights.json`
+- [x] 大文件优先队列（tier 内按 weight 降序 + Tier 1 先于 Tier 2）
+- [x] `loadRuntimeImage` 严格 cache-only（boot 完成后 placeholder + warn）
+- [x] `preloadGameAudio` + `createGameAudio` 复用 `audio-cache` 预热
+- [x] 单元测试：`computeBootProgress`、`dedupeBootAssets`、load priority、registry
 
 ### Phase C — 长期（可选）
 
-- [ ] Service Worker 静态缓存
-- [ ] 路由级 gallery 分包
-- [ ] 图片格式优化（WebP）
+- [x] Service Worker 静态缓存（`scripts/gen-service-worker.ts` → `public/sw.js`，`/assets/*` cache-first）
+- [x] 路由级 gallery 分包（`app.ts` 动态 `import()` Asset Lab / UI Lab / Responsive）
+- [x] 图片格式优化（`scripts/optimize-boot-webp.ts` + `boot-webp-map.json` + runtime resolve）
 
 ---
 

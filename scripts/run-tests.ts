@@ -54,6 +54,17 @@ import {
   testLocalSettingsRoundTrip,
 } from './local-settings-tests.ts';
 import {
+  testApplyBootWeightMapKeepsFallbackWhenMissing,
+  testApplyBootWeightMapUsesBytes,
+  testApplyBootWeightMapPrefersWebpBytes,
+  testCollectBootAssetsHasNoDuplicateUrls,
+  testComputeBootProgressClampsRatio,
+  testDedupeBootAssetsMergesByUrl,
+  testResolveRasterUrlKeepsPngWhenUnsupported,
+  testResolveRasterUrlUsesWebpWhenSupported,
+  testSortBootAssetsForLoadPrioritizesHeavyWithinTier,
+} from './boot-loader-tests.ts';
+import {
   testClassifyPointerEndCancelOnSmallDiagonal,
   testClassifyPointerEndSwipe,
   testClassifyPointerEndTap,
@@ -946,6 +957,15 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['touch gesture input profile detection', testInputProfileDetection],
   ['game canvas bootstraps layout without throwing', testCreateGameCanvasBootstrapsLayout],
   ['endless session renders through game canvas', testEndlessSessionMountsThroughGameCanvas],
+  ['boot progress clamps ratio', testComputeBootProgressClampsRatio],
+  ['boot weights apply byte sizes', testApplyBootWeightMapUsesBytes],
+  ['boot weights prefer webp bytes', testApplyBootWeightMapPrefersWebpBytes],
+  ['boot weights keep fallback when missing', testApplyBootWeightMapKeepsFallbackWhenMissing],
+  ['boot registry dedupes by url', testDedupeBootAssetsMergesByUrl],
+  ['boot load order prioritizes heavy assets', testSortBootAssetsForLoadPrioritizesHeavyWithinTier],
+  ['boot registry has unique urls', testCollectBootAssetsHasNoDuplicateUrls],
+  ['boot image format resolves webp when supported', testResolveRasterUrlUsesWebpWhenSupported],
+  ['boot image format keeps png when unsupported', testResolveRasterUrlKeepsPngWhenUnsupported],
 ];
 
 for (const [name, run] of tests) {

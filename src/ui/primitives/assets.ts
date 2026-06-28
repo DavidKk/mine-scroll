@@ -1,8 +1,26 @@
-import { getCachedImage, setCachedImage } from '../boot/asset-cache.ts';
+import { getCachedImage, isBootComplete, setCachedImage } from '../boot/asset-cache.ts';
+
+const PLACEHOLDER_SRC =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+let placeholderImage: HTMLImageElement | null = null;
+
+function getPlaceholderImage(): HTMLImageElement {
+  if (!placeholderImage) {
+    placeholderImage = new Image();
+    placeholderImage.src = PLACEHOLDER_SRC;
+  }
+  return placeholderImage;
+}
 
 export function loadRuntimeImage(src: string): HTMLImageElement {
   const cached = getCachedImage(src);
   if (cached) return cached;
+
+  if (isBootComplete()) {
+    console.warn(`[boot] Image not preloaded: ${src}`);
+    return getPlaceholderImage();
+  }
 
   const image = new Image();
   image.src = src;

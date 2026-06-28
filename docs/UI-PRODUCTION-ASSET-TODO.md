@@ -60,10 +60,10 @@ Core cutouts:
 
 - [x] No labels or sample board text inside cuttable cells.
 - [x] One element per grid cell.
-- [ ] Consistent padding around each element.
+- [x] Consistent padding around each element.
 - [x] Flat removable chroma-key background.
-- [ ] No cast shadows touching the key background.
-- [ ] Normalize to an integer grid before slicing.
+- [x] No cast shadows touching the key background.
+- [x] Normalize to an integer grid before slicing.
 
 FX sprites:
 
@@ -77,7 +77,7 @@ UI panels:
 
 - [x] Components are separated clearly enough to crop.
 - [x] Text is limited to actual runtime labels: `SPACE`, `AUTO`, `START`, `RETRY`, `GAME OVER`, `LOG`.
-- [ ] Panel sizes are consistent by component family.
+- [x] Panel sizes are consistent by component family.
 - [x] Works as visual reference even if final panels are drawn in Canvas.
 
 ## Slice Plan
@@ -97,6 +97,6 @@ UI panels:
 - [x] Use cutouts for high-detail mines, flags, and hearts when available.
 - [x] Use FX sprites for safe reveal, flag pop, mine explosion, and combo burst overlays.
 - [x] Add runtime fallback to procedural Canvas if a sprite is missing.
-- [ ] Evaluate whether status icons should replace current Canvas/HUD labels.
-- [ ] Evaluate whether FX sprites should replace or only augment procedural Canvas effects.
+- [x] Evaluate whether status icons should replace current Canvas/HUD labels.
+- [x] Evaluate whether FX sprites should replace or only augment procedural Canvas effects.
 - [x] Keep tiles, numbers, AI hints, HUD panels, and scroll overlays as Canvas-first.
