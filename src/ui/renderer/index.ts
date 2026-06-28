@@ -6,6 +6,11 @@ export {
   applyBoardPreviewBand,
 } from './layout.ts';
 export {
+  getCellIntroRippleDist,
+  getMaxCellIntroRippleDist,
+  getCellIntroRippleAlpha,
+} from './intro-ripple-math.ts';
+export {
   renderFrame,
   renderBoardOnlyFrame,
   renderBoardStaticFrame,

@@ -1,6 +1,6 @@
 import type { CellView } from '../../core/types.ts';
 import { GRID_PADDING, HUD_HEIGHT, HUD_GAP, PANEL_RADIUS, THEME, cellPixelOrigin } from '../theme.ts';
-import { drawBoardCellOverlays, type BoardPointerState } from '../cell-fx.ts';
+import { drawBoardCellOverlays, drawIdleBoardRippleFx, type BoardPointerState } from '../cell-fx.ts';
 import {
   drawCell,
   drawCellMarksOverlay,
@@ -13,7 +13,11 @@ import type { LayoutMetrics } from './layout.ts';
 import { fillRoundRect, strokeRoundRect } from './primitives.ts';
 import { drawAiHint, drawScrollDangerBand, drawScrollPressureBar } from './scroll-ui.ts';
 import type { RenderState } from './types.ts';
-import { clamp01 } from '../primitives/index.ts';
+import {
+  getCellIntroRippleAlpha,
+  getCellIntroRippleDist,
+  getMaxCellIntroRippleDist,
+} from './intro-ripple-math.ts';
 
 export type { LayoutMetrics } from './layout.ts';
 export type { ScrollPressureState, RenderState } from './types.ts';
@@ -181,31 +185,6 @@ export function renderBoardStaticFrame(
   }
 }
 
-export function getCellIntroRippleDist(row: number, col: number, rows: number, cols: number): number {
-  const centerRow = (rows - 1) / 2;
-  const centerCol = (cols - 1) / 2;
-  return Math.hypot(row - centerRow, col - centerCol);
-}
-
-export function getMaxCellIntroRippleDist(rows: number, cols: number): number {
-  let maxDist = 0;
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
-      maxDist = Math.max(maxDist, getCellIntroRippleDist(row, col, rows, cols));
-    }
-  }
-  return maxDist;
-}
-
-/** Ripple wave from center: linear alpha 0→1 as the front reaches each cell. */
-export function getCellIntroRippleAlpha(reveal: number, dist: number, maxDist: number): number {
-  if (reveal <= 0) return 0;
-  if (maxDist <= 0) return clamp01(reveal);
-  const rippleBand = Math.max(2, maxDist * 0.42);
-  const rippleFront = reveal * (maxDist + rippleBand);
-  return clamp01((rippleFront - dist) / rippleBand);
-}
-
 /** Hidden tile frame only — no dark underlay (intro draws over starfield). */
 function drawIntroCellSurface(
   ctx: CanvasRenderingContext2D,
@@ -277,6 +256,14 @@ export function renderBoardIntroFrame(
   for (const view of playableViews) drawIntroCell(ctx, view);
   for (const view of playableViews) drawIntroMark(ctx, view);
 
+  if (reveal >= 1 && (state.nowMs ?? 0) > 0) {
+    const now = state.nowMs ?? 0;
+    drawIdleBoardRippleFx(ctx, layout, playableViews, rows, cols, now);
+    if (previewViews.length > 0) {
+      drawIdleBoardRippleFx(ctx, layout, previewViews, rows, cols, now, { rings: false });
+    }
+  }
+
   if (state.aiHint && state.status !== 'lost') {
     drawAiHint(ctx, layout, state.aiHint);
   }
@@ -295,7 +282,11 @@ export function renderBoardDynamicFrame(
     drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
   }
 
-  drawPlayableAmbientOverlays(ctx, playableViews, layout, state);
+  if (state.status === 'idle' && (state.nowMs ?? 0) > 0) {
+    drawIdleBoardRippleFx(ctx, layout, playableViews, state.rows, state.cols, state.nowMs ?? 0);
+  } else {
+    drawPlayableAmbientOverlays(ctx, playableViews, layout, state);
+  }
 
   const { gridOriginX, gridOriginY, grid } = layout;
   for (const view of playableViews) {
@@ -385,7 +376,11 @@ export function renderFrame(
     drawScrollDangerBand(ctx, layout, state.scrollPressure, state.rows);
   }
 
-  drawPlayableAmbientOverlays(ctx, state.views, layout, state);
+  if (state.status === 'idle' && (state.nowMs ?? 0) > 0) {
+    drawIdleBoardRippleFx(ctx, layout, state.views, state.rows, state.cols, state.nowMs ?? 0);
+  } else {
+    drawPlayableAmbientOverlays(ctx, state.views, layout, state);
+  }
 
   for (const view of state.views) {
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);

@@ -6,4 +6,5 @@ export { drawDigitAmbientOverlay } from './digit-overlay.ts';
 export { drawSimpleFlagMark, drawWavingFlagMark } from './flag-mark.ts';
 export { drawMineBurstSmoke, drawMineSettledSmoke, drawMineScorchMark, resolveMineCutout } from './mine-smoke.ts';
 export { drawBoardCellOverlays, drawAiHintCutout } from './board-overlays.ts';
+export { drawIdleBoardRippleFx, getIdleRippleWaveStrength, IDLE_RIPPLE_CYCLE_MS } from './idle-ripple.ts';
 export { getPanelV3InnerRect, drawPanelV3ScanBeams } from './panel-scan.ts';

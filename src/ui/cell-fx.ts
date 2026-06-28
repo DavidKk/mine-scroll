@@ -6,4 +6,5 @@ export { drawDigitAmbientOverlay } from './cell-fx/index.ts';
 export { drawSimpleFlagMark, drawWavingFlagMark } from './cell-fx/index.ts';
 export { drawMineBurstSmoke, drawMineSettledSmoke, drawMineScorchMark, resolveMineCutout } from './cell-fx/index.ts';
 export { drawBoardCellOverlays, drawAiHintCutout } from './cell-fx/index.ts';
+export { drawIdleBoardRippleFx, getIdleRippleWaveStrength, IDLE_RIPPLE_CYCLE_MS } from './cell-fx/index.ts';
 export { getPanelV3InnerRect, drawPanelV3ScanBeams } from './cell-fx/index.ts';

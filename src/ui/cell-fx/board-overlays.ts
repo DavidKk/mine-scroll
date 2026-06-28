@@ -2,7 +2,7 @@ import type { AiHintDisplay } from '../../core/ai/types.ts';
 import type { CellView, GameStatus } from '../../core/types.ts';
 import { drawImageContained, getGameCutout, type GameCutoutName } from '../game-assets.ts';
 import type { GridMetrics } from '../theme.ts';
-import { drawCellBreathOverlay, drawCellHoverOverlay } from './breath-hover.ts';
+import { drawCellHoverOverlay } from './breath-hover.ts';
 import { drawWavingFlagMark } from './flag-mark.ts';
 import { drawDigitAmbientOverlay } from './digit-overlay.ts';
 import type { BoardPointerState } from './types.ts';
@@ -28,14 +28,7 @@ export function drawBoardCellOverlays(
     options.pointer.row === view.row &&
     options.pointer.col === view.col;
 
-  if (
-    !view.revealed &&
-    !view.flagged &&
-    options.status === 'idle' &&
-    !isPointer
-  ) {
-    drawCellBreathOverlay(ctx, x, y, g, options.nowMs);
-  }
+  // Idle ripple is drawn once per board in renderBoardDynamicFrame / intro frame.
 
   if (!view.revealed && options.status === 'playing' && isPointer) {
     if (options.flagSwipeActive) {
