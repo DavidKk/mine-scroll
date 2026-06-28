@@ -31,38 +31,6 @@
       "frameHeight": 128
     },
     "effects": {
-      "score-pop": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/score-pop/frame-01.png",
-          "/assets/game/fx/score-pop/frame-02.png",
-          "/assets/game/fx/score-pop/frame-03.png",
-          "/assets/game/fx/score-pop/frame-04.png",
-          "/assets/game/fx/score-pop/frame-05.png",
-          "/assets/game/fx/score-pop/frame-06.png",
-          "/assets/game/fx/score-pop/frame-07.png",
-          "/assets/game/fx/score-pop/frame-08.png"
-        ]
-      },
-      "combo-burst": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/combo-burst/frame-01.png",
-          "/assets/game/fx/combo-burst/frame-02.png",
-          "/assets/game/fx/combo-burst/frame-03.png",
-          "/assets/game/fx/combo-burst/frame-04.png",
-          "/assets/game/fx/combo-burst/frame-05.png",
-          "/assets/game/fx/combo-burst/frame-06.png",
-          "/assets/game/fx/combo-burst/frame-07.png",
-          "/assets/game/fx/combo-burst/frame-08.png"
-        ]
-      },
       "wrong-flag-break": {
         "frameWidth": 192,
         "frameHeight": 128,
@@ -94,22 +62,6 @@
           "/assets/game/fx/level-up/frame-07.png",
           "/assets/game/fx/level-up/frame-08.png"
         ]
-      },
-      "heart-refill": {
-        "frameWidth": 192,
-        "frameHeight": 128,
-        "frameCount": 8,
-        "blendMode": "lighter",
-        "frames": [
-          "/assets/game/fx/heart-refill/frame-01.png",
-          "/assets/game/fx/heart-refill/frame-02.png",
-          "/assets/game/fx/heart-refill/frame-03.png",
-          "/assets/game/fx/heart-refill/frame-04.png",
-          "/assets/game/fx/heart-refill/frame-05.png",
-          "/assets/game/fx/heart-refill/frame-06.png",
-          "/assets/game/fx/heart-refill/frame-07.png",
-          "/assets/game/fx/heart-refill/frame-08.png"
-        ]
       }
     }
   },
@@ -131,23 +83,8 @@
         "width": 1895,
         "height": 830
       },
-      "auto-off": {
-        "src": "/assets/game/ui/auto-off.png",
-        "width": 113,
-        "height": 117
-      },
-      "auto-on": {
-        "src": "/assets/game/ui/auto-on.png",
-        "width": 116,
-        "height": 128
-      },
       "break-chip": {
         "src": "/assets/game/ui/break-chip.png",
-        "width": 144,
-        "height": 48
-      },
-      "heal-chip": {
-        "src": "/assets/game/ui/heal-chip.png",
         "width": 144,
         "height": 48
       }
@@ -168,6 +105,26 @@
       },
       "refresh": {
         "src": "/assets/hud/icons/refresh.png",
+        "width": 128,
+        "height": 128
+      },
+      "info": {
+        "src": "/assets/hud/icons/info.png",
+        "width": 128,
+        "height": 128
+      },
+      "flag": {
+        "src": "/assets/hud/icons/flag.png",
+        "width": 128,
+        "height": 128
+      },
+      "wand": {
+        "src": "/assets/hud/icons/wand.png",
+        "width": 128,
+        "height": 128
+      },
+      "timer": {
+        "src": "/assets/hud/icons/timer.png",
         "width": 128,
         "height": 128
       },

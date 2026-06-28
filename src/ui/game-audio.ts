@@ -61,6 +61,10 @@ const BGM_IDLE_VOLUME = 0.24;
 
 export const GAME_AUDIO_BGM_IDLE_VOLUME = BGM_IDLE_VOLUME;
 
+export interface GameAudioOptions {
+  bgmMuted?: boolean;
+}
+
 export interface GameAudioController {
   play(id: GameAudioId): void;
   unlock(): void;
@@ -133,11 +137,11 @@ export function playHealRewardAudio(
   }
 }
 
-export function createGameAudio(): GameAudioController {
+export function createGameAudio(options: GameAudioOptions = {}): GameAudioController {
   const clips = new Map<GameAudioId, HTMLAudioElement>();
   let unlocked = false;
   let idleBgmSceneActive = false;
-  let idleBgmMuted = false;
+  let idleBgmMuted = options.bgmMuted ?? false;
   let idleBgmPlayPending = false;
 
   const idleBgm = new Audio(BGM_IDLE_SRC);

@@ -37,9 +37,9 @@ export interface ImageBounds {
 
 export const PREVIEW_PX = 200;
 
-export const V3_CANDIDATE_FLAG_SRC = '/assets/candidates/game-ui-v3/cutouts/flag-standard.png';
-export const V3_CANDIDATE_MINE_STANDARD_SRC = '/assets/candidates/game-ui-v3/cutouts/mine-standard.png';
-export const V3_CANDIDATE_MINE_CRACKED_SRC = '/assets/candidates/game-ui-v3/cutouts/mine-cracked.png';
+export const V3_CANDIDATE_FLAG_SRC = '/assets/candidates/game-ui-v3/runtime-cutouts/flag-standard.png';
+export const V3_CANDIDATE_MINE_STANDARD_SRC = '/assets/candidates/game-ui-v3/runtime-cutouts/mine-standard.png';
+export const V3_CANDIDATE_MINE_CRACKED_SRC = '/assets/candidates/game-ui-v3/runtime-cutouts/mine-cracked.png';
 export const V3_CANDIDATE_HEART_FULL_SRC = '/assets/candidates/game-ui-v3/cutouts/heart-full.png';
 export const V3_CANDIDATE_HEART_EMPTY_SRC = '/assets/candidates/game-ui-v3/cutouts/heart-empty.png';
 export const V3_BOARD_TILE_BASE = '/assets/candidates/board-v3-square/tiles';

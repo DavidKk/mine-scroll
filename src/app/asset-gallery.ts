@@ -54,7 +54,7 @@ const SOURCE_SECTIONS: StaticPreviewSection[] = [
   {
     id: 'current-sources',
     title: 'Current sources',
-    description: 'Only active review sources are shown here. Superseded v1/v2 files remain on disk but are hidden from the review UI.',
+    description: 'Active board sources and manifest runtime previews.',
     items: [
       {
         id: 'board-v3-square-tiles-source',
@@ -81,7 +81,7 @@ const SOURCE_SECTIONS: StaticPreviewSection[] = [
         id: 'runtime-fx-preview',
         label: 'Runtime FX preview',
         src: '/assets/game/preview-fx.png',
-        note: 'Manifest-driven runtime FX middle-frame preview.',
+        note: 'Middle-frame preview from manifest FX entries (wrong-flag-break, level-up).',
         background: 'black',
       },
     ],
@@ -89,10 +89,9 @@ const SOURCE_SECTIONS: StaticPreviewSection[] = [
 ];
 
 const V3_CANDIDATE_CUTOUTS: StaticPreviewItem[] = [
-  { id: 'mine-standard', label: 'Mine standard', src: `${V3_CANDIDATE_BASE}/cutouts/mine-standard.png`, background: 'checker' },
-  { id: 'mine-cracked', label: 'Mine cracked', src: `${V3_CANDIDATE_BASE}/cutouts/mine-cracked.png`, background: 'checker' },
-  { id: 'flag-standard', label: 'Flag standard', src: `${V3_CANDIDATE_BASE}/cutouts/flag-standard.png`, background: 'checker' },
-  { id: 'shield-hint', label: 'Shield hint', src: `${V3_CANDIDATE_BASE}/cutouts/shield-hint.png`, background: 'checker' },
+  { id: 'mine-standard', label: 'Mine standard', src: `${V3_CANDIDATE_BASE}/runtime-cutouts/mine-standard.png`, background: 'checker' },
+  { id: 'mine-cracked', label: 'Mine cracked', src: `${V3_CANDIDATE_BASE}/runtime-cutouts/mine-cracked.png`, background: 'checker' },
+  { id: 'flag-standard', label: 'Flag standard', src: `${V3_CANDIDATE_BASE}/runtime-cutouts/flag-standard.png`, background: 'checker' },
   { id: 'heart-full', label: 'Heart full', src: `${V3_CANDIDATE_BASE}/cutouts/heart-full.png`, background: 'checker' },
   { id: 'heart-empty', label: 'Heart empty', src: `${V3_CANDIDATE_BASE}/cutouts/heart-empty.png`, background: 'checker' },
 ];
@@ -138,6 +137,9 @@ function buildSections(): AssetSection[] {
   const cellItems: AssetItem[] = [
     { id: 'cell-hidden', label: 'Hidden', src: `${RUNTIME_BOARD_TILE_BASE}/cell-hidden.png`, image: sprites.hidden },
     { id: 'cell-revealed', label: 'Revealed', src: `${RUNTIME_BOARD_TILE_BASE}/cell-revealed.png`, image: sprites.revealed },
+    { id: 'cell-hover', label: 'Hover', src: `${RUNTIME_BOARD_TILE_BASE}/cell-hover.png`, image: sprites.hover },
+    { id: 'cell-pressed', label: 'Pressed', src: `${RUNTIME_BOARD_TILE_BASE}/cell-pressed.png`, image: sprites.pressed },
+    { id: 'cell-safe', label: 'Safe', src: `${RUNTIME_BOARD_TILE_BASE}/cell-safe.png`, image: sprites.safe },
   ];
 
   const digitItems: AssetItem[] = sprites.numbers.map((image, index) => ({
@@ -151,7 +153,7 @@ function buildSections(): AssetSection[] {
     {
       id: 'cells',
       title: 'Cell tiles',
-      description: 'Board cell surfaces at 128×128. Shown at native resolution on the transparency checker.',
+      description: 'Board cell surfaces at 128×128, including interaction states loaded by tile-sprites.ts.',
       items: cellItems,
     },
     {
@@ -333,7 +335,7 @@ const FX_NAV: Array<{ id: EffectPanelId; label: string }> = [
 ];
 
 const FOOTER_NOTES: Record<AssetLabSection, string> = {
-  sources: 'Active review sources only · superseded files stay on disk but are hidden here',
+  sources: 'Board sources and manifest runtime previews',
   sprites: 'Static runtime and candidate cutouts · transparent PNG review before manifest wiring',
   animations: 'Motion previews and FX frame review · canvas-driven behavior lives here',
   'game-ui': 'Runtime UI panels and HUD icons only · source sheets moved to Sources',
@@ -461,14 +463,14 @@ function mountSpritesSection(
   const spritePanels = new Map(sections.map((s) => [s.id, createSpritePanel(s)]));
   const candidateCutoutSection: StaticPreviewSection = {
     id: 'v3-cutouts',
-    title: 'v3 candidate cutouts',
-    description: 'Review-only static v3 cutouts. These are not wired into public/assets/game/manifest.json.',
+    title: 'Runtime cutouts',
+    description: 'Manifest-wired mine, flag, and heart cutouts used by the game canvas.',
     items: V3_CANDIDATE_CUTOUTS,
   };
   const candidateBoardTileSection: StaticPreviewSection = {
     id: 'board-v3-tiles',
     title: 'Board v3 square slices',
-    description: 'Review-only 128x128 square board tiles and standalone digit glyphs. Runtime wiring is still pending.',
+    description: 'Runtime 128x128 square board tiles and digit glyphs from board-v3-square.',
     items: V3_BOARD_TILE_CANDIDATES,
   };
   const candidateHudAlertSection: StaticPreviewSection = {
@@ -497,7 +499,7 @@ function mountSpritesSection(
       })),
       {
         id: candidateCutoutSection.id,
-        label: 'v3 Cutouts',
+        label: 'Runtime cutouts',
         group: 'sprites' as const,
         count: candidateCutoutSection.items.length,
       },

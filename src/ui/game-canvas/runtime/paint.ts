@@ -1,5 +1,4 @@
 import type { GameCanvasRuntime } from './context.ts';
-import { drawFpsHud } from '../../fps-meter.ts';
 import { renderBoardStaticFrame, renderBoardDynamicFrame, renderFrame } from '../../renderer/index.ts';
 import { syncFullscreenCanvasSize } from '../layout/viewport-fit.ts';
 import { syncBoardSizeFromLayout } from '../layout/board-layout.ts';
@@ -72,17 +71,20 @@ export function paint(rt: GameCanvasRuntime): void {
   }
 
   drawCellEffects(rt, rt.ctx, now);
-  rt.fpsMeter.tick(now);
-  const fps = rt.fpsMeter.getFps();
-  const frameMs = rt.fpsMeter.getFrameMs();
+  rt.fpsOverlay.recordGameFrame(now);
+  rt.fpsOverlay.syncSize(rt.state.width, rt.state.height);
 
   if (rt.fullscreen) {
     rt.ctx.restore();
     drawFullscreenOverlay(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height);
     drawScrollMineGhostEffects(rt, rt.ctx, now);
-    drawFullscreenHud(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height, fps, frameMs);
+    drawFullscreenHud(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height);
+    if (rt.state.stageLayout) {
+      const { scale, hudY } = rt.state.stageLayout;
+      rt.fpsOverlay.setAnchor({ x: rt.state.width - 10 * scale, y: hudY + 2 * scale, scale });
+    }
   } else {
-    drawFpsHud(rt.ctx, rt.state.width - 8, 8, fps, frameMs, 1);
+    rt.fpsOverlay.setAnchor({ x: rt.state.width - 8, y: 8, scale: 1 });
   }
 
   rt.state.lastPaintAt = now;

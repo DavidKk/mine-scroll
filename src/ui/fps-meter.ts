@@ -49,9 +49,9 @@ export function drawFpsHud(
   ctx.textAlign = 'right';
   ctx.textBaseline = 'top';
   const w = ctx.measureText(text).width + padding * 2;
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.72)';
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.32)';
   ctx.fillRect(x - w, y, w, lineH);
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
   ctx.lineWidth = 1;
   ctx.strokeRect(x - w + 0.5, y + 0.5, w - 1, lineH - 1);
   ctx.fillStyle = color;

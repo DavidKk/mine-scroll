@@ -1,4 +1,4 @@
-import type { FpsMeter } from '../../fps-meter.ts';
+import type { FpsOverlay } from '../fps-overlay.ts';
 import type { ScrollPressureState } from '../../renderer/index.ts';
 import type {
   GameCanvasCallbacks,
@@ -15,7 +15,7 @@ export interface GameCanvasRuntime {
   callbacks: GameCanvasCallbacks;
   canvasOptions: GameCanvasOptions;
   mineTotal: number;
-  fpsMeter: FpsMeter;
+  fpsOverlay: FpsOverlay;
   fixedCellSize: number | undefined;
   fixedGridRows: number | undefined;
   fitViewport: ViewportFitOptions | undefined;

@@ -2,11 +2,13 @@
 
 经典 Windows 风格扫雷 MVP（9×9 / 10 雷）。
 
+包管理器：**pnpm**（见 `package.json` 的 `packageManager` 字段）。
+
 ## 开发
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ## 文档
@@ -18,6 +20,7 @@ npm run dev
 ## 构建
 
 ```bash
-npm run build
-npm run preview
+pnpm build
+pnpm preview
+pnpm test
 ```

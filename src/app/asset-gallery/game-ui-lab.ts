@@ -6,22 +6,23 @@ import {
 import { getHudIcon, type HudIconName } from '../../ui/hud-sprites.ts';
 import { createPanelHead } from './editor-shell.ts';
 
-export type GameUiLabPanelId = 'overview' | 'panels' | 'candidate-panels' | 'icons' | 'cutouts';
+export type GameUiLabPanelId = 'overview' | 'panels' | 'icons' | 'cutouts';
 
 const MAIN_FLOW_PANELS: GameUiPanelName[] = [
   'start-panel',
   'game-over-panel',
   'retry-button',
-  'auto-off',
-  'auto-on',
   'break-chip',
-  'heal-chip',
 ];
 
 const MAIN_FLOW_ICONS: HudIconName[] = [
   'play',
   'skull',
   'refresh',
+  'info',
+  'flag',
+  'wand',
+  'timer',
   'volume-on',
   'volume-off',
   'volume-on-hover',
@@ -47,9 +48,9 @@ const UI_OVERVIEW_ASSETS = [
     note: 'Runtime retry button art used by the end overlay.',
   },
   {
-    title: 'Sound toggle v3',
-    src: '/assets/candidates/hud-sound-v3/runtime/sound-toggle-v3-preview.png',
-    note: 'Runtime BGM mute icons: speaker and forbidden speaker, with subtle hover glow variants.',
+    title: 'BGM mute icons',
+    src: '/assets/hud/icons/volume-on.png',
+    note: 'Runtime BGM mute uses volume-on/off and hover variants from hud/icons.',
   },
 ] as const;
 
@@ -59,34 +60,11 @@ const PANEL_PATHS: Partial<Record<GameUiPanelName, string>> = {
   'retry-button': '/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png',
 };
 
-const CUTOUT_PATHS: Partial<Record<(typeof MAIN_FLOW_CUTOUTS)[number], string>> = {
+const CUTOUT_PATHS: Record<(typeof MAIN_FLOW_CUTOUTS)[number], string> = {
   'heart-full': '/assets/candidates/game-ui-v3/cutouts/heart-full.png',
   'heart-empty': '/assets/candidates/game-ui-v3/cutouts/heart-empty.png',
   'heart-refill': '/assets/candidates/game-ui-v3/cutouts/heart-full.png',
 };
-
-const CANDIDATE_PANEL_ASSETS = [
-  {
-    id: 'start-panel-v3-runtime',
-    label: 'start-panel-v3 runtime',
-    src: '/assets/candidates/game-ui-v3/panels/runtime/start-panel-v3.png',
-  },
-  {
-    id: 'game-over-panel-v3-runtime',
-    label: 'game-over-panel-v3 runtime',
-    src: '/assets/candidates/game-ui-v3/panels/runtime/game-over-panel-v3.png',
-  },
-  {
-    id: 'start-button-v3-runtime',
-    label: 'start-button-v3 runtime',
-    src: '/assets/candidates/game-ui-v3/panels/runtime/start-button-v3.png',
-  },
-  {
-    id: 'retry-button-v3-runtime',
-    label: 'retry-button-v3 runtime',
-    src: '/assets/candidates/game-ui-v3/panels/runtime/retry-button-v3.png',
-  },
-] as const;
 
 interface StaticAsset {
   id: string;
@@ -95,12 +73,12 @@ interface StaticAsset {
   image: HTMLImageElement;
 }
 
-function panelPath(name: string): string {
-  return PANEL_PATHS[name as GameUiPanelName] ?? `/assets/game/ui/${name}.png`;
+function panelPath(name: GameUiPanelName): string {
+  return PANEL_PATHS[name] ?? `/assets/game/ui/${name}.png`;
 }
 
 function cutoutPath(name: (typeof MAIN_FLOW_CUTOUTS)[number]): string {
-  return CUTOUT_PATHS[name] ?? `/assets/game/cutouts/${name}.png`;
+  return CUTOUT_PATHS[name];
 }
 
 function iconPath(name: string): string {
@@ -243,7 +221,6 @@ export function gameUiNavItems(): Array<{ id: GameUiLabPanelId; label: string; c
   return [
     { id: 'overview', label: 'Overview' },
     { id: 'panels', label: 'Panels', count: MAIN_FLOW_PANELS.length },
-    { id: 'candidate-panels', label: 'Candidate panels', count: CANDIDATE_PANEL_ASSETS.length },
     { id: 'icons', label: 'HUD icons', count: MAIN_FLOW_ICONS.length },
     { id: 'cutouts', label: 'HUD cutouts', count: MAIN_FLOW_CUTOUTS.length },
   ];
@@ -257,17 +234,8 @@ export function mountGameUiPanels(): {
     overview: createOverviewPanel(),
     panels: createStaticGridPanel(
       'UI panels',
-      'Runtime UI panels. v3 overlay panels use candidate runtime cuts; remaining chips stay on current game UI assets.',
+      'Runtime overlay panels and break chip loaded from manifest.json.',
       collectPanels(),
-    ),
-    'candidate-panels': createStaticGridPanel(
-      'Panel cuts v3',
-      'Transparent panel and button cuts retained for review. Start / game over / retry are already runtime-wired.',
-      CANDIDATE_PANEL_ASSETS.map((item) => {
-        const image = new Image();
-        image.src = item.src;
-        return { ...item, image };
-      }),
     ),
     icons: createStaticGridPanel(
       'HUD icons',

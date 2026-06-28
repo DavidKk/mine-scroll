@@ -1409,6 +1409,25 @@ body::-webkit-scrollbar {
   width: 100%;
 }
 
+.game-canvas-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.game-canvas-wrap--fullscreen {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+.game-canvas__fps-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .game-canvas {
   display: block;
   cursor: pointer;

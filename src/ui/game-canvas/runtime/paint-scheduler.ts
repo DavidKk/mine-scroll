@@ -14,6 +14,14 @@ export function stopPressureRepaint(rt: GameCanvasRuntime): void {
   }
 }
 
+export function cancelScheduledPaint(rt: GameCanvasRuntime): void {
+  stopPressureRepaint(rt);
+  if (rt.state.animationFrameId !== null) {
+    window.cancelAnimationFrame(rt.state.animationFrameId);
+    rt.state.animationFrameId = null;
+  }
+}
+
 export function needsContinuousRepaint(rt: GameCanvasRuntime, now: number): 'full' | 'ambient' | false {
   if (rt.state.cellEffects.length > 0 || rt.state.particles.length > 0) return 'full';
   if (
@@ -66,14 +74,32 @@ export function startAmbientLoop(rt: GameCanvasRuntime): void {
   rt.scheduleContinuousRepaint();
 }
 
+const HEAVY_FULL_FRAME_MS = 1000 / 30;
+const HEAVY_CELL_FX_COUNT = 16;
+const HEAVY_PARTICLE_COUNT = 60;
+
+function repaintDelayMs(rt: GameCanvasRuntime, mode: 'full' | 'ambient'): number {
+  const minGap =
+    mode === 'full' &&
+    (rt.state.cellEffects.length > HEAVY_CELL_FX_COUNT || rt.state.particles.length > HEAVY_PARTICLE_COUNT)
+      ? HEAVY_FULL_FRAME_MS
+      : mode === 'full'
+        ? 0
+        : RUNTIME_CONSTANTS.AMBIENT_FRAME_MS;
+  return Math.max(0, minGap - (performance.now() - rt.state.lastPaintAt));
+}
+
 export function scheduleContinuousRepaint(rt: GameCanvasRuntime): void {
   const mode = needsContinuousRepaint(rt, performance.now());
   if (!mode) return;
   if (rt.state.animationFrameId !== null) return;
+  if (mode === 'full' && rt.state.ambientDelayId !== null) {
+    window.clearTimeout(rt.state.ambientDelayId);
+    rt.state.ambientDelayId = null;
+  }
   if (mode === 'ambient' && rt.state.ambientDelayId !== null) return;
 
-  const delay =
-    mode === 'full' ? 0 : Math.max(0, RUNTIME_CONSTANTS.AMBIENT_FRAME_MS - (performance.now() - rt.state.lastPaintAt));
+  const delay = repaintDelayMs(rt, mode);
   if (delay <= 1) {
     rt.scheduleAnimationFrame();
     return;
@@ -82,6 +108,14 @@ export function scheduleContinuousRepaint(rt: GameCanvasRuntime): void {
     rt.state.ambientDelayId = null;
     rt.scheduleAnimationFrame();
   }, delay);
+}
+
+/** Coalesce state updates into the rAF paint loop; one-shot when not in continuous mode. */
+export function requestRepaint(rt: GameCanvasRuntime): void {
+  scheduleContinuousRepaint(rt);
+  if (!needsContinuousRepaint(rt, performance.now())) {
+    scheduleAnimationFrameImpl(rt);
+  }
 }
 
 export function syncPressureRepaint(rt: GameCanvasRuntime): void {

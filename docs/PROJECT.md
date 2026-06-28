@@ -46,6 +46,7 @@
 | `docs/SPEC.md` | 经典规则 |
 | `docs/MODES.md` | 两种模式说明 |
 | `docs/ARCHITECTURE.md` | 技术架构 |
+| `docs/LEADERBOARD-ANTI-CHEAT-PLAN.md` | 天梯榜与反作弊技术方案（推荐） |
 | `docs/CODE-OPTIMIZATION-PLAN.md` | 模块化重构方案与验收 |
 
 ---

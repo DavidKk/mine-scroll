@@ -1,11 +1,11 @@
 import type { GameCanvasCallbacks, GameCanvasController, GameCanvasOptions } from './types.ts';
 import { applyCanvasSize } from './types.ts';
-import { FpsMeter } from '../fps-meter.ts';
+import { createFpsOverlay } from './fps-overlay.ts';
 import type { GameCanvasRuntime } from './runtime/context.ts';
 import { createInitialRuntimeState } from './runtime/state.ts';
 import { resolveInitialCellSize } from './layout/viewport-fit.ts';
 import { initialSquareLayout, syncPreviewLayout, syncSquareLayout } from './layout/board-layout.ts';
-import { bindPaintScheduler, startAmbientLoop, stopPressureRepaint } from './runtime/paint-scheduler.ts';
+import { bindPaintScheduler, startAmbientLoop, cancelScheduledPaint, requestRepaint } from './runtime/paint-scheduler.ts';
 import { paint } from './runtime/paint.ts';
 import { collectCellEffects } from './runtime/cell-effects-runtime.ts';
 import { queueScrollMineGhosts } from './runtime/scroll-ghost-fx.ts';
@@ -49,14 +49,17 @@ export function createGameCanvas(
   let currentRows = fixedGridRows ?? rows;
   const currentCols = cols;
 
+  const wrap = document.createElement('div');
+  wrap.className = fullscreen ? 'game-canvas-wrap game-canvas-wrap--fullscreen' : 'game-canvas-wrap';
+
   const rt = {
-    state: createInitialRuntimeState(currentRows, cols, fixedCellSize, null as never, 0, 0),
+    state: createInitialRuntimeState(currentRows, cols, fixedCellSize, null, 0, 0),
     canvas: document.createElement('canvas'),
     ctx: null as unknown as CanvasRenderingContext2D,
     callbacks,
     canvasOptions,
     mineTotal,
-    fpsMeter: new FpsMeter(),
+    fpsOverlay: null as unknown as ReturnType<typeof createFpsOverlay>,
     fixedCellSize,
     fixedGridRows,
     fitViewport,
@@ -78,12 +81,15 @@ export function createGameCanvas(
   rt.canvas.className = fullscreen ? 'game-canvas game-canvas--fullscreen' : 'game-canvas';
   rt.canvas.setAttribute('role', 'application');
   rt.canvas.setAttribute('aria-label', 'Minesweeper board');
-  container.appendChild(rt.canvas);
+  wrap.appendChild(rt.canvas);
+  container.appendChild(wrap);
+  rt.fpsOverlay = createFpsOverlay(wrap);
 
   const context = rt.canvas.getContext('2d');
   if (!context) throw new Error('Canvas 2D context not available');
   rt.ctx = context;
   applyCanvasSize(rt.canvas, rt.ctx, rt.state.width, rt.state.height);
+  rt.fpsOverlay.syncSize(rt.state.width, rt.state.height);
 
   rt.paint = () => paint(rt);
   bindPaintScheduler(rt);
@@ -154,13 +160,13 @@ export function createGameCanvas(
       rt.state.currentHudLeftDisplay = options?.hudLeftDisplay;
       rt.state.currentHudRightDisplay = options?.hudRightDisplay;
       rt.state.currentAiHint = options?.aiHint;
-      rt.paint();
+      requestRepaint(rt);
     },
     startTimer() {
       if (rt.state.timerId !== null) return;
       rt.state.timerId = window.setInterval(() => {
         rt.state.elapsed += 1;
-        rt.paint();
+        requestRepaint(rt);
       }, 1000);
     },
     stopTimer() {
@@ -172,7 +178,7 @@ export function createGameCanvas(
     resetTimer() {
       controller.stopTimer();
       rt.state.elapsed = 0;
-      rt.paint();
+      requestRepaint(rt);
     },
     repaint() {
       rt.paint();
@@ -181,7 +187,7 @@ export function createGameCanvas(
     destroy() {
       controller.stopTimer();
       clearPendingPanelTransition(rt);
-      stopPressureRepaint(rt);
+      cancelScheduledPaint(rt);
       rt.canvas.removeEventListener('mousedown', handleMouseDown);
       rt.canvas.removeEventListener('pointerdown', handlePointerDown);
       rt.canvas.removeEventListener('mousemove', handleMouseMove);
@@ -191,7 +197,12 @@ export function createGameCanvas(
       rt.canvas.removeEventListener('contextmenu', handleContextMenu);
       rt.canvas.removeEventListener('dblclick', handleDoubleClick);
       if (fullscreen) window.removeEventListener('resize', onResize);
-      rt.canvas.remove();
+      rt.fpsOverlay.destroy();
+      if (typeof wrap.remove === 'function') {
+        wrap.remove();
+      } else {
+        wrap.parentElement?.removeChild(wrap);
+      }
     },
   };
 

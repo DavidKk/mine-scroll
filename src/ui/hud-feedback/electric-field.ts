@@ -268,7 +268,7 @@ export function drawComboBurstElectricField(
   );
 }
 
-/** Ambient jagged arcs clipped inside the top COMBO rail chip. */
+/** Ambient jagged arcs inside the top COMBO rail chip. */
 export function drawComboRailInteriorArcs(
   ctx: CanvasRenderingContext2D,
   asset: { x: number; y: number; w: number; h: number },
@@ -287,8 +287,6 @@ export function drawComboRailInteriorArcs(
   const padTop = asset.h * 0.2;
   const padBottom = asset.h * 0.16;
   const bleedX = tier >= 3 ? asset.w * 0.04 : tier >= 2 ? asset.w * 0.02 : 0;
-  const clipX = asset.x + padX - bleedX;
-  const clipY = asset.y + padTop;
   const clipW = asset.w - padX * 2 + bleedX * 2;
   const clipH = asset.h - padTop - padBottom;
   if (clipW <= 6 || clipH <= 6) return;
@@ -299,9 +297,6 @@ export function drawComboRailInteriorArcs(
   const t = (nowMs % 1800) / 1800;
 
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(clipX, clipY, clipW, clipH);
-  ctx.clip();
   ctx.translate(cx, asset.y + asset.h * 0.58);
   drawLocalizedElectricField(ctx, fieldW, fieldH, combo, t, profile.fade, palette, stageScale * profile.lineScale, {
     maxBolts: profile.maxBolts,

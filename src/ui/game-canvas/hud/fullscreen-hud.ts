@@ -1,5 +1,4 @@
 import type { GameCanvasRuntime } from '../runtime/context.ts';
-import { drawFpsHud } from '../../fps-meter.ts';
 import { parseLivesDisplay } from '../../hud-sprites.ts';
 import type { GameCanvasFullscreenOptions } from '../types.ts';
 import { drawScoreHud } from './score-hud.ts';
@@ -8,13 +7,11 @@ import { drawLivesHud } from './lives-hud.ts';
 import { drawBgmMuteHud } from './bgm-mute-hud.ts';
 import { drawDevAutoButton, drawDevSpeedUpButton } from './dev-controls.ts';
 
-export function drawFullscreenHud(rt: GameCanvasRuntime, 
+export function drawFullscreenHud(rt: GameCanvasRuntime,
   shellCtx: CanvasRenderingContext2D,
   shell: GameCanvasFullscreenOptions,
   shellW: number,
   _shellH: number,
-  fps: number,
-  frameMs: number,
 ): void {
   if (!rt.state.stageLayout) return;
   const stats = shell.getStats?.();
@@ -72,6 +69,4 @@ export function drawFullscreenHud(rt: GameCanvasRuntime,
     rt.state.devSpeedRect = { x: speed.x, y: speed.y, w: speed.w, h: speed.h };
     drawDevSpeedUpButton(rt, shellCtx, rt.state.devSpeedRect, rt.state.currentStatus === 'playing', scale);
   }
-
-  drawFpsHud(shellCtx, shellW - 10 * scale, barY + 2 * scale, fps, frameMs, scale);
 }

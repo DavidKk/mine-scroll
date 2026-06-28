@@ -19,51 +19,20 @@ const PREVIEWS: PreviewSpec[] = [
   { kind: 'gameover', title: 'Game Over', note: 'modal slam-in + retry button' },
 ];
 
-const TARGET_IMAGE = '/assets/reference/endless-arcade-visual-target-v1.png';
 const ASSET_SHEETS = [
   {
-    title: 'Static States',
-    note: 'AI hint, hover/pressed, batch scroll overlays, break/heal/start/log/button states.',
-    src: '/assets/generated/endless-static-states-v1.png',
-  },
-  {
-    title: 'FX Sprite Concept',
-    note: 'Mine explosion, combo burst, safe reveal, flag pop, wrong flag, heart refill, level up, score pop.',
-    src: '/assets/generated/endless-fx-sprite-concept-v1.png',
-  },
-  {
-    title: 'HUD & Popups',
-    note: 'HUD panels, countdown rings, bottom controls, start/game-over/log/defuse/combo-break components.',
-    src: '/assets/generated/endless-hud-popups-v1.png',
-  },
-  {
-    title: 'Production Cutouts',
-    note: 'Core cutout sheet: mines, flags, hearts, warning/status icons. Needs grid normalization before slicing.',
-    src: '/assets/production/core-cutouts-production-v1.png',
-  },
-  {
-    title: 'Production FX',
-    note: '8x8 additive sprite sheet. 1536x1024, clean 192x128 frames.',
-    src: '/assets/production/fx-additive-sprites-production-v1.png',
-  },
-  {
-    title: 'Production UI Panels',
-    note: 'Crop candidates and Canvas reference for AUTO/START/RETRY/Game Over/Log/HUD components. SPACE is Canvas text only.',
-    src: '/assets/production/ui-panels-production-v1.png',
-  },
-  {
     title: 'Sliced Cutouts Preview',
-    note: 'Generated from public/assets/game/cutouts, normalized 256x256 transparent PNG assets.',
+    note: 'Runtime cutout preview from public/assets/game/manifest.json.',
     src: '/assets/game/preview-cutouts.png',
   },
   {
     title: 'Sliced FX Preview',
-    note: 'Middle-frame preview from 8 additive FX animations, each sliced into 8 frames.',
+    note: 'Middle-frame preview from runtime additive FX animations.',
     src: '/assets/game/preview-fx.png',
   },
   {
     title: 'Sliced UI Panel Preview',
-    note: 'Cropped AUTO/START/RETRY/Game Over/Log/HUD panel references from public/assets/game/ui. SPACE is not a bitmap.',
+    note: 'Runtime UI panel reference sheet from manifest-loaded panels.',
     src: '/assets/game/preview-ui-panels.png',
   },
 ] as const;
@@ -436,7 +405,7 @@ export function mountUiLab(root: HTMLElement): () => void {
   title.textContent = 'Endless UI Lab';
 
   const subtitle = document.createElement('p');
-  subtitle.textContent = 'Target art, gap list, and loopable core FX previews. Confirm visuals here before syncing to the main game canvas.';
+  subtitle.textContent = 'Loopable core FX previews for the endless mode canvas. Use Asset Lab for sliced runtime assets.';
 
   const links = document.createElement('div');
   links.className = 'ui-lab__links';
@@ -458,28 +427,14 @@ export function mountUiLab(root: HTMLElement): () => void {
   links.append(gameLink, todoLink, productionTodoLink, assetsLink, responsiveLink);
   header.append(title, subtitle, links);
 
-  const target = document.createElement('section');
-  target.className = 'ui-lab__target';
-  const targetText = document.createElement('div');
-  const targetTitle = document.createElement('h2');
-  targetTitle.textContent = 'Visual Target';
-  const targetCopy = document.createElement('p');
-  targetCopy.textContent = 'This image is the visual baseline. Static assets cover most elements; gaps remain in AI hints, batch scroll overlays, break/heal, start/log states, and interactive FX.';
-  targetText.append(targetTitle, targetCopy);
-
-  const targetImg = document.createElement('img');
-  targetImg.src = TARGET_IMAGE;
-  targetImg.alt = 'Endless arcade minesweeper visual target';
-  target.append(targetText, targetImg);
-
   const assets = document.createElement('section');
   assets.className = 'ui-lab__assets';
   const assetsHead = document.createElement('div');
   assetsHead.className = 'ui-lab__section-head';
   const assetsTitle = document.createElement('h2');
-  assetsTitle.textContent = 'Generated UI Assets';
+  assetsTitle.textContent = 'Runtime Asset Previews';
   const assetsCopy = document.createElement('p');
-  assetsCopy.textContent = 'Asset drafts from the TODO pipeline. Visual pool and slice candidates only — not wired into game logic yet.';
+  assetsCopy.textContent = 'Manifest preview sheets from public/assets/game/. Full asset review lives in Asset Lab.';
   assetsHead.append(assetsTitle, assetsCopy);
 
   const assetsGrid = document.createElement('div');
@@ -513,7 +468,7 @@ export function mountUiLab(root: HTMLElement): () => void {
     labs.push(lab);
   }
 
-  page.append(header, target, assets, grid);
+  page.append(header, assets, grid);
   root.append(page);
 
   let frame = 0;

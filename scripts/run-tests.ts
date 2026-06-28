@@ -41,6 +41,17 @@ import {
 } from '../src/ui/game-stage-layout.ts';
 import { isLoopingGameFx, resolveFxFrameIndex } from '../src/ui/game-assets.ts';
 import { getComboFeedbackPalette, getComboHudTier } from '../src/ui/hud-feedback-fx.ts';
+import {
+  testCreateGameCanvasBootstrapsLayout,
+  testCreateInitialRuntimeStateWithNullLayout,
+  testEndlessSessionMountsThroughGameCanvas,
+} from './runtime-bootstrap-tests.ts';
+import {
+  testLocalSettingsDefaultsWhenMissing,
+  testLocalSettingsIgnoresInvalidPayload,
+  testLocalSettingsPatchPersists,
+  testLocalSettingsRoundTrip,
+} from './local-settings-tests.ts';
 
 interface FakeCell extends SolverCell {
   mine?: boolean;
@@ -846,7 +857,7 @@ function testDifficultyAlertAnchorSitsAboveBoard(): void {
   assert.equal(anchor.x, stage.viewportW / 2);
 }
 
-const tests: Array<[string, () => void]> = [
+const tests: Array<[string, () => void | Promise<void>]> = [
   ['scroll profile speeds up and increases batch size', testScrollProfile],
   ['endless mine ratio ramps to classic plus 50 percent density', testEndlessMineRatioRampsToClassicPlusHalf],
   ['endless generated rows cap local mine piles', testEndlessGeneratedRowsCapMines],
@@ -882,10 +893,17 @@ const tests: Array<[string, () => void]> = [
   ['difficulty alert anchor sits above board', testDifficultyAlertAnchorSitsAboveBoard],
   ['fx frame index loops and completes oneshots', testFxFrameIndexLoopAndOneshot],
   ['orbit particles match at loop wrap', testOrbitParticlesSeamAtLoopWrap],
+  ['runtime state accepts null layout bootstrap', testCreateInitialRuntimeStateWithNullLayout],
+  ['local settings default when missing', testLocalSettingsDefaultsWhenMissing],
+  ['local settings round trip', testLocalSettingsRoundTrip],
+  ['local settings patch persists', testLocalSettingsPatchPersists],
+  ['local settings ignores invalid payload', testLocalSettingsIgnoresInvalidPayload],
+  ['game canvas bootstraps layout without throwing', testCreateGameCanvasBootstrapsLayout],
+  ['endless session renders through game canvas', testEndlessSessionMountsThroughGameCanvas],
 ];
 
 for (const [name, run] of tests) {
-  run();
+  await run();
   console.log(`ok - ${name}`);
 }
 

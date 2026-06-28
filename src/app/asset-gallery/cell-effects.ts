@@ -495,6 +495,7 @@ function createFrames(id: EffectPanelId, sprites: TileSprites): HTMLElement {
       { label: 'x10 gold', t: HUD_FEEDBACK_V3_MS * 0.08, combo: 10 },
       { label: 'x20 hot', t: HUD_FEEDBACK_V3_MS * 0.18, combo: 20 },
       { label: 'x50 overload', t: HUD_FEEDBACK_V3_MS * 0.28, combo: 50 },
+      { label: 'x105 fever', t: HUD_FEEDBACK_V3_MS * 0.38, combo: 105 },
     ].forEach((item, index) => {
       frames.append(
         createStaticFrameCanvas((ctx, w, h) => drawComboHudV3Scene(ctx, w, h, item.t, item.combo), item.label, index),

@@ -49,11 +49,15 @@ UI_ITEMS = {
 }
 
 CUTOUT_ITEMS = ['heart-full', 'heart-empty', 'heart-refill']
-FX_ITEMS = ['score-pop', 'combo-burst', 'wrong-flag-break', 'level-up', 'heart-refill']
+FX_ITEMS = ['wrong-flag-break', 'level-up']
 HUD_ICON_ITEMS = [
     'play',
     'skull',
     'refresh',
+    'info',
+    'flag',
+    'wand',
+    'timer',
     'volume-on',
     'volume-off',
     'volume-on-hover',

@@ -5,50 +5,34 @@ const ICON_BASE = `${HUD_BASE}/icons`;
 
 export const HUD_ICON_NAMES = [
   'play',
-  'pause',
-  'settings',
-  'home',
+  'skull',
+  'refresh',
   'volume-on',
   'volume-off',
   'volume-on-hover',
   'volume-off-hover',
   'info',
-  'help',
-  'trophy',
-  'medal',
-  'target',
-  'stats',
-  'refresh',
-  'undo',
   'flag',
   'wand',
   'timer',
-  'shield',
-  'heart',
-  'plus',
-  'warning',
-  'skull',
-  'icon-extra-1',
-  'icon-extra-2',
-  'scroll-up',
 ] as const;
 
 export type HudIconName = (typeof HUD_ICON_NAMES)[number];
 
 export interface HudSprites {
-  heartFull: HTMLImageElement;
-  heartEmpty: HTMLImageElement;
-  icons: Record<HudIconName, HTMLImageElement>;
+  heartFull: HTMLImageElement | null;
+  heartEmpty: HTMLImageElement | null;
+  icons: Partial<Record<HudIconName, HTMLImageElement>>;
 }
 
 let loadPromise: Promise<HudSprites | null> | null = null;
 let cached: HudSprites | null = null;
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load HUD sprite: ${src}`));
+    img.onerror = () => resolve(null);
     img.src = src;
   });
 }
@@ -58,20 +42,20 @@ export function loadHudSprites(): Promise<HudSprites | null> {
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
-    try {
-      const [heartFull, heartEmpty, ...iconImages] = await Promise.all([
-        loadImage(`${HUD_BASE}/heart-full.png`),
-        loadImage(`${HUD_BASE}/heart-empty.png`),
-        ...HUD_ICON_NAMES.map((name) => loadImage(`${ICON_BASE}/${name}.png`)),
-      ]);
-      const icons = Object.fromEntries(
-        HUD_ICON_NAMES.map((name, i) => [name, iconImages[i]!]),
-      ) as Record<HudIconName, HTMLImageElement>;
-      cached = { heartFull, heartEmpty, icons };
-      return cached;
-    } catch {
-      return null;
-    }
+    const [heartFull, heartEmpty, ...iconImages] = await Promise.all([
+      loadImage(`${HUD_BASE}/heart-full.png`),
+      loadImage(`${HUD_BASE}/heart-empty.png`),
+      ...HUD_ICON_NAMES.map((name) => loadImage(`${ICON_BASE}/${name}.png`)),
+    ]);
+    const icons = Object.fromEntries(
+      HUD_ICON_NAMES.flatMap((name, i) => {
+        const image = iconImages[i];
+        return image ? [[name, image] as const] : [];
+      }),
+    ) as Partial<Record<HudIconName, HTMLImageElement>>;
+    if (Object.keys(icons).length === 0) return null;
+    cached = { heartFull, heartEmpty, icons };
+    return cached;
   })();
 
   return loadPromise;
@@ -150,7 +134,7 @@ export function drawLivesRow(
   }
 
   const sprites = getHudSprites();
-  if (!sprites) return false;
+  if (!sprites?.heartFull || !sprites.heartEmpty) return false;
 
   let cx = x;
   const cy = y - iconSize / 2;

@@ -187,7 +187,7 @@ const EFFECT_SPECS: EffectCardSpec[] = [
     title: 'Combo HUD v3',
     description: 'Candidate combo chip with four escalating states: cyan, gold, hot, and red overload at x50+.',
     cycleMs: HUD_FEEDBACK_V3_MS,
-    frameCount: 4,
+    frameCount: 5,
     defaultFps: 12,
     loop: true,
   },

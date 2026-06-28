@@ -14,6 +14,11 @@ function viewFxState(view: CellView): { revealed: boolean; flagged: boolean; isM
   return { revealed: view.revealed, flagged: view.flagged, isMine: view.isMine };
 }
 
+const MAX_CELL_FX_POOL = 32;
+const MAX_FX_PER_STEP = 24;
+const MAX_REVEAL_FX_PER_STEP = 8;
+const LITE_CELL_FX_COUNT = 16;
+
 export function queueCellEffect(rt: GameCanvasRuntime, kind: CellFxKind, row: number, col: number, now: number): void {
   const durationMs =
     kind === 'explode'
@@ -22,7 +27,7 @@ export function queueCellEffect(rt: GameCanvasRuntime, kind: CellFxKind, row: nu
         ? GAME_ASSET_TUNING.fx.flagPop.durationMs
         : GAME_ASSET_TUNING.fx.safeReveal.durationMs;
   rt.state.cellEffects.push({ kind, row, col, startedAt: now, durationMs });
-  while (rt.state.cellEffects.length > 48) {
+  while (rt.state.cellEffects.length > MAX_CELL_FX_POOL) {
     rt.state.cellEffects.shift();
   }
 }
@@ -32,6 +37,7 @@ export function collectCellEffects(rt: GameCanvasRuntime, previous: CellView[], 
   const now = performance.now();
   const prevByKey = new Map(previous.map((view) => [viewKey(rt, view), view]));
   let queued = 0;
+  let revealQueued = 0;
   for (const view of next) {
     if (view.preview) continue;
     const prev = prevByKey.get(viewKey(rt, view));
@@ -39,8 +45,11 @@ export function collectCellEffects(rt: GameCanvasRuntime, previous: CellView[], 
     if (!prev) continue;
     const prevState = viewFxState(prev);
     if (!prevState.revealed && nextState.revealed) {
-      queueCellEffect(rt, 'reveal', view.row, view.col, now);
-      queued += 1;
+      if (revealQueued < MAX_REVEAL_FX_PER_STEP) {
+        queueCellEffect(rt, 'reveal', view.row, view.col, now);
+        revealQueued += 1;
+        queued += 1;
+      }
       if (nextState.isMine) {
         queueCellEffect(rt, 'explode', view.row, view.col, now);
         queued += 1;
@@ -52,9 +61,8 @@ export function collectCellEffects(rt: GameCanvasRuntime, previous: CellView[], 
       queueCellEffect(rt, 'unflag', view.row, view.col, now);
       queued += 1;
     }
-    if (queued >= 24) break;
+    if (queued >= MAX_FX_PER_STEP) break;
   }
-  if (queued > 0) rt.scheduleAnimationFrame();
 }
 
 export function pruneEffects(rt: GameCanvasRuntime, now: number): void {
@@ -136,6 +144,7 @@ export function drawMineExplosionVisual(rt: GameCanvasRuntime,
 export function drawCellEffects(rt: GameCanvasRuntime, effectCtx: CanvasRenderingContext2D, now: number): void {
   if (!rt.state.squareLayout || rt.state.cellEffects.length === 0) return;
   const { gridOriginX, gridOriginY, grid } = rt.state.squareLayout;
+  const liteReveal = rt.state.cellEffects.length > LITE_CELL_FX_COUNT;
 
   effectCtx.save();
   for (const fx of rt.state.cellEffects) {
@@ -148,16 +157,18 @@ export function drawCellEffects(rt: GameCanvasRuntime, effectCtx: CanvasRenderin
 
     if (fx.kind === 'reveal') {
       drawCellRevealTransitionOverlay(effectCtx, x, y, grid, t);
-      drawFxSpriteFrame(
-        effectCtx,
-        'safe-reveal',
-        t,
-        cx,
-        cy,
-        grid.cellSize * GAME_ASSET_TUNING.fx.safeReveal.spriteW,
-        grid.cellSize * GAME_ASSET_TUNING.fx.safeReveal.spriteH,
-        GAME_ASSET_TUNING.fx.safeReveal.spriteAlpha,
-      );
+      if (!liteReveal) {
+        drawFxSpriteFrame(
+          effectCtx,
+          'safe-reveal',
+          t,
+          cx,
+          cy,
+          grid.cellSize * GAME_ASSET_TUNING.fx.safeReveal.spriteW,
+          grid.cellSize * GAME_ASSET_TUNING.fx.safeReveal.spriteH,
+          GAME_ASSET_TUNING.fx.safeReveal.spriteAlpha,
+        );
+      }
     } else if (fx.kind === 'flag') {
       drawFxSpriteFrame(
         effectCtx,
@@ -173,7 +184,7 @@ export function drawCellEffects(rt: GameCanvasRuntime, effectCtx: CanvasRenderin
       drawMineExplosionVisual(rt, effectCtx, x, y, grid.cellSize, t);
     }
 
-    if (fx.kind === 'reveal') {
+    if (fx.kind === 'reveal' && !liteReveal) {
       const alpha = 1 - t;
       const pad = 2 + t * grid.cellSize * 0.18;
       fillRounded(effectCtx,
@@ -209,8 +220,6 @@ export function drawCellEffects(rt: GameCanvasRuntime, effectCtx: CanvasRenderin
     }
   }
   effectCtx.restore();
-
-  if (rt.state.cellEffects.length > 0) rt.scheduleAnimationFrame();
 }
 
 export function hasMineHitV3RuntimeAssets(_rt: GameCanvasRuntime,): boolean {

@@ -18,6 +18,7 @@ import {
 import { getModeEntry } from '../../core/modes/catalog.ts';
 import type { ModeSession } from '../../core/types.ts';
 import { createGameCanvas, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts';
+import { loadLocalSettings, patchLocalSettings } from '../../config/local-settings.ts';
 import { createGameAudio, hadMineLifeLoss, playFlagToggleAudio, playHealRewardAudio, playLifeLossAudio, playRevealAudio } from '../../ui/game-audio.ts';
 import { createAiController } from './ai-loop.ts';
 import { applySessionUpdate, createGameLog, formatCell, logPlayerAction } from './logging.ts';
@@ -60,7 +61,7 @@ export function mountGameSession(
 ): () => void {
   const modeMeta = getModeEntry();
   const runtime = createInitialRuntime(createSession());
-  const gameAudio = createGameAudio();
+  const gameAudio = createGameAudio({ bgmMuted: loadLocalSettings().bgmMuted });
 
   function syncIdleBgm(): void {
     gameAudio.setIdleBgm(true);
@@ -247,7 +248,8 @@ export function mountGameSession(
       onPointerDown: () => gameAudio.unlock(),
       getBgmMuted: () => gameAudio.isIdleBgmMuted(),
       onToggleBgmMute: () => {
-        gameAudio.toggleIdleBgmMuted();
+        const muted = gameAudio.toggleIdleBgmMuted();
+        patchLocalSettings({ bgmMuted: muted });
         syncIdleBgm();
         render();
       },

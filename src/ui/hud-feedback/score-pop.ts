@@ -1,5 +1,4 @@
 import { drawFeedbackStripLightWrap } from '../cell-fx.ts';
-import { drawFxSpriteFrame, GAME_ASSET_TUNING } from '../game-assets.ts';
 import { easeOutCubic } from '../primitives/index.ts';
 import { drawFilteredContainedFeedbackAsset, measureContainedAsset } from './asset-draw.ts';
 import { getComboFeedbackPalette, getComboRailFilter } from './combo-palette.ts';
@@ -229,8 +228,8 @@ export function drawScorePopV3(ctx: CanvasRenderingContext2D, opts: ScorePopV3Dr
   }
 }
 
-export function createScorePopFallbackDrawer(stageScale: number) {
-  return (ctx: CanvasRenderingContext2D, t: number): void => {
-    drawFxSpriteFrame(ctx, 'score-pop', t, 0, 0, 132 * stageScale, 56 * stageScale, GAME_ASSET_TUNING.fx.scorePop.spriteAlpha);
+export function createScorePopFallbackDrawer(_stageScale: number) {
+  return (_ctx: CanvasRenderingContext2D, _t: number): void => {
+    // scorePopBase is the primary glow asset; legacy score-pop sprite frames were removed.
   };
 }

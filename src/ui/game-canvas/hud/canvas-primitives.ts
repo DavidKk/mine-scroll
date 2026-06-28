@@ -396,7 +396,7 @@ export function comboColor(_rt: GameCanvasRuntime, combo: number): { fill: strin
 }
 
 export function logIcon(_rt: GameCanvasRuntime, kind: GameCanvasLogLine['kind']): HudIconName {
-  if (kind === 'danger') return 'warning';
+  if (kind === 'danger') return 'info';
   if (kind === 'ai') return 'wand';
   if (kind === 'player') return 'flag';
   if (kind === 'scroll') return 'timer';
