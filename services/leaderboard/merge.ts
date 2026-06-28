@@ -27,9 +27,10 @@ function normalizeLeaderboardEntry(entry: LeaderboardEntry): LeaderboardEntry | 
     return null
   }
 
-  const countryCode = sanitizeCountryCode(entry.countryCode)
+  const { countryCode: rawCountryCode, ...rest } = entry
+  const countryCode = sanitizeCountryCode(rawCountryCode)
   return {
-    ...entry,
+    ...rest,
     ...(countryCode ? { countryCode } : {}),
   }
 }

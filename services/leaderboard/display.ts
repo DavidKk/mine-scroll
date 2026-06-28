@@ -11,6 +11,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'Kiro_404',
     score: 128,
     depth: 18,
+    countryCode: 'US',
     submittedAt: 1_704_067_200_000,
   },
   {
@@ -19,6 +20,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'DustMite',
     score: 97,
     depth: 14,
+    countryCode: 'JP',
     submittedAt: 1_703_980_800_000,
   },
   {
@@ -27,6 +29,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'MonoRail',
     score: 84,
     depth: 11,
+    countryCode: 'DE',
     submittedAt: 1_703_894_400_000,
   },
   {
@@ -35,6 +38,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'ZipChip',
     score: 63,
     depth: 9,
+    countryCode: 'GB',
     submittedAt: 1_703_808_000_000,
   },
   {
@@ -43,6 +47,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'FogLine',
     score: 41,
     depth: 7,
+    countryCode: 'CN',
     submittedAt: 1_703_721_600_000,
   },
   {
@@ -51,6 +56,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'ZeroDay',
     score: 22,
     depth: 5,
+    countryCode: 'FR',
     submittedAt: 1_703_635_200_000,
   },
   {
@@ -59,6 +65,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'NullPath',
     score: 19,
     depth: 4,
+    countryCode: 'KR',
     submittedAt: 1_703_548_800_000,
   },
   {
@@ -67,6 +74,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'BitDrift',
     score: 15,
     depth: 3,
+    countryCode: 'CA',
     submittedAt: 1_703_462_400_000,
   },
   {
@@ -75,6 +83,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'ColdBoot',
     score: 11,
     depth: 2,
+    countryCode: 'AU',
     submittedAt: 1_703_376_000_000,
   },
   {
@@ -83,6 +92,7 @@ const LEADERBOARD_FILLER_ENTRIES: LeaderboardEntry[] = [
     name: 'StaticHum',
     score: 8,
     depth: 1,
+    countryCode: 'SG',
     submittedAt: 1_703_289_600_000,
   },
 ]

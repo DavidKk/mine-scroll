@@ -8,6 +8,7 @@ interface LeaderboardEntryRow {
   name: string
   score: number
   depth?: number
+  countryCode?: string
   submittedAt: number
 }
 
@@ -193,7 +194,7 @@ export function LeaderboardAdminClient() {
               <table className="w-full border-collapse font-mono text-xs">
                 <thead>
                   <tr className="border-b border-white/10 text-left">
-                    {['#', 'ID', 'Name', 'Score', 'Depth', 'Submitted', 'Actions'].map((label) => (
+                    {['#', 'ID', 'Region', 'Name', 'Score', 'Depth', 'Submitted', 'Actions'].map((label) => (
                       <th
                         key={label}
                         className="sticky top-0 z-[1] whitespace-nowrap bg-[rgba(8,12,22,0.98)] px-3 py-2.5 text-[0.66rem] uppercase tracking-[0.08em] text-admin-muted"
@@ -213,6 +214,7 @@ export function LeaderboardAdminClient() {
                         <td className="max-w-[120px] truncate px-3 py-2.5 text-zinc-500" title={entry.playerId ?? entry.id}>
                           {(entry.playerId ?? entry.id).slice(0, 8)}…
                         </td>
+                        <td className="px-3 py-2.5 tabular-nums text-admin-muted">{entry.countryCode ?? '—'}</td>
                         <td className="px-3 py-2.5">
                           <input
                             className={`${inputBase} min-w-[140px]`}

@@ -2056,6 +2056,16 @@ body::-webkit-scrollbar {
   font-variant-numeric: tabular-nums;
 }
 
+.leaderboard-modal__entry--with-country,
+.leaderboard-modal__table-head--with-country {
+  grid-template-columns: 2.4rem 2.6rem minmax(0, 1fr) 5.5rem;
+}
+
+.leaderboard-modal__entry--with-country.leaderboard-modal__entry--with-depth,
+.leaderboard-modal__table-head--with-country.leaderboard-modal__table-head--with-depth {
+  grid-template-columns: 2.4rem 2.6rem minmax(0, 1fr) 3.2rem 5.5rem;
+}
+
 .leaderboard-modal__table-head {
   flex-shrink: 0;
   min-height: 32px;
@@ -2066,6 +2076,13 @@ body::-webkit-scrollbar {
   color: #71717a;
   white-space: nowrap;
   background: rgba(8, 12, 22, 0.92);
+}
+
+.leaderboard-modal__country,
+.leaderboard-modal__self-country {
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
 .leaderboard-modal__table-head > span:last-child {

@@ -394,7 +394,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     }
 
     view.ranked.forEach((row) => {
-      listEl.append(createEntryRow(row, showDepth))
+      listEl.append(createEntryRow(row, showDepth, showCountry))
     })
   }
 
@@ -407,7 +407,9 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     }
 
     const showDepth = options.isRankedMode?.() ?? typeof snapshot.depth === 'number'
+    const showCountry = typeof snapshot.countryCode === 'string' && snapshot.countryCode.length > 0
     applyTableDepthLayout(showDepth)
+    applyTableCountryLayout(showCountry)
     syncBodyLayout(true)
     selfZoneEl.hidden = false
     populateSelfZoneHead(resolveSelfDisplayName(snapshot.name))
@@ -419,7 +421,8 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
           isSelf: true,
           pinned: true,
         },
-        showDepth
+        showDepth,
+        showCountry
       )
     )
   }
