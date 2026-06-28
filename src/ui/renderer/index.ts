@@ -9,6 +9,7 @@ export {
   renderFrame,
   renderBoardOnlyFrame,
   renderBoardStaticFrame,
+  renderBoardIntroFrame,
   renderBoardDynamicFrame,
   getBoardSideRailLayout,
   getBoardSideRailBounds,

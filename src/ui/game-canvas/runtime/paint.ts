@@ -1,5 +1,5 @@
 import type { GameCanvasRuntime } from './context.ts';
-import { renderBoardStaticFrame, renderBoardDynamicFrame, renderFrame } from '../../renderer/index.ts';
+import { renderBoardStaticFrame, renderBoardIntroFrame, renderBoardDynamicFrame, renderFrame } from '../../renderer/index.ts';
 import { syncFullscreenCanvasSize } from '../layout/viewport-fit.ts';
 import { syncBoardSizeFromLayout } from '../layout/board-layout.ts';
 import { syncInputProfile } from '../input/pointer-handlers.ts';
@@ -11,6 +11,7 @@ import { drawScrollMineGhostEffects } from './scroll-ghost-fx.ts';
 import { drawFullscreenOverlay } from '../overlay/event-overlay.ts';
 import { drawFullscreenHud } from '../hud/fullscreen-hud.ts';
 import { syncPressureRepaint, scheduleContinuousRepaint } from './paint-scheduler.ts';
+import { drawGameIntroChrome, updateGameIntro } from '../overlay/game-intro.ts';
 
 export function paint(rt: GameCanvasRuntime): void {
   syncFullscreenCanvasSize(rt);
@@ -18,6 +19,7 @@ export function paint(rt: GameCanvasRuntime): void {
   syncBoardSizeFromLayout(rt);
   const now = performance.now();
   pruneEffects(rt, now);
+  const intro = rt.fullscreen ? updateGameIntro(rt, now) : null;
   const scrollPressure = rt.getScrollPressureFn?.();
   const renderState = {
     views: rt.state.currentViews,
@@ -59,16 +61,34 @@ export function paint(rt: GameCanvasRuntime): void {
   };
 
   if (rt.fullscreen) {
-    ensureBoardLayerCache(rt, boardState);
-    if (rt.state.boardLayerCache) {
-      const prevSmooth = rt.ctx.imageSmoothingEnabled;
-      rt.ctx.imageSmoothingEnabled = false;
-      rt.ctx.drawImage(rt.state.boardLayerCache, 0, 0, rt.state.squareLayout!.width, rt.state.squareLayout!.height);
-      rt.ctx.imageSmoothingEnabled = prevSmooth;
-    } else {
-      renderBoardStaticFrame(rt.ctx, rt.state.squareLayout!, boardState);
+    if (!intro || intro.complete) {
+      ensureBoardLayerCache(rt, boardState);
     }
-    renderBoardDynamicFrame(rt.ctx, rt.state.squareLayout!, boardState);
+    const introBoardActive = intro && !intro.complete;
+    const skipBoard = introBoardActive && intro.boardReveal <= 0;
+    const useIntroBoard = introBoardActive && intro.boardReveal > 0;
+    if (!skipBoard) {
+      if (useIntroBoard) {
+        renderBoardIntroFrame(
+          rt.ctx,
+          rt.state.squareLayout!,
+          boardState,
+          intro.boardReveal,
+          rt.state.currentRows,
+          rt.state.currentCols,
+        );
+      } else if (rt.state.boardLayerCache) {
+        const prevSmooth = rt.ctx.imageSmoothingEnabled;
+        rt.ctx.imageSmoothingEnabled = false;
+        rt.ctx.drawImage(rt.state.boardLayerCache, 0, 0, rt.state.squareLayout!.width, rt.state.squareLayout!.height);
+        rt.ctx.imageSmoothingEnabled = prevSmooth;
+      } else {
+        renderBoardStaticFrame(rt.ctx, rt.state.squareLayout!, boardState);
+      }
+      if (!useIntroBoard) {
+        renderBoardDynamicFrame(rt.ctx, rt.state.squareLayout!, boardState);
+      }
+    }
   } else {
     renderFrame(rt.ctx, rt.state.squareLayout!, boardState);
   }
@@ -79,9 +99,10 @@ export function paint(rt: GameCanvasRuntime): void {
 
   if (rt.fullscreen) {
     rt.ctx.restore();
-    drawFullscreenOverlay(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height);
+    drawFullscreenOverlay(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height, intro);
     drawScrollMineGhostEffects(rt, rt.ctx, now);
-    drawFullscreenHud(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height);
+    if (intro && !intro.complete) drawGameIntroChrome(rt, rt.ctx, rt.state.width, intro);
+    drawFullscreenHud(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height, intro);
     if (rt.state.stageLayout) {
       const { scale, hudY } = rt.state.stageLayout;
       rt.fpsOverlay.setAnchor({ x: rt.state.width - 10 * scale, y: hudY + 2 * scale, scale });

@@ -1,6 +1,7 @@
 import type { GameCanvasRuntime } from '../runtime/context.ts';
 import { getCanvasPointerCoords, hitTestCellWithPreview } from '../../renderer/index.ts';
 import { beginPanelTransition } from '../overlay/panel-transition.ts';
+import { isGameIntroBlockingInput } from '../overlay/game-intro.ts';
 import { insideRect, hitInteractiveUi, hitReset } from './ui-hit-test.ts';
 import { createTouchGestureController, type TouchGestureController } from './touch-gesture.ts';
 import type { FlagSwipePreviewState } from '../runtime/state.ts';
@@ -90,6 +91,7 @@ function unlockAudioFromPointer(rt: GameCanvasRuntime): void {
 function handleUiPointerDown(rt: GameCanvasRuntime, x: number, y: number): boolean {
   if (rt.fullscreen?.isLogOpen?.()) return true;
   if (rt.state.pendingPanelTransition) return true;
+  if (isGameIntroBlockingInput(rt, performance.now())) return true;
 
   if (rt.fullscreen && rt.state.bgmMuteRect && insideRect(rt.state.bgmMuteRect, x, y)) {
     rt.fullscreen.onUiClick?.();
@@ -148,6 +150,7 @@ function handleUiPointerDown(rt: GameCanvasRuntime, x: number, y: number): boole
 }
 
 function blocksBoardPointerInput(rt: GameCanvasRuntime): boolean {
+  if (isGameIntroBlockingInput(rt, performance.now())) return true;
   if (
     rt.fullscreen &&
     rt.state.currentStatus === 'idle' &&

@@ -1,6 +1,7 @@
 import type { GameCanvasRuntime } from '../runtime/context.ts';
 import { parseLivesDisplay } from '../../hud-sprites.ts';
 import type { GameCanvasFullscreenOptions } from '../types.ts';
+import type { GameIntroProgress } from '../overlay/game-intro.ts';
 import { drawScoreHud } from './score-hud.ts';
 import { drawComboHud } from './combo-hud.ts';
 import { drawLivesHud } from './lives-hud.ts';
@@ -13,6 +14,7 @@ export function drawFullscreenHud(
   shell: GameCanvasFullscreenOptions,
   shellW: number,
   _shellH: number,
+  intro: GameIntroProgress | null = null,
 ): void {
   if (!rt.state.stageLayout) return;
   const stats = shell.getStats?.();
@@ -20,17 +22,27 @@ export function drawFullscreenHud(
   const { scale } = stage;
   const isMobile = stage.profile === 'mobile';
   const topBarH = stage.hudH;
+  const hudAlpha = intro && !intro.complete ? intro.hudAlpha : 1;
+  const showIntroLineOnly = intro && !intro.complete;
 
   const barX = 0;
   const barY = stage.hudY;
   const barW = shellW;
-  const topLine = shellCtx.createLinearGradient(barX, barY, barX + barW, barY);
-  topLine.addColorStop(0, 'rgba(59, 130, 246, 0)');
-  topLine.addColorStop(0.18, 'rgba(59, 130, 246, 0.36)');
-  topLine.addColorStop(0.82, 'rgba(59, 130, 246, 0.36)');
-  topLine.addColorStop(1, 'rgba(59, 130, 246, 0)');
-  shellCtx.fillStyle = topLine;
-  shellCtx.fillRect(barX, barY + topBarH + 2 * scale, barW, Math.max(1, scale));
+
+  if (!showIntroLineOnly) {
+    const topLine = shellCtx.createLinearGradient(barX, barY, barX + barW, barY);
+    topLine.addColorStop(0, 'rgba(59, 130, 246, 0)');
+    topLine.addColorStop(0.18, 'rgba(59, 130, 246, 0.36)');
+    topLine.addColorStop(0.82, 'rgba(59, 130, 246, 0.36)');
+    topLine.addColorStop(1, 'rgba(59, 130, 246, 0)');
+    shellCtx.fillStyle = topLine;
+    shellCtx.fillRect(barX, barY + topBarH + 2 * scale, barW, Math.max(1, scale));
+  }
+
+  if (hudAlpha <= 0.01) return;
+
+  shellCtx.save();
+  shellCtx.globalAlpha = hudAlpha;
 
   const livesRaw = stats?.lives;
   const hudY = barY + (isMobile ? 3 : 7) * scale;
@@ -70,4 +82,6 @@ export function drawFullscreenHud(
     rt.state.devSpeedRect = { x: speed.x, y: speed.y, w: speed.w, h: speed.h };
     drawDevSpeedUpButton(rt, shellCtx, rt.state.devSpeedRect, rt.state.currentStatus === 'playing', scale);
   }
+
+  shellCtx.restore();
 }

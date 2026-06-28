@@ -91,6 +91,7 @@ function repaintDelayMs(rt: GameCanvasRuntime, mode: 'full' | 'ambient'): number
 }
 
 export function scheduleContinuousRepaint(rt: GameCanvasRuntime): void {
+  if (typeof window === 'undefined') return;
   const mode = needsContinuousRepaint(rt, performance.now());
   if (!mode) return;
   if (rt.state.animationFrameId !== null) return;
@@ -128,6 +129,7 @@ export function syncPressureRepaint(rt: GameCanvasRuntime): void {
 }
 
 export function scheduleAnimationFrameImpl(rt: GameCanvasRuntime): void {
+  if (typeof window === 'undefined') return;
   if (rt.state.animationFrameId !== null) return;
   rt.state.animationFrameId = window.requestAnimationFrame(() => {
     rt.state.animationFrameId = null;

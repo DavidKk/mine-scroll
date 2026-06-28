@@ -15,6 +15,7 @@ import { drawBreakEvent } from './break-event.ts';
 import { drawLifeLossEvent } from './life-loss-event.ts';
 import { drawParticles, getBottomFeedbackSlots, spawnComboParticles, spawnScoreHudParticles } from '../runtime/particle-system.ts';
 import { drawScorePopV3Layer } from './score-pop-layer.ts';
+import type { GameIntroProgress } from './game-intro.ts';
 import { drawSpaceHint, getSpaceHintRect, updateScrollButtonReveal } from './space-hint.ts';
 import { beginScoreCountUp } from '../hud/score-hud.ts';
 import { hudFxBudget, isScorePopFxEnabled } from '../runtime/paint-helpers.ts';
@@ -24,6 +25,7 @@ export function drawFullscreenOverlay(rt: GameCanvasRuntime,
   shell: GameCanvasFullscreenOptions,
   shellW: number,
   shellH: number,
+  intro: GameIntroProgress | null = null,
 ): void {
   const stats = shell.getStats?.();
   const combo = stats?.combo ?? 0;
@@ -97,13 +99,16 @@ export function drawFullscreenOverlay(rt: GameCanvasRuntime,
   drawLevelUpFx(rt, shellCtx, shellW, shellH);
 
   drawDifficultyAlertFullscreenFlash(rt, shellCtx, shellW, shellH);
-  drawBottomEnergyRail(rt, shellCtx, scrollPressure, shellW, shellH);
+  if (!intro || intro.complete) {
+    drawBottomEnergyRail(rt, shellCtx, scrollPressure, shellW, shellH);
+  }
   drawFullscreenScrollWarning(rt, shellCtx, scrollPressure, shellW, shellH);
 
+  const scrollIntroReady = !intro || intro.complete;
   if (stats?.spaceEnabled) {
     const spaceRect = getSpaceHintRect(rt, scrollPressure);
     if (spaceRect) {
-      const reveal = updateScrollButtonReveal(rt, true);
+      const reveal = updateScrollButtonReveal(rt, scrollIntroReady);
       rt.state.spaceHintRect = reveal.interactable ? spaceRect : null;
       drawSpaceHint(rt, shellCtx, spaceRect, scrollPressure, rt.state.stageLayout?.scale ?? 1, reveal);
     } else {
@@ -181,7 +186,7 @@ export function drawFullscreenOverlay(rt: GameCanvasRuntime,
     shellCtx.restore();
   }
 
-  if (rt.state.currentStatus === 'idle' && (shell.showStartOverlay?.() ?? true)) {
+  if (rt.state.currentStatus === 'idle' && (shell.showStartOverlay?.() ?? true) && (!intro || intro.startPanelAlpha > 0.01)) {
     const isMobile = rt.state.stageLayout?.profile === 'mobile';
     const scale = rt.state.stageLayout?.scale ?? 1;
     const hudBottom = (rt.state.stageLayout?.hudY ?? 0) + (rt.state.stageLayout?.hudH ?? 0) + 6 * scale;
@@ -200,9 +205,22 @@ export function drawFullscreenOverlay(rt: GameCanvasRuntime,
     const y = Math.min(minY + Math.max(0, (bottomLimit - minY - h) * 0.35), bottomLimit - h);
     const now = performance.now();
     const action = panelTransitionProgress(rt, 'start', now);
-    const pop = action > 0 ? 1 - Math.sin(action * Math.PI) * 0.025 : 1;
-    rt.state.startRect = { x, y, w, h };
+    const introScale = intro?.startPanelScale ?? 1;
+    const pop = (action > 0 ? 1 - Math.sin(action * Math.PI) * 0.025 : 1) * introScale;
+    const panelAlpha = intro?.startPanelAlpha ?? 1;
+    rt.state.startRect =
+      intro && !intro.interactable
+        ? null
+        : { x, y, w, h };
     shellCtx.save();
+    shellCtx.globalAlpha = panelAlpha;
+    if (introScale < 0.999) {
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      shellCtx.translate(cx, cy);
+      shellCtx.scale(introScale, introScale);
+      shellCtx.translate(-cx, -cy);
+    }
     const panelBounds = drawUiPanelImageBounds(rt, shellCtx, 'start-panel', x, y, w, h, 1.03 * pop);
     if (!panelBounds) {
       drawArcadePanel(rt, shellCtx, x, y, w, h, 'rgba(59, 130, 246, 0.78)', 'rgba(3, 8, 20, 0.95)');

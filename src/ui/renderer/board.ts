@@ -8,10 +8,12 @@ import {
   drawStatusIcon,
   hudPillWidth,
 } from './cells.ts';
+import { drawSpriteInCell, getTileSprites } from '../tile-sprites.ts';
 import type { LayoutMetrics } from './layout.ts';
 import { fillRoundRect, strokeRoundRect } from './primitives.ts';
 import { drawAiHint, drawScrollDangerBand, drawScrollPressureBar } from './scroll-ui.ts';
 import type { RenderState } from './types.ts';
+import { clamp01 } from '../primitives/index.ts';
 
 export type { LayoutMetrics } from './layout.ts';
 export type { ScrollPressureState, RenderState } from './types.ts';
@@ -34,7 +36,11 @@ function drawPlayableCells(
   const { gridOriginX, gridOriginY, grid } = layout;
   for (const view of views) {
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
-    drawCell(ctx, x, y, view, grid, state.status);
+    if (state.status === 'idle') {
+      drawIntroCellSurface(ctx, x, y, view, grid, state.status);
+    } else {
+      drawCell(ctx, x, y, view, grid, state.status);
+    }
   }
 }
 
@@ -72,15 +78,78 @@ function drawPlayableAmbientOverlays(
   }
 }
 
+interface PreviewBandMask {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  bandTop: number;
+  bandH: number;
+  visibleH: number;
+}
+
+function getPreviewBandMask(layout: LayoutMetrics, previewRows: number): PreviewBandMask {
+  const { gridOriginX, gridOriginY, gridWidth, grid } = layout;
+  const bandTop = gridOriginY - grid.cellStep;
+  const bandH = grid.cellStep;
+  const visibleH = previewRows * grid.cellStep;
+  return {
+    x: gridOriginX - 2,
+    y: bandTop - 2,
+    w: gridWidth + 4,
+    h: bandH + 4,
+    bandTop,
+    bandH,
+    visibleH,
+  };
+}
+
+function applyPreviewBandMask(
+  ctx: CanvasRenderingContext2D,
+  mask: PreviewBandMask,
+  originX = 0,
+  originY = 0,
+): void {
+  const fade = ctx.createLinearGradient(0, mask.bandTop - originY, 0, mask.bandTop + mask.bandH - originY);
+  fade.addColorStop(0, 'rgba(0,0,0,0)');
+  fade.addColorStop(Math.max(0, 1 - mask.visibleH / mask.bandH - 0.08), 'rgba(0,0,0,0)');
+  fade.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = fade;
+  ctx.fillRect(mask.x - originX, mask.y - originY, mask.w, mask.h);
+}
+
+function drawMaskedPreviewLayer(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  previewRows: number,
+  drawLayer: (layerCtx: CanvasRenderingContext2D) => void,
+): void {
+  const mask = getPreviewBandMask(layout, previewRows);
+  const layer = document.createElement('canvas');
+  layer.width = Math.max(1, Math.ceil(mask.w));
+  layer.height = Math.max(1, Math.ceil(mask.h));
+
+  const layerCtx = layer.getContext('2d');
+  if (!layerCtx) return;
+
+  layerCtx.translate(-mask.x, -mask.y);
+  drawLayer(layerCtx);
+  layerCtx.setTransform(1, 0, 0, 1, 0, 0);
+  applyPreviewBandMask(layerCtx, mask, mask.x, mask.y);
+  ctx.drawImage(layer, mask.x, mask.y);
+}
+
 /** Board static layer: cells + flags + AI hint (cacheable; no scroll pressure or pointer FX). */
 export function renderBoardStaticFrame(
   ctx: CanvasRenderingContext2D,
   layout: LayoutMetrics,
   state: RenderState,
 ): void {
-  const { gridOriginX, gridOriginY, gridWidth, gridHeight, grid } = layout;
+  const { gridOriginY, gridWidth, gridHeight } = layout;
 
   ctx.clearRect(0, 0, layout.width, layout.height);
+  const previewRows = state.previewRows ?? 0;
 
   const trackBg = ctx.createLinearGradient(0, 0, gridWidth, 0);
   trackBg.addColorStop(0, 'rgba(24, 24, 27, 0.34)');
@@ -88,35 +157,125 @@ export function renderBoardStaticFrame(
   trackBg.addColorStop(0.92, THEME.panelBg);
   trackBg.addColorStop(1, 'rgba(24, 24, 27, 0.34)');
   ctx.fillStyle = trackBg;
-  ctx.fillRect(0, 0, gridWidth, gridHeight);
+  const trackTop = previewRows > 0 ? gridOriginY : 0;
+  ctx.fillRect(0, trackTop, gridWidth, gridHeight - trackTop);
 
-  const previewRows = state.previewRows ?? 0;
   drawBoardSideRails(ctx, layout, previewRows);
 
   const previewViews = previewRows > 0 ? state.views.filter((view) => view.preview) : [];
   const playableViews = previewRows > 0 ? state.views.filter((view) => !view.preview) : state.views;
 
   if (previewViews.length > 0) {
-    const bandTop = gridOriginY - grid.cellStep;
-    const bandH = grid.cellStep;
-    const visibleH = previewRows * grid.cellStep;
-
     ctx.save();
     drawPlayableCells(ctx, previewViews, layout, state);
     drawPlayableMarks(ctx, previewViews, layout, state, false);
-
-    ctx.globalCompositeOperation = 'destination-in';
-    const fade = ctx.createLinearGradient(0, bandTop, 0, bandTop + bandH);
-    fade.addColorStop(0, 'rgba(0,0,0,0)');
-    fade.addColorStop(Math.max(0, 1 - visibleH / bandH - 0.08), 'rgba(0,0,0,0)');
-    fade.addColorStop(1, 'rgba(0,0,0,1)');
-    ctx.fillStyle = fade;
-    ctx.fillRect(gridOriginX - 2, bandTop - 2, gridWidth + 4, bandH + 4);
+    applyPreviewBandMask(ctx, getPreviewBandMask(layout, previewRows));
     ctx.restore();
   }
 
   drawPlayableCells(ctx, playableViews, layout, state);
   drawPlayableMarks(ctx, playableViews, layout, state, false);
+
+  if (state.aiHint && state.status !== 'lost') {
+    drawAiHint(ctx, layout, state.aiHint);
+  }
+}
+
+export function getCellIntroRippleDist(row: number, col: number, rows: number, cols: number): number {
+  const centerRow = (rows - 1) / 2;
+  const centerCol = (cols - 1) / 2;
+  return Math.hypot(row - centerRow, col - centerCol);
+}
+
+export function getMaxCellIntroRippleDist(rows: number, cols: number): number {
+  let maxDist = 0;
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      maxDist = Math.max(maxDist, getCellIntroRippleDist(row, col, rows, cols));
+    }
+  }
+  return maxDist;
+}
+
+/** Ripple wave from center: linear alpha 0→1 as the front reaches each cell. */
+export function getCellIntroRippleAlpha(reveal: number, dist: number, maxDist: number): number {
+  if (reveal <= 0) return 0;
+  if (maxDist <= 0) return clamp01(reveal);
+  const rippleBand = Math.max(2, maxDist * 0.42);
+  const rippleFront = reveal * (maxDist + rippleBand);
+  return clamp01((rippleFront - dist) / rippleBand);
+}
+
+/** Hidden tile frame only — no dark underlay (intro draws over starfield). */
+function drawIntroCellSurface(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  view: CellView,
+  grid: LayoutMetrics['grid'],
+  status: RenderState['status'],
+): void {
+  const sprites = getTileSprites();
+  if (sprites && !view.revealed) {
+    drawSpriteInCell(ctx, sprites.hidden, x, y, grid.cellSize);
+    return;
+  }
+  drawCell(ctx, x, y, view, grid, status);
+}
+
+/** Intro board: fixed grid slots; ripple fade 0→1 from center outward. */
+export function renderBoardIntroFrame(
+  ctx: CanvasRenderingContext2D,
+  layout: LayoutMetrics,
+  state: RenderState,
+  reveal: number,
+  rows: number,
+  cols: number,
+): void {
+  const { gridOriginX, gridOriginY, grid } = layout;
+
+  // Do not clearRect — transparency would punch through the canvas to the DOM (black box).
+  // Cells composite directly over the ambient backdrop already painted on the shell layer.
+
+  const maxDist = getMaxCellIntroRippleDist(rows, cols);
+  const previewRows = state.previewRows ?? 0;
+  const previewViews = previewRows > 0 ? state.views.filter((view) => view.preview) : [];
+  const playableViews = previewRows > 0 ? state.views.filter((view) => !view.preview) : state.views;
+
+  const drawIntroCell = (targetCtx: CanvasRenderingContext2D, view: CellView) => {
+    const dist = getCellIntroRippleDist(view.row, view.col, rows, cols);
+    const alpha = getCellIntroRippleAlpha(reveal, dist, maxDist);
+    if (alpha <= 0) return;
+
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+
+    targetCtx.save();
+    targetCtx.globalAlpha = alpha;
+    drawIntroCellSurface(targetCtx, x, y, view, grid, state.status);
+    targetCtx.restore();
+  };
+
+  const drawIntroMark = (targetCtx: CanvasRenderingContext2D, view: CellView) => {
+    const dist = getCellIntroRippleDist(view.row, view.col, rows, cols);
+    const alpha = getCellIntroRippleAlpha(reveal, dist, maxDist);
+    if (alpha <= 0) return;
+    const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);
+
+    targetCtx.save();
+    targetCtx.globalAlpha = alpha;
+    drawCellMarksOverlay(targetCtx, x, y, view, grid, state.nowMs ?? 0, false);
+    targetCtx.restore();
+  };
+
+  if (previewViews.length > 0) {
+    drawMaskedPreviewLayer(ctx, layout, previewRows, (layerCtx) => {
+      for (const view of previewViews) drawIntroCell(layerCtx, view);
+      for (const view of previewViews) drawIntroMark(layerCtx, view);
+    });
+  }
+
+  for (const view of playableViews) drawIntroCell(ctx, view);
+  for (const view of playableViews) drawIntroMark(ctx, view);
 
   if (state.aiHint && state.status !== 'lost') {
     drawAiHint(ctx, layout, state.aiHint);
