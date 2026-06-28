@@ -37,6 +37,13 @@ export interface HitRect {
   h: number;
 }
 
+/** Touch flag swipe: locked cell preview (no finger-follow UI). */
+export interface FlagSwipePreviewState {
+  row: number;
+  col: number;
+  active: boolean;
+}
+
 export interface PendingPanelTransition {
   kind: 'start' | 'retry';
   startedAt: number;
@@ -102,6 +109,7 @@ export interface CanvasRuntimeState {
   shellBgCache: HTMLCanvasElement | null;
   shellBgCacheKey: string;
   boardPointer: BoardPointerState | null;
+  flagSwipePreview: FlagSwipePreviewState | null;
   lastLivesCurrent: number;
   heartRefillFxStartedAt: number;
   heartRefillTargetIndex: number;
@@ -190,6 +198,7 @@ export function createInitialRuntimeState(
     shellBgCache: null,
     shellBgCacheKey: '',
     boardPointer: null,
+    flagSwipePreview: null,
     lastLivesCurrent: -1,
     heartRefillFxStartedAt: 0,
     heartRefillTargetIndex: 0,

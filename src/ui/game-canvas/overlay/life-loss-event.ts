@@ -3,6 +3,7 @@ import { clamp01, easeOutCubic } from '../../primitives/index.ts';
 import { HUD_FEEDBACK_ASSETS, LIFE_LOSS_POPUP_V3_MS } from '../assets/hud-feedback-assets.ts';
 import type { GameCanvasHudStats } from '../types.ts';
 import { drawSheetFrameContained, setFittedMonoFont } from '../hud/canvas-primitives.ts';
+import { getBoardTopEventAnchor } from '../../game-stage-layout.ts';
 
 export function drawLifeLossSlash(_rt: GameCanvasRuntime,
   shellCtx: CanvasRenderingContext2D,
@@ -82,8 +83,10 @@ export function drawLifeLossEvent(rt: GameCanvasRuntime,
   const alpha = enter * (1 - exit);
   const impact = progress < 0.34 ? 1 - easeOutCubic(progress / 0.34) : 0;
   const frameIndex = Math.min(3, Math.floor(progress * 4));
+  const eventAnchor = getBoardTopEventAnchor(rt.state.stageLayout);
   const cx = shellW / 2 + Math.sin(progress * Math.PI * 30) * impact * Math.min(shellW, shellH) * 0.005;
-  const cy = Math.max(88 * stageScale, rt.state.boardOffsetY - 4 * stageScale) - Math.sin(progress * Math.PI) * 8 * stageScale;
+  const fallbackY = Math.max(88 * stageScale, rt.state.boardOffsetY - 12 * stageScale);
+  const cy = (eventAnchor?.y ?? fallbackY) - Math.sin(progress * Math.PI) * 8 * stageScale;
 
   const flash = progress < 0.2 ? 1 - progress / 0.2 : 0;
   if (flash > 0) {

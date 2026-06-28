@@ -32,6 +32,8 @@ export interface RenderState {
   aiHint?: AiHintDisplay | null;
   /** Pointer hover cell (hover / breath FX) */
   pointer?: BoardPointerState | null;
+  /** Touch flag swipe committed on locked target cell */
+  flagSwipeActive?: boolean;
   /** Animation timestamp (performance.now) */
   nowMs?: number;
 }

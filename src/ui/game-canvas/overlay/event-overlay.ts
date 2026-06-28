@@ -179,10 +179,22 @@ export function drawFullscreenOverlay(rt: GameCanvasRuntime,
   }
 
   if (rt.state.currentStatus === 'idle' && (shell.showStartOverlay?.() ?? true)) {
-    const w = Math.min(420, shellW - 40, Math.max(280, rt.state.boardWidth * 1.08));
-    const h = Math.round(w * (246 / 364));
+    const isMobile = rt.state.stageLayout?.profile === 'mobile';
+    const scale = rt.state.stageLayout?.scale ?? 1;
+    const hudBottom = (rt.state.stageLayout?.hudY ?? 0) + (rt.state.stageLayout?.hudH ?? 0) + 6 * scale;
+    const bottomLimit =
+      (rt.state.stageLayout?.bottomRailRect.y ?? shellH) -
+      (isMobile ? 58 * scale : 16 * scale);
+    const w = Math.min(
+      isMobile ? 300 : 420,
+      shellW - (isMobile ? 24 : 40),
+      Math.max(isMobile ? 240 : 280, rt.state.boardWidth * (isMobile ? 0.88 : 1.08)),
+    );
+    const h = Math.min(Math.round(w * (246 / 364)), Math.max(120, bottomLimit - hudBottom));
     const x = (shellW - w) / 2;
-    const y = Math.max(120, rt.state.boardOffsetY + rt.state.boardHeight * 0.46 - h / 2);
+    const boardTop = rt.state.boardOffsetY + 4 * scale;
+    const minY = Math.max(hudBottom, boardTop);
+    const y = Math.min(minY + Math.max(0, (bottomLimit - minY - h) * 0.35), bottomLimit - h);
     const now = performance.now();
     const action = panelTransitionProgress(rt, 'start', now);
     const pop = action > 0 ? 1 - Math.sin(action * Math.PI) * 0.025 : 1;

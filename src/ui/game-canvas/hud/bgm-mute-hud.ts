@@ -1,8 +1,9 @@
 import type { GameCanvasRuntime } from '../runtime/context.ts';
 import { drawHudIcon, parseLivesDisplay } from '../../hud-sprites.ts';
-import { hudHeartIconSize } from './lives-hud.ts';
+import { hudHeartIconSize, hudHeartRowMetrics } from './lives-hud.ts';
 
-export function drawBgmMuteHud(rt: GameCanvasRuntime, 
+export function drawBgmMuteHud(
+  rt: GameCanvasRuntime,
   shellCtx: CanvasRenderingContext2D,
   anchorX: number,
   hudY: number,
@@ -12,13 +13,19 @@ export function drawBgmMuteHud(rt: GameCanvasRuntime,
   hovered: boolean,
 ): void {
   const lives = parseLivesDisplay(livesRaw);
+  const isMobile = rt.state.stageLayout?.profile === 'mobile';
   const heartIconSize = hudHeartIconSize(rt, scale);
   const gridCellSize = rt.state.squareLayout?.grid.cellSize ?? 32 * scale;
-  const iconSize = Math.max(24, Math.min(34, gridCellSize * 0.82));
-  const hitSize = iconSize + Math.max(8, 10 * scale);
-  const heartRowY = hudY + 31 * scale;
+  const iconSize = isMobile
+    ? Math.max(18, Math.min(24, gridCellSize * 0.58))
+    : Math.max(24, Math.min(34, gridCellSize * 0.82));
+  const hitPad = isMobile ? Math.max(6, 7 * scale) : Math.max(8, 10 * scale);
+  const hitSize = iconSize + hitPad;
+  const metrics = lives
+    ? hudHeartRowMetrics(rt, anchorX, hudY, lives, scale)
+    : { x: anchorX - hitSize, cy: hudY + 31 * scale, iconSize: heartIconSize, gap: 0, rowW: hitSize };
   const rectX = anchorX - hitSize;
-  const rectY = heartRowY + (lives ? heartIconSize / 2 : 12 * scale) + 12 * scale;
+  const rectY = metrics.cy + heartIconSize / 2 + (isMobile ? 8 : 12) * scale;
   const cx = rectX + hitSize / 2;
   const cy = rectY + hitSize / 2;
 

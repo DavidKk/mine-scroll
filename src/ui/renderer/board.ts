@@ -64,6 +64,7 @@ function drawPlayableAmbientOverlays(
     status: state.status,
     nowMs: state.nowMs ?? 0,
     pointer: state.pointer,
+    flagSwipeActive: state.flagSwipeActive,
   };
   for (const view of views) {
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid);

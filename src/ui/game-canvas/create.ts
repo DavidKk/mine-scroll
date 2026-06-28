@@ -18,6 +18,11 @@ import {
   onContextMenu,
   onDoubleClick,
   onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  initTouchGesture,
+  destroyTouchGesture,
 } from './input/pointer-handlers.ts';
 
 export type {
@@ -93,10 +98,14 @@ export function createGameCanvas(
 
   rt.paint = () => paint(rt);
   bindPaintScheduler(rt);
+  initTouchGesture(rt);
 
   const onResize = () => rt.paint();
   const handleMouseDown = (e: MouseEvent) => onMouseDown(rt, e);
   const handlePointerDown = (e: PointerEvent) => onPointerDown(rt, e);
+  const handlePointerMove = (e: PointerEvent) => onPointerMove(rt, e);
+  const handlePointerUp = (e: PointerEvent) => onPointerUp(rt, e);
+  const handlePointerCancel = (e: PointerEvent) => onPointerCancel(rt, e);
   const handleMouseMove = (e: MouseEvent) => onMouseMove(rt, e);
   const handleMouseUp = (e: MouseEvent) => onMouseUp(rt, e);
   const handleMouseLeave = () => onMouseLeave(rt);
@@ -105,10 +114,15 @@ export function createGameCanvas(
 
   rt.canvas.addEventListener('mousedown', handleMouseDown);
   rt.canvas.addEventListener('pointerdown', handlePointerDown);
+  rt.canvas.addEventListener('pointermove', handlePointerMove);
+  rt.canvas.addEventListener('pointerup', handlePointerUp);
+  rt.canvas.addEventListener('pointercancel', handlePointerCancel);
   rt.canvas.addEventListener('mousemove', handleMouseMove);
   rt.canvas.addEventListener('mouseup', handleMouseUp);
   rt.canvas.addEventListener('mouseleave', handleMouseLeave);
   window.addEventListener('mouseup', handleMouseUp);
+  window.addEventListener('pointerup', handlePointerUp);
+  window.addEventListener('pointercancel', handlePointerCancel);
   rt.canvas.addEventListener('contextmenu', handleContextMenu);
   rt.canvas.addEventListener('dblclick', handleDoubleClick);
 
@@ -188,12 +202,18 @@ export function createGameCanvas(
       controller.stopTimer();
       clearPendingPanelTransition(rt);
       cancelScheduledPaint(rt);
+      destroyTouchGesture(rt);
       rt.canvas.removeEventListener('mousedown', handleMouseDown);
       rt.canvas.removeEventListener('pointerdown', handlePointerDown);
+      rt.canvas.removeEventListener('pointermove', handlePointerMove);
+      rt.canvas.removeEventListener('pointerup', handlePointerUp);
+      rt.canvas.removeEventListener('pointercancel', handlePointerCancel);
       rt.canvas.removeEventListener('mousemove', handleMouseMove);
       rt.canvas.removeEventListener('mouseup', handleMouseUp);
       rt.canvas.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
       rt.canvas.removeEventListener('contextmenu', handleContextMenu);
       rt.canvas.removeEventListener('dblclick', handleDoubleClick);
       if (fullscreen) window.removeEventListener('resize', onResize);

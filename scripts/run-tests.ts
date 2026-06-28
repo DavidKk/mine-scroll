@@ -38,6 +38,7 @@ import {
   getComboFeedbackAnchor,
   getBottomFeedbackSlots,
   getDifficultyAlertAnchor,
+  getMobileBoardCanvasY,
 } from '../src/ui/game-stage-layout.ts';
 import { isLoopingGameFx, resolveFxFrameIndex } from '../src/ui/game-assets.ts';
 import { getComboFeedbackPalette, getComboHudTier } from '../src/ui/hud-feedback-fx.ts';
@@ -52,6 +53,16 @@ import {
   testLocalSettingsPatchPersists,
   testLocalSettingsRoundTrip,
 } from './local-settings-tests.ts';
+import {
+  testClassifyPointerEndCancelOnSmallDiagonal,
+  testClassifyPointerEndSwipe,
+  testClassifyPointerEndTap,
+  testCommittedSwipeMode,
+  testDetectSwipeDuringMove,
+  testDoubleTapWindow,
+  testGestureThresholdsScaleWithCellSize,
+  testInputProfileDetection,
+} from './touch-gesture-tests.ts';
 
 interface FakeCell extends SolverCell {
   mine?: boolean;
@@ -704,14 +715,26 @@ function testScrollProceedsWhenBottomUnsafe(): void {
   assert.equal((next.scrollRowCount ?? 0) - beforeDepth, 1);
 }
 
-function testBatchScrollMovesMultipleRowsAndCapsDamage(): void {
-  let session = endlessSessionWithUnsafeBottom();
+function testScrollDamageEqualsLeavingMineCount(): void {
+  const session = endlessSessionWithLeavingMines();
+  const expectedDamage = collectScrollLeavingMineCells(session, 1).length;
+  assert.ok(expectedDamage >= 1, 'expected at least one leaving mine');
+  const beforeLives = session.lives ?? 0;
+  const next = endlessScrollTick(session, 1);
+  assert.equal(next.lastLifeLoss?.damage, expectedDamage);
+  assert.equal(beforeLives - (next.lives ?? 0), expectedDamage);
+}
+
+function testBatchScrollAppliesCombinedMineDamage(): void {
+  const session = endlessSessionWithUnsafeBottom();
   const beforeDepth = session.scrollRowCount ?? 0;
   const beforeLives = session.lives ?? 0;
   const next = endlessScrollTick(session, 5);
 
   assert.equal((next.scrollRowCount ?? 0) - beforeDepth, 5);
-  assert.ok(beforeLives - (next.lives ?? 0) <= 1);
+  const totalDamage = next.lastLifeLoss?.damage ?? 0;
+  assert.ok(totalDamage >= 1, 'batch scroll should report leaving-mine damage');
+  assert.equal(beforeLives - (next.lives ?? 0), Math.min(beforeLives, totalDamage));
 }
 
 function comboAnchorInput(
@@ -848,12 +871,25 @@ function testComboHudV3TierColors(): void {
   assert.notEqual(getComboFeedbackPalette(60).digitColor, '#ef4444');
 }
 
-function testDifficultyAlertAnchorSitsAboveBoard(): void {
+function testMobileComboHudAnchorSitsInTopFeedbackBand(): void {
   const { stage } = comboAnchorInput(390, 844);
+  assert.equal(stage.profile, 'mobile');
+  const hudBottom = stage.hudY + stage.hudH;
+  assert.ok(stage.comboHudAnchor.y >= hudBottom + stage.scale * 4, 'combo should sit below HUD');
+  assert.ok(stage.comboHudAnchor.y < stage.boardY - 40 * stage.scale, 'combo should stay above board');
+}
+
+function testDifficultyAlertAnchorSitsAboveBoard(): void {
+  const { stage, boardLayout } = comboAnchorInput(390, 844);
   const anchor = getDifficultyAlertAnchor(stage);
   const hudBottom = stage.hudY + stage.hudH;
+  const alertBottom = anchor.y + 30 * stage.scale;
+  const boardCanvasY = getMobileBoardCanvasY(stage, boardLayout.gridOriginY);
+  const firstRowTop = boardCanvasY + boardLayout.gridOriginY;
+  const minClearance = 4 * stage.scale;
   assert.ok(anchor.y > hudBottom + stage.scale * 8, 'alert should sit below top HUD');
-  assert.ok(anchor.y < stage.boardY - stage.scale * 4, 'alert should stay above board top');
+  assert.ok(firstRowTop >= alertBottom + minClearance - 1, 'first row should sit below alert visuals');
+  assert.ok(firstRowTop <= alertBottom + minClearance + 8 * stage.scale, 'first row should hug alert band');
   assert.equal(anchor.x, stage.viewportW / 2);
 }
 
@@ -883,13 +919,15 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['first reveal can hit mine and cost life', testFirstRevealCanHitMineAndCostLife],
   ['scroll leaving mines collected before scroll', testScrollLeavingMinesCollectedBeforeScroll],
   ['scroll proceeds when bottom row is not safe', testScrollProceedsWhenBottomUnsafe],
-  ['batch scroll moves multiple rows and caps damage', testBatchScrollMovesMultipleRowsAndCapsDamage],
+  ['scroll damage equals leaving mine count', testScrollDamageEqualsLeavingMineCount],
+  ['batch scroll applies combined mine damage', testBatchScrollAppliesCombinedMineDamage],
   ['combo feedback anchor centers horizontally', testComboFeedbackAnchorCentersHorizontally],
   ['combo feedback anchor aligns with bottom playable row', testComboFeedbackAnchorAlignsWithBottomPlayableRow],
   ['combo feedback anchor sits below hud and above bottom rail', testComboFeedbackAnchorSitsBelowHudAndAboveBottomRail],
   ['combo feedback anchor fallback without layout', testComboFeedbackAnchorFallbackWithoutLayout],
   ['bottom feedback slots separate score and combo', testBottomFeedbackSlotsSeparateScoreAndCombo],
   ['combo hud v3 uses four escalating color tiers', testComboHudV3TierColors],
+  ['mobile combo HUD anchor sits in top feedback band', testMobileComboHudAnchorSitsInTopFeedbackBand],
   ['difficulty alert anchor sits above board', testDifficultyAlertAnchorSitsAboveBoard],
   ['fx frame index loops and completes oneshots', testFxFrameIndexLoopAndOneshot],
   ['orbit particles match at loop wrap', testOrbitParticlesSeamAtLoopWrap],
@@ -898,6 +936,14 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['local settings round trip', testLocalSettingsRoundTrip],
   ['local settings patch persists', testLocalSettingsPatchPersists],
   ['local settings ignores invalid payload', testLocalSettingsIgnoresInvalidPayload],
+  ['touch gesture thresholds scale with cell size', testGestureThresholdsScaleWithCellSize],
+  ['touch gesture classifies tap', testClassifyPointerEndTap],
+  ['touch gesture classifies vertical swipe', testClassifyPointerEndSwipe],
+  ['touch gesture cancels small diagonal move', testClassifyPointerEndCancelOnSmallDiagonal],
+  ['touch gesture keeps committed swipe mode', testCommittedSwipeMode],
+  ['touch gesture detects swipe during move', testDetectSwipeDuringMove],
+  ['touch gesture double tap window', testDoubleTapWindow],
+  ['touch gesture input profile detection', testInputProfileDetection],
   ['game canvas bootstraps layout without throwing', testCreateGameCanvasBootstrapsLayout],
   ['endless session renders through game canvas', testEndlessSessionMountsThroughGameCanvas],
 ];

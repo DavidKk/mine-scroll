@@ -31,9 +31,13 @@ export interface GameStageLayout {
   autoRect: Rect;
   devSpeedRect: Rect;
   bottomRailRect: Rect;
+  /** Mobile manual-scroll button, centered in the bottom action rail. */
+  spaceButtonRect: Rect | null;
   scoreAnchor: Point;
   livesAnchor: Point;
   countdownAnchor: Point;
+  /** Persistent combo HUD anchor (top on desktop, above bottom rail on mobile). */
+  comboHudAnchor: Point;
 }
 
 export interface EndlessShellReserves {
@@ -56,10 +60,25 @@ const BASE_STAGE_W = 390;
 const BASE_STAGE_H = 844;
 const BASE_CELL_SIZE = 28;
 const ENDLESS_BOTTOM_RAIL_H = 30;
+const MOBILE_BOTTOM_RAIL_MIN_H = 54;
+const MOBILE_SCROLL_BUTTON_MIN_W = 96;
+const MOBILE_SCROLL_BUTTON_MIN_H = 44;
 const DESKTOP_BREAKPOINT_W = 768;
 /** Extra row reserve when fitting cell size so the board does not hug top/bottom edges. */
 const BOARD_HEIGHT_ROW_RESERVE = 1;
 const BOARD_VERT_MARGIN_BASE = 6;
+/** Mobile: persistent COMBO rail above the grid. */
+const MOBILE_COMBO_BAND_H = 46;
+/** Mobile: SPEED UP / life-loss alert band below COMBO. */
+const MOBILE_ALERT_BAND_H = 38;
+/** Matches drawDifficultyAlert maxH / 2. */
+const MOBILE_ALERT_VISUAL_HALF_H = 30;
+/** Mobile: clearance between alert visuals and first playable row. */
+const MOBILE_BOARD_TOP_FEEDBACK_GAP = 4;
+/** Desktop: min clearance between board-top alerts and grid. */
+const DESKTOP_ALERT_BOARD_CLEARANCE = 10;
+/** Desktop: nudge SPEED UP / life-loss alerts downward. */
+const DESKTOP_ALERT_Y_OFFSET = 6;
 
 function clamp(min: number, max: number, value: number): number {
   return Math.max(min, Math.min(max, value));
@@ -88,16 +107,28 @@ export function getEndlessShellReserves(viewportW: number, viewportH: number): E
   const profile = getEndlessLayoutProfile(viewportW);
   const scale = computeGameStageScale(viewportW, viewportH);
   const safe = 16 * scale;
-  const hudH = 56 * scale;
-  const hudGap = 8 * scale;
-  const bottomRailH = ENDLESS_BOTTOM_RAIL_H * scale;
-  const bottomPad = 6 * scale;
+  const hudH = (profile === 'mobile' ? 38 : 56) * scale;
+  const hudGap = (profile === 'mobile' ? 4 : 8) * scale;
+  const bottomRailH =
+    profile === 'mobile'
+      ? Math.max(MOBILE_BOTTOM_RAIL_MIN_H, MOBILE_BOTTOM_RAIL_MIN_H * scale)
+      : ENDLESS_BOTTOM_RAIL_H * scale;
+  const bottomPad = profile === 'mobile' ? Math.max(8, 8 * scale) : 6 * scale;
   const boardMargin = BOARD_VERT_MARGIN_BASE * scale;
+  const mobileGridOriginEstimate = GRID_PADDING + 14 * scale;
+  const mobileTopFeedback =
+    profile === 'mobile'
+      ? MOBILE_COMBO_BAND_H * scale +
+        MOBILE_ALERT_BAND_H * scale * 0.5 +
+        MOBILE_ALERT_VISUAL_HALF_H * scale +
+        MOBILE_BOARD_TOP_FEEDBACK_GAP * scale -
+        mobileGridOriginEstimate
+      : 0;
   return {
     scale,
     profile,
     safe,
-    top: hudH + hudGap + boardMargin,
+    top: hudH + hudGap + boardMargin + mobileTopFeedback,
     bottom: bottomRailH + bottomPad + boardMargin,
     side: 16,
     hudY: 0,
@@ -183,7 +214,10 @@ export function computeGameStageLayout(
   const boardY =
     profile === 'desktop'
       ? boardAreaTop + slack * 0.5
-      : boardAreaTop + slack * 0.15;
+      : getMobileBoardCanvasY(
+          { viewportW, hudY, hudH, boardY: 0, scale, profile },
+          estimateMobileGridOriginY(boardH),
+        );
 
   const devBtnH = (profile === 'desktop' ? 22 : 20) * scale;
   const devAutoW = (profile === 'desktop' ? 44 : 40) * scale;
@@ -210,6 +244,26 @@ export function computeGameStageLayout(
     h: devBtnH,
   };
 
+  const spaceBtnW = Math.max(MOBILE_SCROLL_BUTTON_MIN_W, 104 * scale);
+  const spaceBtnH = Math.max(MOBILE_SCROLL_BUTTON_MIN_H, 44 * scale);
+  const spaceButtonRect: Rect | null =
+    profile === 'mobile'
+      ? {
+          x: (viewportW - spaceBtnW) / 2,
+          y: bottomRailRect.y + (bottomRailRect.h - spaceBtnH) / 2,
+          w: spaceBtnW,
+          h: spaceBtnH,
+        }
+      : null;
+
+  const hudBottom = hudY + hudH;
+  const hudGap = (profile === 'mobile' ? 4 : 8) * scale;
+  const boardMargin = BOARD_VERT_MARGIN_BASE * scale;
+  const comboHudAnchor: Point =
+    profile === 'mobile'
+      ? { x: viewportW / 2, y: hudBottom + hudGap + boardMargin }
+      : { x: viewportW / 2, y: hudY };
+
   return {
     viewportW,
     viewportH,
@@ -229,9 +283,11 @@ export function computeGameStageLayout(
     autoRect,
     devSpeedRect,
     bottomRailRect,
+    spaceButtonRect,
     scoreAnchor: { x: safe, y: hudY },
     livesAnchor: { x: viewportW - safe, y: hudY },
     countdownAnchor: { x: viewportW / 2, y: hudY },
+    comboHudAnchor,
   };
 }
 
@@ -271,16 +327,65 @@ export function getComboFeedbackAnchor(
   return { x: cx, y };
 }
 
-/** Speed / danger alerts: centered in the HUD–board gap, just above the grid. */
-export function getDifficultyAlertAnchor(
-  layout: Pick<GameStageLayout, 'viewportW' | 'hudY' | 'hudH' | 'boardY'>,
-): Point {
+type BoardTopEventLayout = Pick<
+  GameStageLayout,
+  'viewportW' | 'hudY' | 'hudH' | 'boardY' | 'scale' | 'profile'
+>;
+
+function estimateMobileGridOriginY(boardH: number): number {
+  const bandRows = 18.5;
+  const innerH = Math.max(1, boardH - GRID_PADDING * 2);
+  const cellStep = innerH / bandRows;
+  return GRID_PADDING + 0.5 * cellStep;
+}
+
+/** Mobile board canvas Y: first playable row sits just below SPEED UP / life-loss alerts. */
+export function getMobileBoardCanvasY(
+  layout: BoardTopEventLayout,
+  gridOriginY: number,
+): number {
+  const alertAnchor = getDifficultyAlertAnchor(layout);
+  const alertBottom = alertAnchor.y + MOBILE_ALERT_VISUAL_HALF_H * layout.scale;
+  const gap = MOBILE_BOARD_TOP_FEEDBACK_GAP * layout.scale;
+  return alertBottom + gap - gridOriginY;
+}
+
+function mobileBoardTopFeedbackStack(layout: BoardTopEventLayout): {
+  comboTopY: number;
+  alertCenterY: number;
+} {
+  const scale = layout.scale;
+  const hudGap = (layout.profile === 'mobile' ? 4 : 8) * scale;
+  const boardMargin = BOARD_VERT_MARGIN_BASE * scale;
+  const hudBottom = layout.hudY + layout.hudH;
+  const comboTopY = hudBottom + hudGap + boardMargin;
+  const alertCenterY =
+    comboTopY + MOBILE_COMBO_BAND_H * scale + MOBILE_ALERT_BAND_H * scale * 0.5;
+  return { comboTopY, alertCenterY };
+}
+
+/** SPEED UP / DANGER RISE — mobile: below COMBO; desktop: HUD–board gap with board clearance. */
+export function getDifficultyAlertAnchor(layout: BoardTopEventLayout): Point {
+  if (layout.profile === 'mobile') {
+    return {
+      x: layout.viewportW / 2,
+      y: mobileBoardTopFeedbackStack(layout).alertCenterY,
+    };
+  }
   const hudBottom = layout.hudY + layout.hudH;
   const gap = Math.max(0, layout.boardY - hudBottom);
+  const clearance = DESKTOP_ALERT_BOARD_CLEARANCE * layout.scale;
+  const idealY = hudBottom + gap * 0.72;
   return {
     x: layout.viewportW / 2,
-    y: hudBottom + gap * 0.82,
+    y: Math.min(idealY, layout.boardY - clearance) + DESKTOP_ALERT_Y_OFFSET * layout.scale,
   };
+}
+
+/** Life-loss popup shares the board-top alert band (same Y as SPEED UP). */
+export function getBoardTopEventAnchor(layout: BoardTopEventLayout | null): Point | null {
+  if (!layout) return null;
+  return getDifficultyAlertAnchor(layout);
 }
 
 /** Bottom feedback stack: score pop above, combo burst below, separate anchors. */

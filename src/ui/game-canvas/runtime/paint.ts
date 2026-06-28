@@ -2,6 +2,7 @@ import type { GameCanvasRuntime } from './context.ts';
 import { renderBoardStaticFrame, renderBoardDynamicFrame, renderFrame } from '../../renderer/index.ts';
 import { syncFullscreenCanvasSize } from '../layout/viewport-fit.ts';
 import { syncBoardSizeFromLayout } from '../layout/board-layout.ts';
+import { syncInputProfile } from '../input/pointer-handlers.ts';
 import { ensureBoardLayerCache } from './board-layer-cache.ts';
 import { drawShellBackground } from '../shell/background.ts';
 import { drawAmbientShellBackdrop } from '../shell/ambient-shell.ts';
@@ -13,6 +14,7 @@ import { syncPressureRepaint, scheduleContinuousRepaint } from './paint-schedule
 
 export function paint(rt: GameCanvasRuntime): void {
   syncFullscreenCanvasSize(rt);
+  syncInputProfile(rt);
   syncBoardSizeFromLayout(rt);
   const now = performance.now();
   pruneEffects(rt, now);
@@ -28,6 +30,7 @@ export function paint(rt: GameCanvasRuntime): void {
     previewRows: rt.state.currentPreviewRows > 0 ? rt.state.currentPreviewRows : undefined,
     nowMs: now,
     pointer: rt.state.boardPointer,
+    flagSwipeActive: Boolean(rt.state.flagSwipePreview?.active),
     ...(rt.fullscreen
       ? {}
       : {

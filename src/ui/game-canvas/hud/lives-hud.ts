@@ -19,12 +19,16 @@ export function drawLivesHud(rt: GameCanvasRuntime, shellCtx: CanvasRenderingCon
   shellCtx.restore();
 }
 
-export function hudHeartIconSize(_rt: GameCanvasRuntime, scale: number): number {
+export function hudHeartIconSize(rt: GameCanvasRuntime, scale: number): number {
+  const isMobile = rt.state.stageLayout?.profile === 'mobile';
+  if (isMobile) {
+    return Math.max(20, Math.min(26, 22 * scale));
+  }
   return Math.max(28, Math.min(38, 34 * scale));
 }
 
-export function hudHeartGap(scale: number): number {
-  return Math.max(5, 7 * scale);
+export function hudHeartGap(scale: number, isMobile = false): number {
+  return Math.max(isMobile ? 3 : 5, (isMobile ? 5 : 7) * scale);
 }
 
 export function hudHeartRowMetrics(rt: GameCanvasRuntime, anchorX: number,
@@ -32,12 +36,13 @@ export function hudHeartRowMetrics(rt: GameCanvasRuntime, anchorX: number,
   lives: LivesDisplay,
   scale: number,
 ): { x: number; cy: number; iconSize: number; gap: number; rowW: number } {
+  const isMobile = rt.state.stageLayout?.profile === 'mobile';
   const iconSize = hudHeartIconSize(rt, scale);
-  const gap = hudHeartGap(scale);
+  const gap = hudHeartGap(scale, isMobile);
   const rowW = lives.max * iconSize + (lives.max - 1) * gap;
   return {
     x: anchorX - rowW,
-    cy: hudY + 31 * scale,
+    cy: hudY + (isMobile ? 23 : 31) * scale,
     iconSize,
     gap,
     rowW,

@@ -7,7 +7,8 @@ import { drawLivesHud } from './lives-hud.ts';
 import { drawBgmMuteHud } from './bgm-mute-hud.ts';
 import { drawDevAutoButton, drawDevSpeedUpButton } from './dev-controls.ts';
 
-export function drawFullscreenHud(rt: GameCanvasRuntime,
+export function drawFullscreenHud(
+  rt: GameCanvasRuntime,
   shellCtx: CanvasRenderingContext2D,
   shell: GameCanvasFullscreenOptions,
   shellW: number,
@@ -17,9 +18,9 @@ export function drawFullscreenHud(rt: GameCanvasRuntime,
   const stats = shell.getStats?.();
   const stage = rt.state.stageLayout;
   const { scale } = stage;
+  const isMobile = stage.profile === 'mobile';
   const topBarH = stage.hudH;
 
-  // Full-width HUD pinned to top
   const barX = 0;
   const barY = stage.hudY;
   const barW = shellW;
@@ -32,21 +33,21 @@ export function drawFullscreenHud(rt: GameCanvasRuntime,
   shellCtx.fillRect(barX, barY + topBarH + 2 * scale, barW, Math.max(1, scale));
 
   const livesRaw = stats?.lives;
-  const hudY = barY + 7 * scale;
+  const hudY = barY + (isMobile ? 3 : 7) * scale;
   drawScoreHud(rt, shellCtx, stage.scoreAnchor.x, hudY, stats?.score ?? 0, scale);
-  drawComboHud(rt, shellCtx, stage.countdownAnchor.x, hudY, stats?.combo ?? 0, scale);
+  if (!isMobile) {
+    drawComboHud(rt, shellCtx, stage.comboHudAnchor.x, hudY, stats?.combo ?? 0, scale);
+  }
   drawLivesHud(rt, shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale);
   if (shell.getBgmMuted && shell.onToggleBgmMute) {
-    drawBgmMuteHud(rt, shellCtx,
-      stage.livesAnchor.x,
-      hudY,
-      livesRaw,
-      scale,
-      shell.getBgmMuted(),
-      rt.state.uiHoverTarget === 'bgm-mute',
-    );
+    drawBgmMuteHud(rt, shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale, shell.getBgmMuted(), rt.state.uiHoverTarget === 'bgm-mute');
   } else {
     rt.state.bgmMuteRect = null;
+  }
+
+  const combo = stats?.combo ?? 0;
+  if (isMobile && combo > 1) {
+    drawComboHud(rt, shellCtx, stage.comboHudAnchor.x, stage.comboHudAnchor.y, combo, scale);
   }
 
   const livesParsed = parseLivesDisplay(livesRaw);

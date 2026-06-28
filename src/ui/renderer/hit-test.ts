@@ -61,7 +61,7 @@ export function hitTestReset(layout: LayoutMetrics, x: number, y: number): boole
 
 export function getCanvasPointerCoords(
   canvas: HTMLCanvasElement,
-  event: MouseEvent,
+  event: MouseEvent | PointerEvent,
   logicalSize?: { width: number; height: number },
 ): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();

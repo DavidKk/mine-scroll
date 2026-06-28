@@ -1,6 +1,6 @@
 import type { GameCanvasRuntime } from '../runtime/context.ts';
 import { getBoardOnlyLayoutMetrics, getLayoutMetrics, applyBoardPreviewBand, type LayoutMetrics } from '../../renderer/index.ts';
-import { computeGameStageLayout } from '../../game-stage-layout.ts';
+import { computeGameStageLayout, getMobileBoardCanvasY } from '../../game-stage-layout.ts';
 import { applyCanvasSize } from '../types.ts';
 import { syncViewportFitLayout } from './viewport-fit.ts';
 
@@ -55,7 +55,11 @@ export function syncBoardSizeFromLayout(rt: GameCanvasRuntime): void {
       rt.state.boardHeight,
     );
     rt.state.boardOffsetX = Math.round(rt.state.stageLayout.boardX);
-    rt.state.boardOffsetY = Math.round(rt.state.stageLayout.boardY);
+    const gridOriginY = rt.state.squareLayout!.gridOriginY;
+    rt.state.boardOffsetY =
+      rt.state.stageLayout.profile === 'mobile'
+        ? Math.round(getMobileBoardCanvasY(rt.state.stageLayout, gridOriginY))
+        : Math.round(rt.state.stageLayout.boardY);
   }
 }
 

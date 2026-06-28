@@ -3,6 +3,7 @@ import type { CellView, GameStatus } from '../../core/types.ts';
 import { drawImageContained, getGameCutout, type GameCutoutName } from '../game-assets.ts';
 import type { GridMetrics } from '../theme.ts';
 import { drawCellBreathOverlay, drawCellHoverOverlay } from './breath-hover.ts';
+import { drawWavingFlagMark } from './flag-mark.ts';
 import { drawDigitAmbientOverlay } from './digit-overlay.ts';
 import type { BoardPointerState } from './types.ts';
 
@@ -17,6 +18,7 @@ export function drawBoardCellOverlays(
     status: GameStatus;
     nowMs: number;
     pointer?: BoardPointerState | null;
+    flagSwipeActive?: boolean;
     preview?: boolean;
   },
 ): void {
@@ -35,8 +37,14 @@ export function drawBoardCellOverlays(
     drawCellBreathOverlay(ctx, x, y, g, options.nowMs);
   }
 
-  if (!view.revealed && !view.flagged && options.status === 'playing' && isPointer) {
-    drawCellHoverOverlay(ctx, x, y, g, options.pointer!.pressed);
+  if (!view.revealed && options.status === 'playing' && isPointer) {
+    if (options.flagSwipeActive) {
+      drawCellFlagSwipeTargetOverlay(ctx, x, y, g, options.nowMs);
+      return;
+    }
+    if (!view.flagged) {
+      drawCellHoverOverlay(ctx, x, y, g, options.pointer!.pressed);
+    }
     return;
   }
 
@@ -48,6 +56,40 @@ export function drawBoardCellOverlays(
   ) {
     drawDigitAmbientOverlay(ctx, x, y, g, view.adjacentMines ?? 0, options.nowMs);
   }
+}
+
+function drawCellFlagSwipeTargetOverlay(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  g: GridMetrics,
+  nowMs: number,
+): void {
+  const cx = x + g.cellSize / 2;
+  const cy = y + g.cellSize / 2;
+  const wave = Math.sin(nowMs / 200) * 0.5 + 0.5;
+  const flagAlpha = 0.34 + wave * 0.18;
+
+  ctx.save();
+
+  ctx.globalAlpha = 0.18 + wave * 0.1;
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, g.cellSize * 0.52);
+  glow.addColorStop(0, 'rgba(251, 191, 36, 0.55)');
+  glow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, g.cellSize * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.28 + wave * 0.14;
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 1.25;
+  ctx.strokeRect(x + 2, y + 2, g.cellSize - 4, g.cellSize - 4);
+
+  ctx.globalAlpha = flagAlpha;
+  drawWavingFlagMark(ctx, x, y, g, nowMs);
+
+  ctx.restore();
 }
 
 export function drawAiHintCutout(

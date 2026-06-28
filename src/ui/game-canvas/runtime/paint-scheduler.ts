@@ -64,6 +64,7 @@ export function needsContinuousRepaint(rt: GameCanvasRuntime, now: number): 'ful
   if (rt.state.currentStatus === 'idle') return 'ambient';
   if (rt.state.currentStatus !== 'playing') return false;
   if (rt.state.boardPointer !== null) return 'ambient';
+  if (rt.state.flagSwipePreview?.active) return 'ambient';
   if (rt.getScrollPressureFn?.()) return 'ambient';
   return false;
 }

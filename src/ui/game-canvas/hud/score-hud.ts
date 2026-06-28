@@ -118,33 +118,40 @@ export function drawScoreHud(rt: GameCanvasRuntime,
   const countUp = resolveScoreCountUpDisplay(rt, now, score);
   const displayScore = countUp.score;
   rt.state.lastDisplayedScore = displayScore;
+  const isMobile = rt.state.stageLayout?.profile === 'mobile';
   const pulseElapsed = rt.state.scoreFxStartedAt > 0 ? now - rt.state.scoreFxStartedAt : RUNTIME_CONSTANTS.SCORE_HUD_PULSE_MS;
   const pulseT = Math.max(0, Math.min(1, pulseElapsed / RUNTIME_CONSTANTS.SCORE_HUD_PULSE_MS));
   const pulse = pulseElapsed < RUNTIME_CONSTANTS.SCORE_HUD_PULSE_MS ? Math.sin(pulseT * Math.PI) * (1 - pulseT * 0.35) : 0;
   const panelPulseScale = 1 + pulse * 0.018;
+  const panelW = (isMobile ? 168 : 248) * scale;
+  const panelH = (isMobile ? 54 : 80) * scale;
+  const panelCx = x + (isMobile ? 78 : 118) * scale;
+  const panelCy = y + (isMobile ? 18 : 27) * scale;
   const asset = drawFeedbackAsset(rt, shellCtx,
     HUD_FEEDBACK_ASSETS.scorePanelV6,
-    x + 118 * scale,
-    y + 27 * scale,
-    248 * scale,
-    80 * scale,
+    panelCx,
+    panelCy,
+    panelW,
+    panelH,
     panelPulseScale,
     0.92,
   );
   if (!asset) {
-    drawTopHudChip(rt, shellCtx, x - 10 * scale, y - 4 * scale, 116 * scale, 46 * scale, 'rgba(96, 165, 250, 0.68)', 'left');
+    const chipW = (isMobile ? 92 : 116) * scale;
+    const chipH = (isMobile ? 34 : 46) * scale;
+    drawTopHudChip(rt, shellCtx, x - 8 * scale, y - 2 * scale, chipW, chipH, 'rgba(96, 165, 250, 0.68)', 'left');
     shellCtx.save();
     shellCtx.textAlign = 'left';
     shellCtx.textBaseline = 'top';
     shellCtx.fillStyle = '#7dd3fc';
-    shellCtx.font = `800 ${7.5 * scale}px ${FONTS.display}`;
+    shellCtx.font = `800 ${(isMobile ? 6.5 : 7.5) * scale}px ${FONTS.display}`;
     shellCtx.fillText('SCORE', x - 2 * scale, y);
     shellCtx.shadowColor = 'rgba(45, 236, 255, 0.42)';
     shellCtx.shadowBlur = 7 * scale;
     shellCtx.fillStyle = THEME.hudText;
     const fallbackText = String(displayScore);
-    setFittedMonoFont(rt, shellCtx, fallbackText, 86 * scale, 15 * scale, 10 * scale, 850);
-    shellCtx.fillText(fallbackText, x - 2 * scale, y + 15 * scale);
+    setFittedMonoFont(rt, shellCtx, fallbackText, (isMobile ? 68 : 86) * scale, (isMobile ? 13 : 15) * scale, 10 * scale, 850);
+    shellCtx.fillText(fallbackText, x - 2 * scale, y + (isMobile ? 12 : 15) * scale);
     shellCtx.restore();
     return;
   }

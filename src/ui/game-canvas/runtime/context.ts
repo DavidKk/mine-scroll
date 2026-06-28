@@ -7,6 +7,7 @@ import type {
   ViewportFitOptions,
 } from '../types.ts';
 import type { CanvasRuntimeState } from './state.ts';
+import type { TouchGestureController } from '../input/touch-gesture.ts';
 
 export interface GameCanvasRuntime {
   state: CanvasRuntimeState;
@@ -25,4 +26,5 @@ export interface GameCanvasRuntime {
   paint: () => void;
   scheduleAnimationFrame: () => void;
   scheduleContinuousRepaint: () => void;
+  touchGesture?: TouchGestureController;
 }

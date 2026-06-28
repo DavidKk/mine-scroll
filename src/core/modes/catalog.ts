@@ -12,7 +12,7 @@ export const MODE_ENTRIES: ModeEntry[] = [
     id: 'endless',
     name: 'Endless',
     tag: 'Scroll',
-    description: 'The view scrolls upward over time; unflagged mines leaving the bottom row cost a life, with new rows generated at the top.',
+    description: 'The view scrolls upward over time; each unflagged mine leaving the bottom costs a life, with new rows generated at the top.',
   },
 ];
 
