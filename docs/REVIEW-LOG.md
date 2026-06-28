@@ -381,3 +381,25 @@
 **结论：** ✅ 进入用户视觉 Review；无需新增图片生成
 
 ---
+
+### [Refactor] 代码模块化优化 — 2026-06-28
+
+**产出：** `docs/CODE-OPTIMIZATION-PLAN.md` v0.2 全 Phase 落地；`ARCHITECTURE.md` / `MODULES.md` v0.3
+
+**做法摘要：** 按方案拆 `game-canvas/create.ts`（3402→190 行）、`hud-feedback-fx`、`cell-fx`、`cell-effects`、`glyphs`、`ai/moves`；新建 `ui/primitives/` 统一工具函数；Asset Gallery HUD 复用 runtime drawer。
+
+**Review 检查项：**
+- [x] 单文件 ≤800 行（最大 777 行）
+- [x] `npm run build` 通过
+- [x] 对外 API（`createGameCanvas`, `mountEffectPanels` 等）不变
+- [x] core 无 DOM 约束保持
+- [ ] Endless 全流程手测回归（建议用户验证）
+
+**优化项：**
+- `game-canvas/` 36 子模块 + `CanvasRuntimeState`
+- `cell-fx/gallery/` 8 预览场景模块
+- 薄 re-export 保留旧 import 路径
+
+**结论：** ✅ 构建通过，待运行时手测确认无视觉/行为回归
+
+---

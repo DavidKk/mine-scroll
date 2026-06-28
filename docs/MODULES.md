@@ -1,4 +1,4 @@
-# 扫雷 Web 游戏 — 模块说明 v0.2
+# 扫雷 Web 游戏 — 模块说明 v0.3
 
 > 各模块职责、接口与依赖。实现须符合 `docs/SPEC.md` 与 `docs/ARCHITECTURE.md`。
 
@@ -8,76 +8,106 @@
 
 ```mermaid
 flowchart LR
-    difficulty --> board
-    board --> game
-    game --> app
-    gameCanvas --> app
+    primitives --> hudFeedback
+    primitives --> cellFx
+    primitives --> gameCanvas
+    board --> engine
+    engine --> gameSession
     renderer --> gameCanvas
-    theme --> renderer
-    app --> gameCanvas
+    hudFeedback --> gameCanvas
+    cellFx --> gameCanvas
+    cellFx --> assetGallery
+    gameCanvas --> gameSession
+    gameSession --> app
 ```
 
 ---
 
 ## `src/core/*`
 
-（与 v0.1 相同，无 Canvas 依赖）
-
----
-
-## `src/ui/theme.ts`
-
-**职责：** 布局尺寸、经典配色、状态表情常量。
-
-**导出：** `CELL_SIZE`, `THEME`, `STATUS_FACE`, `getCanvasSize`, `getGridOrigin`
-
----
-
-## `src/ui/renderer.ts`
-
-**职责：** 纯 Canvas 绘制与 hit-test；**无事件监听**。
-
-**导出：**
-
-| 符号 | 说明 |
+| 模块 | 职责 |
 |------|------|
-| `getLayoutMetrics(rows, cols)` | HUD/棋盘/重开按钮区域 |
-| `renderFrame(ctx, layout, state)` | 全帧绘制 |
-| `hitTestCell(layout, rows, cols, x, y)` | 指针 → 格子坐标 |
-| `hitTestReset(layout, x, y)` | 是否点中重开 |
-| `getCanvasPointerCoords(canvas, event)` | 鼠标 → 逻辑坐标 |
+| `board.ts` | 邻格、克隆、布雷辅助 |
+| `modes/engine.ts` | 门面：`createSession`, `revealAt`, `chordAt`, `applyAiMove` |
+| `modes/endless/` | 无尽规则：grid, scroll, reveal-pipeline, player-actions |
+| `ai/solver.ts` | `analyzeSession`, `getEndlessAiStepMs` |
+| `ai/moves/` | `solveBoard`, `pickTacticalMove`, `bottomRowNeedsWork` |
+
+**约束：** 无 `document` / `window`。
 
 ---
 
-## `src/ui/game-canvas.ts`
+## `src/ui/primitives/`
 
-**职责：** 创建 `<canvas>`、HiDPI、指针事件、计时器、调度 `renderFrame`。
+**职责：** 跨模块复用的数学、路径、资源加载。
 
-**导出：**
+**导出：** `clamp01`, `lerp`, `easeOutCubic`, `roundedRectPath`, `fillRounded`, `loadRuntimeImage`
 
-```typescript
-interface GameCanvasCallbacks {
-  onReveal(row: number, col: number): void;
-  onToggleFlag(row: number, col: number): void;
-  onReset(): void;
-}
+---
 
-function createGameCanvas(
-  container: HTMLElement,
-  rows: number,
-  cols: number,
-  mineTotal: number,
-  cb: GameCanvasCallbacks,
-): GameCanvasController;
-```
+## `src/ui/renderer/`
 
-**行为：** `mousedown` 左键开格/重开；`contextmenu` 插旗
+**职责：** 纯 Canvas 棋盘绘制与 hit-test；**无事件监听**。
+
+**导出：** `renderFrame`, `renderBoardStaticFrame`, `renderBoardDynamicFrame`, `hitTestCell`, `getLayoutMetrics`, …
+
+---
+
+## `src/ui/game-canvas/`
+
+**职责：** Canvas 元素、HiDPI、RAF、HUD、Overlay、指针事件、计时器。
+
+| 子目录 | 职责 |
+|--------|------|
+| `create.ts` | 工厂入口，返回 `GameCanvasController` |
+| `runtime/` | `paint`, board cache, cell FX 队列, 粒子 |
+| `hud/` | Score / Combo / Lives / Dev 控件绘制 |
+| `overlay/` | 生命损失、难度警报、Start/Retry 面板 |
+| `input/` | 指针与 UI hit-test |
+
+**导出：** `createGameCanvas`, `GameCanvasController`, `GameCanvasOptions`, …
+
+---
+
+## `src/ui/hud-feedback/`
+
+**职责：** ScorePop / ComboBurst 纯绘制与进度计算。
+
+**导出：** `drawScorePopV3`, `drawComboBurstV3`, `getComboFeedbackPalette`, `scorePopRuntimeProgress`, …
+
+薄 re-export：`hud-feedback-fx.ts`
+
+---
+
+## `src/ui/cell-fx/`
+
+**职责：** 格子呼吸、揭示、烟雾、旗标、面板扫描。
+
+**子目录 `gallery/`：** Asset Lab 预览场景（cell/board/mine/flag/heart）。
+
+薄 re-export：`cell-fx.ts`
+
+---
+
+## `src/app/game-session/`
+
+**职责：** 组装 core + game-canvas；卷轴定时、AI 循环、日志。
+
+**导出：** `mountGameSession`
+
+---
+
+## `src/app/asset-gallery/`
+
+**职责：** 资产预览 Lab；HUD 场景复用 `game-canvas/hud/*`，cell 场景复用 `cell-fx/gallery/*`。
+
+**导出：** `mountEffectPanels`, `EffectPanelId`
 
 ---
 
 ## `src/app/app.ts`
 
-**职责：** 组装 core + `game-canvas`；唯一连接逻辑与渲染。
+**职责：** 路由：`/` → game-session，`/assets` → asset-gallery，`/lab` → ui-lab。
 
 ---
 
@@ -87,3 +117,4 @@ function createGameCanvas(
 |------|------|------|
 | v0.1 | 2026-06-14 | DOM 版 grid/hud |
 | v0.2 | 2026-06-14 | Canvas 2D：theme / renderer / game-canvas |
+| v0.3 | 2026-06-28 | 模块化拆分；`primitives`, `hud-feedback/`, `game-canvas/` 子目录 |

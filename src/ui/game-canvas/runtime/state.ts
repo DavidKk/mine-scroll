@@ -1,0 +1,205 @@
+import type { CellView, GameStatus } from '../../../core/types.ts';
+import type { AiHintDisplay } from '../../../core/ai/types.ts';
+import type { BoardPointerState } from '../../cell-fx.ts';
+import type { BackdropMood } from '../../ambient-backdrop.ts';
+import type { LayoutMetrics } from '../../renderer/index.ts';
+import type { GameStageLayout } from '../../game-stage-layout.ts';
+import type { GameCanvasHudStats } from '../types.ts';
+
+export type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode' | 'scroll-mine-ghost';
+
+export interface CellFx {
+  kind: CellFxKind;
+  row: number;
+  col: number;
+  startedAt: number;
+  durationMs: number;
+  pinShellX?: number;
+  pinShellY?: number;
+  cellSize?: number;
+}
+
+export interface ParticleFx {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  color: string;
+  startedAt: number;
+  durationMs: number;
+}
+
+export interface HitRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface PendingPanelTransition {
+  kind: 'start' | 'retry';
+  startedAt: number;
+  durationMs: number;
+  timerId: number;
+}
+
+export interface CanvasRuntimeState {
+  currentRows: number;
+  currentCols: number;
+  fittedCellSize: number | undefined;
+  currentPreviewRows: number;
+  squareLayout: LayoutMetrics | null;
+  boardWidth: number;
+  boardHeight: number;
+  width: number;
+  height: number;
+  boardOffsetX: number;
+  boardOffsetY: number;
+  stageLayout: GameStageLayout | null;
+  startRect: HitRect | null;
+  retryRect: HitRect | null;
+  devAutoRect: HitRect | null;
+  devSpeedRect: HitRect | null;
+  spaceHintRect: HitRect | null;
+  bgmMuteRect: HitRect | null;
+  uiHoverTarget: string | null;
+  pendingPanelTransition: PendingPanelTransition | null;
+  elapsed: number;
+  timerId: number | null;
+  pressureRepaintId: number | null;
+  currentViews: CellView[];
+  currentStatus: GameStatus;
+  currentFlagCount: number;
+  currentHudLeftDisplay: string | undefined;
+  currentHudRightDisplay: string | undefined;
+  currentAiHint: AiHintDisplay | null | undefined;
+  lastCombo: number;
+  comboFxStartedAt: number;
+  lastScoreEventId: number;
+  scoreFxStartedAt: number;
+  scoreCountUpFrom: number;
+  scoreCountUpTo: number;
+  scoreCountUpStartedAt: number;
+  lastDisplayedScore: number | null;
+  activeScoreEvent: GameCanvasHudStats['scoreEvent'] | null;
+  lastBreakEventId: number;
+  breakFxStartedAt: number;
+  activeBreakEvent: GameCanvasHudStats['breakEvent'] | null;
+  lastLifeLossEventId: number;
+  lifeLossFxStartedAt: number;
+  activeLifeLossEvent: GameCanvasHudStats['lifeLossEvent'] | null;
+  lastDifficultySpeedTier: number | null;
+  lastDifficultyBatchTier: number | null;
+  activeDifficultyAlert: { kind: 'speed-up' | 'danger-rise'; startedAt: number } | null;
+  animationFrameId: number | null;
+  ambientDelayId: number | null;
+  lastPaintAt: number;
+  boardLayerCache: HTMLCanvasElement | null;
+  boardLayerCacheCtx: CanvasRenderingContext2D | null;
+  boardLayerCacheKey: string;
+  boardLayerCacheDpr: number;
+  shellBgCache: HTMLCanvasElement | null;
+  shellBgCacheKey: string;
+  boardPointer: BoardPointerState | null;
+  lastLivesCurrent: number;
+  heartRefillFxStartedAt: number;
+  heartRefillTargetIndex: number;
+  heartRefillMax: number;
+  levelUpFxStartedAt: number;
+  backdropMood: BackdropMood;
+  lastBackdropSampleAt: number;
+  ambientBackdropCache: HTMLCanvasElement | null;
+  ambientBackdropCacheKey: string;
+  cellEffects: CellFx[];
+  particles: ParticleFx[];
+}
+
+export const RUNTIME_CONSTANTS = {
+  LIFE_LOSS_POPUP_V3_MS: 820,
+  AMBIENT_FRAME_MS: 1000 / 40,
+  PANEL_V3_MS: 1480,
+  DIFFICULTY_ALERT_MS: 1260,
+  SCORE_HUD_PULSE_MS: 420,
+  SCORE_COUNT_UP_MS: 480,
+} as const;
+
+export function createInitialRuntimeState(
+  rows: number,
+  cols: number,
+  fittedCellSize: number | undefined,
+  squareLayout: LayoutMetrics,
+  width: number,
+  height: number,
+): CanvasRuntimeState {
+  return {
+    currentRows: rows,
+    currentCols: cols,
+    fittedCellSize,
+    currentPreviewRows: 0,
+    squareLayout,
+    boardWidth: squareLayout.width,
+    boardHeight: squareLayout.height,
+    width,
+    height,
+    boardOffsetX: 0,
+    boardOffsetY: 0,
+    stageLayout: null,
+    startRect: null,
+    retryRect: null,
+    devAutoRect: null,
+    devSpeedRect: null,
+    spaceHintRect: null,
+    bgmMuteRect: null,
+    uiHoverTarget: null,
+    pendingPanelTransition: null,
+    elapsed: 0,
+    timerId: null,
+    pressureRepaintId: null,
+    currentViews: [],
+    currentStatus: 'idle',
+    currentFlagCount: 0,
+    currentHudLeftDisplay: undefined,
+    currentHudRightDisplay: undefined,
+    currentAiHint: undefined,
+    lastCombo: 0,
+    comboFxStartedAt: 0,
+    lastScoreEventId: 0,
+    scoreFxStartedAt: 0,
+    scoreCountUpFrom: 0,
+    scoreCountUpTo: 0,
+    scoreCountUpStartedAt: 0,
+    lastDisplayedScore: null,
+    activeScoreEvent: null,
+    lastBreakEventId: 0,
+    breakFxStartedAt: 0,
+    activeBreakEvent: null,
+    lastLifeLossEventId: 0,
+    lifeLossFxStartedAt: 0,
+    activeLifeLossEvent: null,
+    lastDifficultySpeedTier: null,
+    lastDifficultyBatchTier: null,
+    activeDifficultyAlert: null,
+    animationFrameId: null,
+    ambientDelayId: null,
+    lastPaintAt: 0,
+    boardLayerCache: null,
+    boardLayerCacheCtx: null,
+    boardLayerCacheKey: '',
+    boardLayerCacheDpr: 0,
+    shellBgCache: null,
+    shellBgCacheKey: '',
+    boardPointer: null,
+    lastLivesCurrent: -1,
+    heartRefillFxStartedAt: 0,
+    heartRefillTargetIndex: 0,
+    heartRefillMax: 5,
+    levelUpFxStartedAt: 0,
+    backdropMood: { heat: 0.15, energy: 0.88, intensity: 0 },
+    lastBackdropSampleAt: 0,
+    ambientBackdropCache: null,
+    ambientBackdropCacheKey: '',
+    cellEffects: [],
+    particles: [],
+  };
+}

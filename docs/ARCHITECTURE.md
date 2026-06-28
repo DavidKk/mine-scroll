@@ -1,6 +1,7 @@
-# 扫雷 Web 游戏 — 技术架构 v0.1
+# 扫雷 Web 游戏 — 技术架构 v0.3
 
-> 实现层面的单一参考。规则以 `docs/SPEC.md` 为准。
+> 实现层面的单一参考。规则以 `docs/SPEC.md` 为准。  
+> 模块化结构见 `docs/CODE-OPTIMIZATION-PLAN.md` v0.2。
 
 ---
 
@@ -21,27 +22,32 @@
 
 ```
 chill/
-├── docs/                    # 项目文档（SPEC、架构、Review）
-├── .cursor/skills/minesweeper/
-├── index.html
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-└── src/
-    ├── main.ts              # 入口：挂载 app
-    ├── styles/
-    │   └── main.css         # 全局与棋盘样式
-    ├── core/                # 纯逻辑，无 DOM 依赖
-    │   ├── types.ts         # Cell、Board、GameStatus 等
-    │   ├── difficulty.ts    # 难度预设
-    │   ├── board.ts         # 布雷、邻雷数
-    │   └── game.ts          # 状态机、开格/插旗、flood fill
-    ├── ui/
-    │   ├── theme.ts           # 尺寸、配色常量
-    │   ├── renderer.ts        # 纯绘制 + hit-test（无事件）
-    │   └── game-canvas.ts     # Canvas 元素、事件、计时、重绘调度
-    └── app/
-        └── app.ts           # 组装 core + ui，订阅状态变化
+├── docs/
+├── src/
+│   ├── main.ts
+│   ├── core/                    # 纯逻辑，无 DOM
+│   │   ├── board.ts, types.ts, mines-defused.ts
+│   │   ├── modes/
+│   │   │   ├── engine.ts        # 门面：createSession / revealAt / …
+│   │   │   ├── catalog.ts
+│   │   │   └── endless/         # 无尽模式：grid, scroll, reveal-pipeline
+│   │   └── ai/
+│   │       ├── solver.ts, deduction.ts, csp.ts
+│   │       └── moves/           # solveBoard, pickTacticalMove
+│   ├── ui/
+│   │   ├── primitives/          # clamp01, path, loadRuntimeImage
+│   │   ├── renderer/            # 棋盘绘制 + hit-test（无事件）
+│   │   ├── game-canvas/         # Canvas 生命周期、HUD、输入、RAF
+│   │   │   ├── create.ts        # 工厂 (~190 行)
+│   │   │   ├── hud/, overlay/, runtime/, input/, shell/
+│   │   ├── hud-feedback/        # ScorePop / ComboBurst FX
+│   │   ├── cell-fx/             # 格子特效 + gallery/ 预览场景
+│   │   ├── ambient-backdrop/
+│   │   └── theme.ts, game-assets.ts, …
+│   └── app/
+│       ├── app.ts               # 路由
+│       ├── game-session/        # mount, scroll, ai-loop, logging
+│       └── asset-gallery/       # 资产 Lab（复用 runtime drawer）
 ```
 
 ---
@@ -227,3 +233,4 @@ HUD reset click
 |------|------|------|
 | v0.1 | 2026-06-14 | MVP 架构：Vite + TS，core/ui/app 三层 |
 | v0.2 | 2026-06-14 | UI 改为 Canvas 2D；renderer/theme 分层 |
+| v0.3 | 2026-06-28 | Endless + 模块化：`game-canvas/`、`hud-feedback/`、`primitives/`；单文件 ≤800 行 |

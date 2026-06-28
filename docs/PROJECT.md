@@ -46,6 +46,7 @@
 | `docs/SPEC.md` | 经典规则 |
 | `docs/MODES.md` | 两种模式说明 |
 | `docs/ARCHITECTURE.md` | 技术架构 |
+| `docs/CODE-OPTIMIZATION-PLAN.md` | 模块化重构方案与验收 |
 
 ---
 
@@ -58,3 +59,4 @@
 | 2026-06-18 | 精简为 classic + hex 两种模式 |
 | 2026-06-18 | hunt 寻雷 DEMO 试玩后移除 |
 | 2026-06-18 | endless 无尽模式 |
+| 2026-06-28 | 代码模块化重构（见 CODE-OPTIMIZATION-PLAN v0.2） |
