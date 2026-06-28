@@ -16,9 +16,11 @@ declare namespace NodeJS {
     NEXT_PUBLIC_OAUTH_SERVER_PUBLIC_KEY?: string
     /** JWT secret for verifying third-party OAuth tokens (server) */
     OAUTH_JWT_SECRET?: string
-    /** Vercel KV REST endpoint for leaderboard storage */
+    /** Upstash Redis REST (Vercel KV / Upstash console) */
+    UPSTASH_REDIS_REST_URL?: string
+    UPSTASH_REDIS_REST_TOKEN?: string
+    /** Injected when a KV store is linked on Vercel */
     KV_REST_API_URL?: string
-    /** Vercel KV REST token */
     KV_REST_API_TOKEN?: string
   }
 }

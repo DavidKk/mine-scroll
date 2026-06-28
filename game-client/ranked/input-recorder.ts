@@ -3,6 +3,10 @@ import type { LayoutSnapshot, RunInputEvent } from './types.ts'
 const MOVE_MIN_INTERVAL_MS = 40
 const MOVE_MIN_DISTANCE_PX = 2
 
+export interface RankedInputRecorderOptions {
+  onEvent?: (event: RunInputEvent, events: RunInputEvent[]) => void
+}
+
 export interface RankedInputRecorder {
   isActive(): boolean
   start(): void
@@ -20,7 +24,8 @@ export interface RankedInputRecorder {
   elapsedMs(): number
 }
 
-export function createRankedInputRecorder(): RankedInputRecorder {
+export function createRankedInputRecorder(options: RankedInputRecorderOptions = {}): RankedInputRecorder {
+  const { onEvent } = options
   let active = false
   let startedAt = 0
   const events: RunInputEvent[] = []
@@ -34,6 +39,7 @@ export function createRankedInputRecorder(): RankedInputRecorder {
   function push(event: RunInputEvent): void {
     if (!active) return
     events.push(event)
+    onEvent?.(event, events)
   }
 
   return {

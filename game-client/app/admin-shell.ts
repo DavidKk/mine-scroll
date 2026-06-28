@@ -93,6 +93,12 @@ function createAdminHeader(onNavigate: (path: string) => void): HTMLElement {
   })
   modules.append(assetsLink)
 
+  const leaderboardLink = document.createElement('a')
+  leaderboardLink.href = '/admin/leaderboard'
+  leaderboardLink.className = 'admin-shell__module'
+  leaderboardLink.textContent = 'Leaderboard'
+  modules.append(leaderboardLink)
+
   bindAdminNavIndicator(modules)
 
   const actions = document.createElement('div')

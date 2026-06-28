@@ -1,6 +1,6 @@
 import { createSessionWithSeed } from '@shared/core/modes/engine.ts'
 
-import type { RankedFinishResponse } from './types.ts'
+import type { RankedFinishResponse, RunInputEvent } from './types.ts'
 
 export interface RankedRunStart {
   runId: string
@@ -28,14 +28,16 @@ export function createRankedSession(seed: number) {
 
 export async function finishRankedRunOnServer(
   runId: string,
+  playerId: string,
   name: string,
   claimedScore: number,
-  claimedDepth: number
+  claimedDepth: number,
+  events: RunInputEvent[] = []
 ): Promise<RankedFinishResponse & { entries?: Array<{ id: string; name: string; score: number; depth?: number; submittedAt: number }> }> {
   const response = await fetch(`/api/ranked/runs/${runId}/finish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, claimedScore, claimedDepth }),
+    body: JSON.stringify({ playerId, name, claimedScore, claimedDepth, events }),
   })
   const body = (await response.json().catch(() => null)) as RankedFinishResponse & {
     error?: string

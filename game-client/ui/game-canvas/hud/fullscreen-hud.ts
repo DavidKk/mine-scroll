@@ -59,7 +59,8 @@ export function drawFullscreenHud(
   }
 
   if (shell.onOpenLeaderboard) {
-    drawLeaderboardHud(rt, shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale, rt.state.uiHoverTarget === 'leaderboard')
+    const unseenUpdate = shell.hasLeaderboardUnseenUpdate?.() ?? false
+    drawLeaderboardHud(rt, shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale, rt.state.uiHoverTarget === 'leaderboard', unseenUpdate)
   } else {
     rt.state.leaderboardRect = null
   }

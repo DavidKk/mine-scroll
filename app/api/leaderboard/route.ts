@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 
+import { getKvStorageMode } from '@/services/kv/client'
 import { isLeaderboardKvConfigured, isLeaderboardServiceError, readLeaderboard, submitLeaderboardEntry } from '@/services/leaderboard'
+import { createLogger } from '@/services/logger'
 
 export const dynamic = 'force-dynamic'
+
+const logger = createLogger('api-leaderboard')
 
 export async function GET() {
   try {
@@ -10,11 +14,13 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       configured: isLeaderboardKvConfigured(),
+      storage: getKvStorageMode(),
       entries: board.entries,
       updatedAt: board.updatedAt,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load leaderboard'
+    logger.fail('get failed', { message })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
@@ -25,6 +31,7 @@ export async function POST(request: Request) {
     try {
       body = await request.json()
     } catch {
+      logger.warn('post invalid json')
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
@@ -38,6 +45,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to submit score'
     const status = isLeaderboardServiceError(error) ? error.statusCode : 500
+    logger.fail('post failed', { message, status })
     return NextResponse.json({ error: message }, { status })
   }
 }

@@ -43,6 +43,11 @@ import {
   testResolveRasterUrlUsesWebpWhenSupported,
   testSortBootAssetsForLoadPrioritizesHeavyWithinTier,
 } from './boot-loader-tests.ts'
+import {
+  testLeaderboardScoreBreakthroughWithEmptyHistory,
+  testLeaderboardViewModelKeepsSelfInRankedList,
+  testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf,
+} from './leaderboard-panel-tests.ts'
 import { testLocalSettingsDefaultsWhenMissing, testLocalSettingsIgnoresInvalidPayload, testLocalSettingsPatchPersists, testLocalSettingsRoundTrip } from './local-settings-tests.ts'
 import { testCreateGameCanvasBootstrapsLayout, testCreateInitialRuntimeStateWithNullLayout, testEndlessSessionMountsThroughGameCanvas } from './runtime-bootstrap-tests.ts'
 import {
@@ -868,6 +873,9 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['runtime state accepts null layout bootstrap', testCreateInitialRuntimeStateWithNullLayout],
   ['local settings default when missing', testLocalSettingsDefaultsWhenMissing],
   ['local settings round trip', testLocalSettingsRoundTrip],
+  ['leaderboard view model keeps self in ranked list', testLeaderboardViewModelKeepsSelfInRankedList],
+  ['leaderboard score breakthrough with empty history', testLeaderboardScoreBreakthroughWithEmptyHistory],
+  ['leaderboard view model without self snapshot has no pinned self', testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf],
   ['local settings patch persists', testLocalSettingsPatchPersists],
   ['local settings ignores invalid payload', testLocalSettingsIgnoresInvalidPayload],
   ['touch gesture thresholds scale with cell size', testGestureThresholdsScaleWithCellSize],

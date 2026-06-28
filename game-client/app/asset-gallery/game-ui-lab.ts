@@ -7,7 +7,7 @@ export type GameUiLabPanelId = 'panels' | 'icons' | 'cutouts'
 
 const MAIN_FLOW_PANELS: GameUiPanelName[] = ['start-panel', 'game-over-panel']
 
-const MAIN_FLOW_ICONS: HudIconName[] = ['play', 'skull', 'refresh', 'volume-on', 'volume-off', 'volume-on-hover', 'volume-off-hover']
+const MAIN_FLOW_ICONS: HudIconName[] = ['play', 'skull', 'refresh', 'volume-on', 'volume-off', 'volume-on-hover', 'volume-off-hover', 'leaderboard', 'leaderboard-hover']
 
 const MAIN_FLOW_CUTOUTS = ['heart-full', 'heart-empty', 'heart-refill'] as const
 

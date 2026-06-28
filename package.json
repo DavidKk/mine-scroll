@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@shared/core": "workspace:*",
-    "@vercel/kv": "^3.0.0",
+    "@upstash/redis": "^1.37.0",
     "cookie": "^1.0.2",
     "next": "^16.1.0",
     "otplib": "^12.0.1",

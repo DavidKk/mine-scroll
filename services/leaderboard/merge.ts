@@ -1,3 +1,4 @@
+import { sanitizeCountryCode } from '../geoip/request.ts'
 import { LEADERBOARD_MAX_ENTRIES, type LeaderboardEntry } from './types.ts'
 
 export function sortLeaderboardEntries(entries: LeaderboardEntry[]): LeaderboardEntry[] {
@@ -10,26 +11,76 @@ export function sortLeaderboardEntries(entries: LeaderboardEntry[]): Leaderboard
   })
 }
 
+function normalizeLeaderboardEntry(entry: LeaderboardEntry): LeaderboardEntry | null {
+  if (
+    !entry ||
+    typeof entry.id !== 'string' ||
+    typeof entry.name !== 'string' ||
+    entry.name.trim().length === 0 ||
+    typeof entry.score !== 'number' ||
+    !Number.isFinite(entry.score) ||
+    entry.score <= 0 ||
+    (entry.depth !== undefined && (typeof entry.depth !== 'number' || !Number.isFinite(entry.depth) || entry.depth < 0)) ||
+    typeof entry.submittedAt !== 'number' ||
+    !Number.isFinite(entry.submittedAt)
+  ) {
+    return null
+  }
+
+  const countryCode = sanitizeCountryCode(entry.countryCode)
+  return {
+    ...entry,
+    ...(countryCode ? { countryCode } : {}),
+  }
+}
+
 export function normalizeLeaderboardEntries(entries: LeaderboardEntry[]): LeaderboardEntry[] {
-  return sortLeaderboardEntries(
-    entries.filter(
-      (entry) =>
-        entry &&
-        typeof entry.id === 'string' &&
-        typeof entry.name === 'string' &&
-        entry.name.trim().length > 0 &&
-        typeof entry.score === 'number' &&
-        Number.isFinite(entry.score) &&
-        entry.score > 0 &&
-        (entry.depth === undefined || (typeof entry.depth === 'number' && Number.isFinite(entry.depth) && entry.depth >= 0)) &&
-        typeof entry.submittedAt === 'number' &&
-        Number.isFinite(entry.submittedAt)
-    )
-  ).slice(0, LEADERBOARD_MAX_ENTRIES)
+  return sortLeaderboardEntries(entries.map((entry) => normalizeLeaderboardEntry(entry)).filter((entry): entry is LeaderboardEntry => entry !== null)).slice(
+    0,
+    LEADERBOARD_MAX_ENTRIES
+  )
+}
+
+export function entryPlayerId(entry: LeaderboardEntry): string {
+  return entry.playerId?.trim() || entry.id
+}
+
+export function isBetterLeaderboardEntry(candidate: LeaderboardEntry, incumbent: LeaderboardEntry): boolean {
+  if (candidate.score !== incumbent.score) return candidate.score > incumbent.score
+  const depthC = candidate.depth ?? 0
+  const depthI = incumbent.depth ?? 0
+  if (depthC !== depthI) return depthC > depthI
+  return false
+}
+
+export function upsertPlayerBestEntry(entries: LeaderboardEntry[], entry: LeaderboardEntry): { entries: LeaderboardEntry[]; saved: boolean; rank: number | null } {
+  const playerId = entryPlayerId(entry)
+  const candidate: LeaderboardEntry = { ...entry, id: playerId, playerId }
+  const incumbent = entries.find((item) => entryPlayerId(item) === playerId)
+  const withoutPlayer = entries.filter((item) => entryPlayerId(item) !== playerId)
+
+  if (incumbent && !isBetterLeaderboardEntry(candidate, incumbent)) {
+    const normalized = normalizeLeaderboardEntries([...withoutPlayer, incumbent])
+    const rankIndex = normalized.findIndex((item) => entryPlayerId(item) === playerId)
+    return { entries: normalized, saved: false, rank: rankIndex >= 0 ? rankIndex + 1 : null }
+  }
+
+  const normalized = normalizeLeaderboardEntries([...withoutPlayer, candidate])
+  const rankIndex = normalized.findIndex((item) => entryPlayerId(item) === playerId)
+  const onBoard = rankIndex >= 0
+  return { entries: normalized, saved: onBoard, rank: onBoard ? rankIndex + 1 : null }
 }
 
 export function mergeLeaderboardEntry(entries: LeaderboardEntry[], entry: LeaderboardEntry): LeaderboardEntry[] {
   return normalizeLeaderboardEntries([...entries, entry])
+}
+
+export function sanitizePlayerId(value: unknown): string {
+  const id = String(value ?? '')
+    .trim()
+    .toLowerCase()
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)) return ''
+  return id
 }
 
 export function sanitizeLeaderboardName(name: string): string {

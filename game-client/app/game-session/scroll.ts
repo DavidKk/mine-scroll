@@ -14,6 +14,7 @@ export interface ScrollControllerDeps {
   onScrollTick?: () => void
   queueMineExplosions?: (cells: { row: number; col: number }[]) => void
   onScrollMineDetonate?: () => void
+  onTerminalGameStatus?: (status: 'won' | 'lost') => void
 }
 
 const SCROLL_MINE_GHOST_MS = GAME_ASSET_TUNING.fx.mineExplosion.durationMs
@@ -54,7 +55,7 @@ function clearScrollDetonation(runtime: GameSessionRuntime): void {
 }
 
 export function createScrollController(deps: ScrollControllerDeps): ScrollController {
-  const { runtime, gameLog, applySession, render, refreshAiHint, stopAiAuto, onScrollTick, queueMineExplosions, onScrollMineDetonate } = deps
+  const { runtime, gameLog, applySession, render, refreshAiHint, onScrollTick, queueMineExplosions, onScrollMineDetonate, onTerminalGameStatus } = deps
 
   function getElapsedMs(): number {
     return getScrollElapsedMsFromRuntime(runtime)
@@ -117,11 +118,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     }
 
     if (next.state.status === 'lost') {
-      runtime.view?.stopTimer()
-      stopScrollTimer()
-      stopAiAuto()
-      runtime.aiHint = null
-      gameLog.append('Defeat', 'system')
+      onTerminalGameStatus?.('lost')
       render()
       return
     }

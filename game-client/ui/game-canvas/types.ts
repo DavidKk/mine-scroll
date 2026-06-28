@@ -76,6 +76,7 @@ export interface GameCanvasFullscreenOptions {
   getBgmMuted?: () => boolean
   onToggleBgmMute?: () => void
   isLeaderboardOpen?: () => boolean
+  hasLeaderboardUnseenUpdate?: () => boolean
   onOpenLeaderboard?: () => void
   rankedInput?: {
     onMove(x: number, y: number): void

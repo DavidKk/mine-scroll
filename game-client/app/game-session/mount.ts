@@ -17,12 +17,33 @@ import { createRankedInputRecorder } from '../../ranked/input-recorder.ts'
 import { createRankedInputUploader } from '../../ranked/input-uploader.ts'
 import { isRankedMode } from '../../ranked/is-ranked-mode.ts'
 import { createRankedRunOnServer, createRankedSession, finishRankedRunOnServer } from '../../ranked/ranked-run-client.ts'
+import type { RunInputEvent } from '../../ranked/types.ts'
+import {
+  appendLocalScoreRecord,
+  appendRunTraceEvents,
+  clearAllRankedAntiCheatData,
+  clearLeaderboardUnseenUpdate,
+  createRunTrace,
+  ensureDisplayName,
+  ensurePlayerId,
+  ensureRankedLocalStore,
+  finalizeRunTrace,
+  getCachedDisplayName,
+  getCachedLeaderboardUnseenUpdate,
+  getCachedPlayerId,
+  isLeaderboardScoreBreakthrough,
+  markLeaderboardUnseenUpdate,
+  persistRunTraceEvents,
+  saveDisplayName,
+  syncLeaderboardSelfFromHistory,
+} from '../../storage/ranked-local-store.ts'
 import { createGameAudio, hadMineLifeLoss, playFlagToggleAudio, playHealRewardAudio, playLifeLossAudio, playRevealAudio } from '../../ui/game-audio.ts'
 import { createGameCanvas, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts'
+import { createGameNotificationStack } from '../../ui/notification.ts'
 import { createAiController } from './ai-loop.ts'
 import { devLog, devWarn } from './dev-log.ts'
 import { createGameLogPanel } from './game-log-panel.ts'
-import { createLeaderboardPanel, resolveLeaderboardDisplayName, saveLeaderboardDisplayName } from './leaderboard-panel.ts'
+import { createLeaderboardPanel } from './leaderboard-panel.ts'
 import { applySessionUpdate, createGameLog, formatCell, logPlayerAction } from './logging.ts'
 import { createScrollController } from './scroll.ts'
 import type { GameSessionCallbacks, GameSessionRuntime } from './types.ts'
@@ -63,9 +84,30 @@ function createInitialRuntime(session: ModeSession): GameSessionRuntime {
 export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallbacks = { onBack: () => undefined }): () => void {
   const modeMeta = getModeEntry()
   const rankedMode = isRankedMode()
+  const rankedStoreReady = ensureRankedLocalStore().then(async () => {
+    const name = await ensureDisplayName()
+    await saveDisplayName(name)
+    await ensurePlayerId()
+  })
   const runtime = createInitialRuntime(createSession())
   const gameAudio = createGameAudio({ bgmMuted: loadLocalSettings().bgmMuted })
-  const rankedRecorder = createRankedInputRecorder()
+  let tracePersistTimer: number | null = null
+
+  function scheduleRunTracePersist(): void {
+    const runId = runtime.rankedRunId
+    if (!runId) return
+    if (tracePersistTimer !== null) return
+    tracePersistTimer = window.setTimeout(() => {
+      tracePersistTimer = null
+      const activeRunId = runtime.rankedRunId
+      if (!activeRunId) return
+      void persistRunTraceEvents(activeRunId, rankedRecorder.peek())
+    }, 1500)
+  }
+
+  const rankedRecorder = createRankedInputRecorder({
+    onEvent: () => scheduleRunTracePersist(),
+  })
   let rankedUploader = createRankedInputUploader()
   let sessionGeneration = 0
 
@@ -75,6 +117,8 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
 
   root.className = rankedMode ? 'app app--ranked' : 'app'
   root.replaceChildren()
+
+  const notify = createGameNotificationStack(root)
 
   const canvasContainer = document.createElement('div')
   canvasContainer.className = 'app__canvas app__canvas--endless'
@@ -89,7 +133,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       aiHint: runtime.aiHint,
       previewRows: getEndlessPreviewRows(runtime.session),
     })
-    logPanel?.isOpen() && logPanel.sync(runtime.recentLogLines)
+    logPanel?.sync(runtime.recentLogLines)
   }
 
   const gameLog = createGameLog(runtime, render)
@@ -104,12 +148,14 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         runtime.logOpen = false
         logPanel?.setOpen(false)
       },
+      notify,
     })
   }
 
   const leaderboardPanel = createLeaderboardPanel(root, {
     isRankedMode: () => rankedMode,
     onClose: () => closeLeaderboard(),
+    notify,
   })
 
   function closeLeaderboard(): void {
@@ -118,9 +164,12 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     render()
   }
 
-  async function syncRankedUpload(): Promise<void> {
-    if (!rankedRecorder.isActive()) return
-    rankedUploader.queue(rankedRecorder.drain())
+  async function syncRankedUpload(batch: RunInputEvent[]): Promise<void> {
+    if (batch.length === 0) return
+    if (runtime.rankedRunId) {
+      await appendRunTraceEvents(runtime.rankedRunId, batch)
+    }
+    rankedUploader.queue(batch)
     await rankedUploader.flush()
   }
 
@@ -133,17 +182,52 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     const claimedDepth = runtime.session.scrollRowCount ?? 0
 
     rankedRecorder.stop()
-    await syncRankedUpload()
+    const capturedEvents = rankedRecorder.drain()
+    await syncRankedUpload(capturedEvents)
 
     if (finishGeneration !== sessionGeneration || runtime.rankedRunId !== runId) return
 
-    const name = resolveLeaderboardDisplayName()
-    saveLeaderboardDisplayName(name)
+    await rankedStoreReady
+    const name = getCachedDisplayName() || (await ensureDisplayName())
+    const playerId = getCachedPlayerId() || (await ensurePlayerId())
+    await saveDisplayName(name)
 
     try {
       runtime.rankedFinishStatus = 'pending'
-      const result = await finishRankedRunOnServer(runId, name, claimedScore, claimedDepth)
+      const result = await finishRankedRunOnServer(runId, playerId, name, claimedScore, claimedDepth, capturedEvents)
       if (finishGeneration !== sessionGeneration) return
+
+      await finalizeRunTrace(runId, {
+        events: capturedEvents,
+        finishStatus: result.status === 'accepted' || result.status === 'pending' || result.status === 'rejected' ? result.status : 'rejected',
+        claimedScore,
+        claimedDepth,
+        cheating: result.cheating === true,
+      })
+
+      if (result.cheating) {
+        await clearAllRankedAntiCheatData()
+        notify.error('Verification failed — local scores cleared')
+      } else {
+        const finalScore = result.score ?? claimedScore
+        const finalDepth = result.depth ?? claimedDepth
+        const scoreBreakthrough = result.status === 'accepted' && isLeaderboardScoreBreakthrough(finalScore, finalDepth)
+
+        await appendLocalScoreRecord({
+          runId,
+          score: finalScore,
+          depth: finalDepth,
+          submittedAt: Date.now(),
+          status: result.status === 'accepted' || result.status === 'pending' || result.status === 'rejected' ? result.status : 'rejected',
+          ranked: result.ranked === true,
+          rank: result.rank,
+        })
+        await syncLeaderboardSelfFromHistory(playerId, name)
+        if (scoreBreakthrough && !runtime.leaderboardOpen) {
+          await markLeaderboardUnseenUpdate()
+        }
+      }
+
       runtime.rankedFinishStatus = result.status
       if (runtime.leaderboardOpen) {
         void leaderboardPanel.refresh()
@@ -162,6 +246,8 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
   function handleTerminalGameStatus(status: 'won' | 'lost'): void {
     runtime.view?.stopTimer()
     scroll.stopScrollTimer()
+    ai.stopAiAuto()
+    runtime.aiHint = null
     gameLog.append(status === 'won' ? 'Victory' : 'Defeat', 'system')
     if (!rankedMode || !runtime.rankedRunId) return
     void autoFinishRankedRun()
@@ -209,6 +295,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     onScrollTick: () => gameAudio.play('scrollUp'),
     queueMineExplosions: (cells) => runtime.view?.queueScrollMineGhosts(cells),
     onScrollMineDetonate: () => gameAudio.play('mineHit'),
+    onTerminalGameStatus: handleTerminalGameStatus,
   })
 
   ai = createAiController({
@@ -235,7 +322,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       lifeLossEvent: runtime.presentation.lifeLossEvent,
       lives: `${'♥'.repeat(lives)}${'♡'.repeat(Math.max(0, maxLives - lives))}`,
       spaceEnabled: playing,
-      devAutoVisible: isDev && !rankedMode,
+      devAutoVisible: isDev,
       devAutoActive: runtime.aiAutoActive,
       backdrop: {
         scrollElapsedMs: scrollElapsed,
@@ -275,6 +362,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         runtime.session = createRankedSession(run.seed)
         rankedRecorder.start()
         rankedRecorder.markBegin()
+        await createRunTrace(run.runId, run.seed)
         devLog(`Ranked run ${run.runId.slice(0, 8)}…`)
       } catch (error) {
         if (runGeneration !== sessionGeneration) return
@@ -290,6 +378,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     applySession(next, undefined, { trigger: 'Game run started' })
     scroll.markGameClockStarted()
     scroll.startScrollTimer()
+    gameLog.clear()
     gameLog.append(rankedMode ? 'Ranked game started' : 'Game started', 'system')
     if (!rankedMode) ai.refreshAiHint()
     render()
@@ -318,7 +407,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     mountCanvas()
     runtime.view?.resetTimer()
     gameLog.clear()
-    gameLog.append('New game', 'system')
     if (!rankedMode) ai.refreshAiHint()
     syncIdleBgm()
     render()
@@ -332,6 +420,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       getStats: () => getCanvasHudStats(),
       isLogOpen: () => isDev && runtime.logOpen,
       isLeaderboardOpen: () => runtime.leaderboardOpen,
+      hasLeaderboardUnseenUpdate: () => getCachedLeaderboardUnseenUpdate(),
       showStartOverlay: () => runtime.startOverlayOpen && runtime.session.state.status === 'idle',
       onStart: () => startArcadeRun(),
       onRestart: () => restartGame(),
@@ -366,6 +455,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       },
       onOpenLeaderboard: () => {
         if (runtime.leaderboardOpen) return
+        void clearLeaderboardUnseenUpdate().then(() => render())
         runtime.leaderboardOpen = true
         leaderboardPanel.setOpen(true)
         render()
@@ -490,6 +580,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
 
     if (event.key === 'Escape' && runtime.leaderboardOpen) {
       event.preventDefault()
+      if (leaderboardPanel.dismissOverlay()) return
       closeLeaderboard()
       return
     }
@@ -513,7 +604,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     }
 
     if (event.key.toLowerCase() !== 'a') return
-    if (!isDev || rankedMode) return
+    if (!isDev) return
     event.preventDefault()
     if (event.shiftKey) {
       ai.toggleAiAuto(startArcadeRun)
@@ -527,6 +618,10 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
 
   function cleanup(): void {
     sessionGeneration += 1
+    if (tracePersistTimer !== null) {
+      window.clearTimeout(tracePersistTimer)
+      tracePersistTimer = null
+    }
     scroll.stopScrollTimer()
     ai.stopAiAuto()
     rankedRecorder.stop()
@@ -535,6 +630,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     gameAudio.destroy()
     logPanel?.dispose()
     leaderboardPanel.dispose()
+    notify.dispose()
     rankedUploader.dispose()
   }
 

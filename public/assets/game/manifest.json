@@ -117,6 +117,16 @@
         "src": "/assets/hud/icons/volume-off-hover.png",
         "width": 256,
         "height": 256
+      },
+      "leaderboard": {
+        "src": "/assets/hud/icons/leaderboard.png",
+        "width": 256,
+        "height": 256
+      },
+      "leaderboard-hover": {
+        "src": "/assets/hud/icons/leaderboard-hover.png",
+        "width": 256,
+        "height": 256
       }
     }
   },

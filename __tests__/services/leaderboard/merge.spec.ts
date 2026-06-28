@@ -1,4 +1,12 @@
-import { mergeLeaderboardEntry, normalizeLeaderboardEntries, sanitizeLeaderboardName, sanitizeLeaderboardScore, sortLeaderboardEntries } from '@/services/leaderboard/merge'
+import {
+  entryPlayerId,
+  mergeLeaderboardEntry,
+  normalizeLeaderboardEntries,
+  sanitizeLeaderboardName,
+  sanitizeLeaderboardScore,
+  sortLeaderboardEntries,
+  upsertPlayerBestEntry,
+} from '@/services/leaderboard/merge'
 import { LEADERBOARD_MAX_ENTRIES, type LeaderboardEntry } from '@/services/leaderboard/types'
 
 function entry(score: number, submittedAt: number, name = 'player'): LeaderboardEntry {
@@ -21,6 +29,61 @@ describe('services/leaderboard/merge', () => {
     expect(next).toHaveLength(LEADERBOARD_MAX_ENTRIES)
     expect(next[0]?.score).toBe(999_999)
     expect(next[0]?.name).toBe('champion')
+  })
+
+  it('upserts one best score per player id', () => {
+    const playerId = 'aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee'
+    const first = upsertPlayerBestEntry([], {
+      id: playerId,
+      playerId,
+      name: 'Pilot',
+      score: 120,
+      depth: 4,
+      submittedAt: 1,
+    })
+    expect(first.saved).toBe(true)
+    expect(first.rank).toBe(1)
+    expect(first.entries[0]?.score).toBe(120)
+
+    const worse = upsertPlayerBestEntry(first.entries, {
+      id: playerId,
+      playerId,
+      name: 'Pilot',
+      score: 80,
+      depth: 2,
+      submittedAt: 2,
+    })
+    expect(worse.saved).toBe(false)
+    expect(worse.entries[0]?.score).toBe(120)
+
+    const better = upsertPlayerBestEntry(worse.entries, {
+      id: playerId,
+      playerId,
+      name: 'Pilot',
+      score: 200,
+      depth: 6,
+      submittedAt: 3,
+    })
+    expect(better.saved).toBe(true)
+    expect(better.entries[0]?.score).toBe(200)
+  })
+
+  it('does not save a new player who misses the top 100', () => {
+    const fullBoard = Array.from({ length: LEADERBOARD_MAX_ENTRIES }, (_, index) => entry(LEADERBOARD_MAX_ENTRIES + 1 - index, index))
+    const playerId = 'bbbbbbbb-cccc-4ddd-eeee-ffffffffffff'
+    const result = upsertPlayerBestEntry(fullBoard, {
+      id: playerId,
+      playerId,
+      name: 'Rookie',
+      score: 1,
+      depth: 1,
+      submittedAt: 999,
+    })
+
+    expect(result.saved).toBe(false)
+    expect(result.rank).toBeNull()
+    expect(result.entries).toHaveLength(LEADERBOARD_MAX_ENTRIES)
+    expect(result.entries.some((item) => entryPlayerId(item) === playerId)).toBe(false)
   })
 
   it('sanitizes name and score', () => {

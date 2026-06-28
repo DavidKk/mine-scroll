@@ -1,6 +1,7 @@
 import { wrapWithCustomScrollbar } from '../../ui/custom-scrollbar.ts'
 import type { GameCanvasLogLine } from '../../ui/game-canvas/index.ts'
 import { createHeroicon } from '../../ui/heroicons.ts'
+import type { GameNotificationController } from '../../ui/notification.ts'
 
 const KIND_LABEL: Record<GameCanvasLogLine['kind'], string> = {
   ai: 'AI',
@@ -20,6 +21,23 @@ export interface GameLogPanel {
 export interface GameLogPanelOptions {
   onClear: () => void
   onClose: () => void
+  notify?: Pick<GameNotificationController, 'success' | 'error'>
+}
+
+function formatLogLines(lines: GameCanvasLogLine[]): string {
+  return lines.map((line) => `${line.time}  ${KIND_LABEL[line.kind]}  ${line.text}`).join('\n')
+}
+
+async function copyLogLines(lines: GameCanvasLogLine[]): Promise<boolean> {
+  const text = formatLogLines(lines)
+  if (!text) return false
+
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function createGameLogPanel(host: HTMLElement, options: GameLogPanelOptions): GameLogPanel {
@@ -40,6 +58,7 @@ export function createGameLogPanel(host: HTMLElement, options: GameLogPanelOptio
           </div>
         </div>
         <div class="game-log-modal__actions">
+          <button type="button" class="game-log-modal__btn game-log-modal__btn--ghost game-log-modal__btn--icon" data-action="copy" aria-label="Copy log" disabled></button>
           <button type="button" class="game-log-modal__btn game-log-modal__btn--ghost game-log-modal__btn--icon" data-action="clear" aria-label="Clear log"></button>
           <button type="button" class="game-log-modal__btn game-log-modal__btn--icon" data-action="close" aria-label="Close log"></button>
         </div>
@@ -57,9 +76,13 @@ export function createGameLogPanel(host: HTMLElement, options: GameLogPanelOptio
 
   const list = shell.querySelector<HTMLOListElement>('.game-log-modal__list')!
   const empty = shell.querySelector<HTMLElement>('.game-log-modal__empty')!
+  const copyBtn = shell.querySelector<HTMLButtonElement>('[data-action="copy"]')!
 
+  copyBtn.append(createHeroicon('clipboard-document', 'game-log-modal__icon'))
   shell.querySelector<HTMLButtonElement>('[data-action="clear"]')?.append(createHeroicon('trash', 'game-log-modal__icon'))
   shell.querySelector<HTMLButtonElement>('[data-action="close"]')?.append(createHeroicon('x-mark', 'game-log-modal__icon'))
+
+  let currentLines: GameCanvasLogLine[] = []
 
   function close(): void {
     options.onClose()
@@ -67,6 +90,15 @@ export function createGameLogPanel(host: HTMLElement, options: GameLogPanelOptio
 
   shell.querySelector('[data-action="close"]')?.addEventListener('click', close)
   shell.querySelector('[data-action="clear"]')?.addEventListener('click', () => options.onClear())
+  copyBtn.addEventListener('click', () => {
+    void copyLogLines(currentLines).then((copied) => {
+      if (copied) {
+        options.notify?.success('Log copied to clipboard')
+        return
+      }
+      options.notify?.error('Could not copy log to clipboard')
+    })
+  })
   shell.querySelector('.game-log-modal__backdrop')?.addEventListener('click', close)
 
   host.append(shell)
@@ -76,6 +108,8 @@ export function createGameLogPanel(host: HTMLElement, options: GameLogPanelOptio
   let open = false
 
   function renderLines(lines: GameCanvasLogLine[]): void {
+    currentLines = lines
+    copyBtn.disabled = lines.length === 0
     list.replaceChildren()
     empty.hidden = lines.length > 0
 

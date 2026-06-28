@@ -79,7 +79,13 @@ export interface PolicyDecision {
 
 export interface RankedFinishResponse {
   status: RankedRunStatus
+  /** Whether this player appears on the top-100 board after verification. */
+  ranked?: boolean
+  /** Whether this run updated the server leaderboard for the player. */
+  saved?: boolean
   rank?: number
   score?: number
   depth?: number
+  /** Anti-cheat rejected the run — client should clear local score history. */
+  cheating?: boolean
 }
