@@ -28,15 +28,15 @@ while (session.state.status !== 'lost' && elapsed < MAX_ELAPSED) {
     const beforeLives = session.lives ?? 5
     const analysis = getAiAnalysis(session, elapsed)
     if (!analysis.move) {
-      console.log(`wait ↑${depth} 命${session.lives} elapsed=${elapsed}`)
+      console.log(`wait depth=${depth} lives=${session.lives} elapsed=${elapsed}`)
     } else {
       const m = analysis.move
       const wr = worldRow(m.row)
       session = applyAiMove(session, analysis.move)
       steps += 1
       const afterLives = session.lives ?? 0
-      const hit = afterLives < beforeLives ? ' ***踩雷***' : ''
-      console.log(`step ${steps} ${m.kind} (${wr},${m.col}) screen(${m.row},${m.col}) ${m.reason} ↑${depth} 命${beforeLives}→${afterLives}${hit}`)
+      const hit = afterLives < beforeLives ? ' ***mine hit***' : ''
+      console.log(`step ${steps} ${m.kind} (${wr},${m.col}) screen(${m.row},${m.col}) ${m.reason} depth=${depth} lives=${beforeLives}->${afterLives}${hit}`)
       if (m.kind === 'reveal' || m.kind === 'chord') {
         const cell = session.state.board.cells[m.row]?.[m.col]
         if (cell?.revealed) {
@@ -52,7 +52,7 @@ while (session.state.status !== 'lost' && elapsed < MAX_ELAPSED) {
   if (elapsed >= nextScrollAt) {
     const profile = getEndlessScrollProfile(elapsed)
     session = endlessScrollTick(session, profile.batchRows)
-    console.log(`scroll ↑${session.scrollRowCount} 命${session.lives}`)
+    console.log(`scroll depth=${session.scrollRowCount} lives=${session.lives}`)
     nextScrollAt += profile.intervalMs
     if (session.state.status === 'lost') break
   }
@@ -60,4 +60,4 @@ while (session.state.status !== 'lost' && elapsed < MAX_ELAPSED) {
   elapsed += SIM_TICK_MS
 }
 
-console.log(`done steps=${steps} ↑${session.scrollRowCount ?? 0} ${session.state.status}`)
+console.log(`done steps=${steps} depth=${session.scrollRowCount ?? 0} ${session.state.status}`)

@@ -1,3 +1,5 @@
+import { resolveRasterUrl } from '../../ui/boot/image-format.ts'
+
 export type AssetLightboxRender = (ctx: CanvasRenderingContext2D, w: number, h: number) => void
 
 export interface AssetLightboxItem {
@@ -60,7 +62,7 @@ function renderLightboxStage(stage: HTMLElement, item: AssetLightboxItem): void 
 
     const img = document.createElement('img')
     img.className = 'asset-lightbox__image'
-    img.src = item.src
+    img.src = resolveRasterUrl(item.src)
     img.alt = item.label
     img.width = w
     img.height = h

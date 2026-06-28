@@ -8,7 +8,7 @@ import { buildPublicPageMetadata } from '@/lib/seo'
 export async function generateMetadata(): Promise<Metadata> {
   const metadataBase = await getRequestMetadataBase()
   return buildPublicPageMetadata(metadataBase, {
-    title: '开始游戏',
+    title: 'Play',
     description: BRAND_DESCRIPTION,
     path: '/play',
   })

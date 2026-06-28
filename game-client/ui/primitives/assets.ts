@@ -1,4 +1,5 @@
 import { getCachedImage, isBootComplete, setCachedImage } from '../boot/asset-cache.ts'
+import { resolveRasterUrl } from '../boot/image-format.ts'
 
 const PLACEHOLDER_SRC = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
@@ -22,7 +23,11 @@ export function loadRuntimeImage(src: string): HTMLImageElement {
   }
 
   const image = new Image()
-  image.src = src
+  const preferred = resolveRasterUrl(src)
+  image.src = preferred
+  image.onerror = () => {
+    if (preferred !== src) image.src = src
+  }
   image.onload = () => {
     setCachedImage(src, image)
   }

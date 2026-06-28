@@ -23,9 +23,9 @@ export const PUBLIC_INDEX_ROBOTS: NonNullable<Metadata['robots']> = {
   },
 }
 
-const OG_LOCALE = 'zh_CN'
+const OG_LOCALE = 'en_US'
 
-export function buildOpenGraph(metadataBase: URL, title: string, description: string, path = '/'): NonNullable<Metadata['openGraph']> {
+export function buildOpenGraph(metadataBase: URL, title: string, description: string, path = '/', imagePath: string = BRAND_OG_IMAGE_PATH): NonNullable<Metadata['openGraph']> {
   const canonical = new URL(path, metadataBase).toString()
 
   return {
@@ -37,7 +37,7 @@ export function buildOpenGraph(metadataBase: URL, title: string, description: st
     url: canonical,
     images: [
       {
-        url: BRAND_OG_IMAGE_PATH,
+        url: imagePath,
         width: 512,
         height: 512,
         alt: title,
@@ -46,12 +46,12 @@ export function buildOpenGraph(metadataBase: URL, title: string, description: st
   }
 }
 
-export function buildTwitterCard(title: string, description: string): NonNullable<Metadata['twitter']> {
+export function buildTwitterCard(title: string, description: string, imagePath: string = BRAND_OG_IMAGE_PATH): NonNullable<Metadata['twitter']> {
   return {
     card: 'summary',
     title,
     description,
-    images: [BRAND_OG_IMAGE_PATH],
+    images: [imagePath],
   }
 }
 
@@ -87,7 +87,7 @@ export function getVideoGameJsonLd(metadataBase: URL, path = '/play') {
     name: BRAND_NAME,
     description: BRAND_DESCRIPTION,
     url,
-    inLanguage: 'zh-CN',
+    inLanguage: 'en',
     gamePlatform: 'Web browser',
     applicationCategory: 'Game',
     genre: ['Puzzle', 'Strategy'],

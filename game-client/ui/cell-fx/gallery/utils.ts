@@ -1,3 +1,4 @@
+import { resolveRasterUrl } from '../../boot/image-format.ts'
 import { easeOutCubic, lerp } from '../../primitives/index.ts'
 import type { CellEffectDrawOpts, ImageBounds } from './types.ts'
 import { BREATH_CYCLE_MS, PREVIEW_PX } from './types.ts'
@@ -48,7 +49,11 @@ export function readImageBounds(image: HTMLImageElement): ImageBounds | null {
 
 export function createAssetImage(src: string): HTMLImageElement {
   const image = new Image()
-  image.src = src
+  const preferred = resolveRasterUrl(src)
+  image.src = preferred
+  image.onerror = () => {
+    if (preferred !== src) image.src = src
+  }
   return image
 }
 

@@ -32,7 +32,7 @@ while (session.state.status !== 'lost' && elapsed < MAX_ELAPSED) {
       session = applyAiMove(session, analysis.move)
       steps += 1
       if (steps <= 20 || steps % 50 === 0) {
-        console.log(`step ${steps} ${analysis.move.kind} ${analysis.move.reason} ↑${depth} 命${session.lives}`)
+        console.log(`step ${steps} ${analysis.move.kind} ${analysis.move.reason} depth=${depth} lives=${session.lives}`)
       }
     }
     nextAiAt += getEndlessAiStepMs(session, elapsed)
@@ -43,7 +43,7 @@ while (session.state.status !== 'lost' && elapsed < MAX_ELAPSED) {
   if (elapsed >= nextScrollAt) {
     const profile = getEndlessScrollProfile(elapsed)
     session = endlessScrollTick(session, profile.batchRows)
-    console.log(`scroll ↑${session.scrollRowCount} 命${session.lives} batch=${profile.batchRows}`)
+    console.log(`scroll depth=${session.scrollRowCount} lives=${session.lives} batch=${profile.batchRows}`)
     nextScrollAt += profile.intervalMs
     if (session.state.status === 'lost') break
   }
@@ -51,4 +51,4 @@ while (session.state.status !== 'lost' && elapsed < MAX_ELAPSED) {
   elapsed += SIM_TICK_MS
 }
 
-console.log(`done ${Date.now() - t0}ms steps=${steps} waits=${waits} ↑${session.scrollRowCount ?? 0} 命${session.lives} ${session.state.status}`)
+console.log(`done ${Date.now() - t0}ms steps=${steps} waits=${waits} depth=${session.scrollRowCount ?? 0} lives=${session.lives} ${session.state.status}`)

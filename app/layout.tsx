@@ -4,12 +4,16 @@ import '@game-client/styles/main.css'
 import type { Metadata, Viewport } from 'next'
 
 import { VideoGameJsonLd } from '@/app/components/video-game-json-ld'
-import { BRAND_DESCRIPTION, BRAND_KEYWORDS, BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_NAME } from '@/lib/brand'
+import { BRAND_DESCRIPTION, BRAND_KEYWORDS, BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_NAME, BRAND_OG_IMAGE_PATH } from '@/lib/brand'
 import { getRequestMetadataBase } from '@/lib/request-origin'
 import { buildOpenGraph, buildTwitterCard, PUBLIC_INDEX_ROBOTS } from '@/lib/seo'
+import { preferWebpAssetPath } from '@/lib/server-raster-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const metadataBase = await getRequestMetadataBase()
+  const brandMark = preferWebpAssetPath(BRAND_MARK_PATH)
+  const brandLogo = preferWebpAssetPath(BRAND_LOGO_PATH)
+  const brandOg = preferWebpAssetPath(BRAND_OG_IMAGE_PATH)
 
   return {
     metadataBase,
@@ -29,12 +33,12 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: '/play',
     },
     icons: {
-      icon: [{ url: BRAND_MARK_PATH, type: 'image/png' }],
-      apple: [{ url: BRAND_LOGO_PATH, type: 'image/png' }],
+      icon: [{ url: brandMark, type: brandMark.endsWith('.webp') ? 'image/webp' : 'image/png' }],
+      apple: [{ url: brandLogo, type: brandLogo.endsWith('.webp') ? 'image/webp' : 'image/png' }],
     },
     manifest: '/manifest.webmanifest',
-    openGraph: buildOpenGraph(metadataBase, BRAND_NAME, BRAND_DESCRIPTION, '/play'),
-    twitter: buildTwitterCard(BRAND_NAME, BRAND_DESCRIPTION),
+    openGraph: buildOpenGraph(metadataBase, BRAND_NAME, BRAND_DESCRIPTION, '/play', brandOg),
+    twitter: buildTwitterCard(BRAND_NAME, BRAND_DESCRIPTION, brandOg),
   }
 }
 
@@ -50,7 +54,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />

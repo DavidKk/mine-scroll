@@ -8,6 +8,7 @@ import {
   saveLeaderboardSelfSnapshot,
 } from '../../storage/ranked-local-store.ts'
 import { HUD_ICON_BASE } from '../../ui/boot/asset-registry.ts'
+import { resolveRasterUrl } from '../../ui/boot/image-format.ts'
 import { wrapWithCustomScrollbar } from '../../ui/custom-scrollbar.ts'
 import { createHeroicon } from '../../ui/heroicons.ts'
 import type { GameNotificationController } from '../../ui/notification.ts'
@@ -132,9 +133,9 @@ function formatCountryCode(code: string | undefined): string {
 }
 
 function rankTrophySrc(rank: number): string | null {
-  if (rank === 1) return `${HUD_ICON_BASE}/rank-trophy-gold.png`
-  if (rank === 2) return `${HUD_ICON_BASE}/rank-trophy-silver.png`
-  if (rank === 3) return `${HUD_ICON_BASE}/rank-trophy-bronze.png`
+  if (rank === 1) return resolveRasterUrl(`${HUD_ICON_BASE}/rank-trophy-gold.png`)
+  if (rank === 2) return resolveRasterUrl(`${HUD_ICON_BASE}/rank-trophy-silver.png`)
+  if (rank === 3) return resolveRasterUrl(`${HUD_ICON_BASE}/rank-trophy-bronze.png`)
   return null
 }
 
@@ -144,14 +145,14 @@ function applyRankAccent(rankEl: HTMLElement, rank: number): void {
   else if (rank === 3) rankEl.classList.add('leaderboard-modal__rank--bronze')
 }
 
-function createLeaderboardCell(className: string, text: string, options: { title?: string; hidden?: boolean; rank?: number } = {}): HTMLElement {
+function createRankTrophyCell(rank: number): HTMLElement {
   const cell = document.createElement('span')
-  cell.className = `leaderboard-modal__cell ${className}`
+  cell.className = 'leaderboard-modal__cell leaderboard-modal__trophy'
 
   const inner = document.createElement('span')
   inner.className = 'leaderboard-modal__cell-inner'
 
-  const trophySrc = options.rank != null ? rankTrophySrc(options.rank) : null
+  const trophySrc = rankTrophySrc(rank)
   if (trophySrc) {
     const trophy = document.createElement('img')
     trophy.className = 'leaderboard-modal__rank-trophy'
@@ -163,6 +164,17 @@ function createLeaderboardCell(className: string, text: string, options: { title
     trophy.setAttribute('aria-hidden', 'true')
     inner.append(trophy)
   }
+
+  cell.append(inner)
+  return cell
+}
+
+function createLeaderboardCell(className: string, text: string, options: { title?: string; hidden?: boolean; rank?: number } = {}): HTMLElement {
+  const cell = document.createElement('span')
+  cell.className = `leaderboard-modal__cell ${className}`
+
+  const inner = document.createElement('span')
+  inner.className = 'leaderboard-modal__cell-inner'
 
   const textEl = document.createElement('span')
   textEl.className = 'leaderboard-modal__cell-text'
@@ -224,7 +236,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       <div class="leaderboard-modal__frame" aria-hidden="true"></div>
       <header class="leaderboard-modal__head">
         <div class="leaderboard-modal__brand">
-          <span class="leaderboard-modal__mark" aria-hidden="true"><img class="leaderboard-modal__mark-icon" src="${HUD_ICON_BASE}/leaderboard.png" alt="" width="20" height="20" decoding="async" /></span>
+          <span class="leaderboard-modal__mark" aria-hidden="true"><img class="leaderboard-modal__mark-icon" src="${resolveRasterUrl(`${HUD_ICON_BASE}/leaderboard.png`)}" alt="" width="20" height="20" decoding="async" /></span>
           <div class="leaderboard-modal__titles">
             <h2 id="leaderboard-modal-title" class="leaderboard-modal__title">Leaderboard</h2>
             <p class="leaderboard-modal__subtitle" data-subtitle>Endless · top 100</p>
@@ -242,6 +254,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
           <p class="leaderboard-modal__ranks-label">Rankings</p>
           <div class="leaderboard-modal__ranks-board">
             <div class="leaderboard-modal__table-head" aria-hidden="true">
+              <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__trophy"><span class="leaderboard-modal__cell-inner"></span></span>
               <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__rank"><span class="leaderboard-modal__cell-inner">#</span></span>
               <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__country" data-country-head hidden><span class="leaderboard-modal__cell-inner">Region</span></span>
               <span class="leaderboard-modal__cell leaderboard-modal__cell--head leaderboard-modal__name"><span class="leaderboard-modal__cell-inner">Player</span></span>
@@ -380,7 +393,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     }
     stats.append(createSelfStatCell('Score', formatScore(row.entry.score), true))
 
-    card.append(rank)
+    card.append(createRankTrophyCell(row.rank), rank)
     if (showCountry) {
       card.append(createLeaderboardCell('leaderboard-modal__country', formatCountryCode(row.entry.countryCode)))
     }
@@ -403,6 +416,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     const displayName = row.isSelf ? resolveSelfDisplayName(row.entry.name) : row.entry.name
 
     item.append(
+      createRankTrophyCell(row.rank),
       createLeaderboardCell('leaderboard-modal__rank', String(row.rank).padStart(2, '0'), { rank: row.rank }),
       createLeaderboardCell('leaderboard-modal__country', formatCountryCode(row.entry.countryCode), { hidden: !showCountry }),
       createLeaderboardCell('leaderboard-modal__name', displayName, {

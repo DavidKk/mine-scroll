@@ -1,6 +1,6 @@
 /**
- * 无尽模式 AI 无头模拟 — 用于评估能否撑到最快卷轴速度
- * 运行: pnpm exec tsx scripts/simulate-endless-ai.ts [局数]
+ * Headless endless-mode AI simulation — measures survival to max scroll speed.
+ * Run: pnpm exec tsx scripts/simulate-endless-ai.ts [runs]
  */
 import { getEndlessAiStepMs } from '../shared/core/ai/solver.ts'
 import {
@@ -140,15 +140,17 @@ function main(): void {
       results.reduce((s, r) => s + r.guessTotal, 0)
     )
 
-  console.log(`\n=== 无尽 AI 模拟 (${runs} 局) ===`)
-  console.log(`到达最快卷轴(↑≥29): ${reached}/${runs}`)
-  console.log(`平均卷轴深度: ${avgDepth.toFixed(1)}`)
-  console.log(`平均底行扣血: ${avgPenalties.toFixed(2)}`)
-  console.log(`平均 AI 空等次数: ${avgWaits.toFixed(1)}`)
-  console.log(`猜雷踩雷率: ${(avgGuessHit * 100).toFixed(1)}%`)
-  console.log('\n最差 5 局:')
+  console.log(`\n=== Endless AI simulation (${runs} runs) ===`)
+  console.log(`Reached max scroll (depth >= 29): ${reached}/${runs}`)
+  console.log(`Avg scroll depth: ${avgDepth.toFixed(1)}`)
+  console.log(`Avg bottom-row penalties: ${avgPenalties.toFixed(2)}`)
+  console.log(`Avg AI wait ticks: ${avgWaits.toFixed(1)}`)
+  console.log(`Guess mine-hit rate: ${(avgGuessHit * 100).toFixed(1)}%`)
+  console.log('\nWorst 5 runs:')
   for (const r of [...results].sort((a, b) => a.scrollDepth - b.scrollDepth).slice(0, 5)) {
-    console.log(`  seed=${r.seed} ↑${r.scrollDepth} 命=${r.lives} 扣血=${r.bottomPenalties} 等=${r.waitTicks} 猜=${r.guessTotal}/${r.guessHits} ${r.lost ? '失败' : '存活'}`)
+    console.log(
+      `  seed=${r.seed} depth=${r.scrollDepth} lives=${r.lives} penalties=${r.bottomPenalties} waits=${r.waitTicks} guesses=${r.guessTotal}/${r.guessHits} ${r.lost ? 'lost' : 'alive'}`
+    )
   }
 }
 

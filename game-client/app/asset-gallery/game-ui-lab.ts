@@ -1,3 +1,4 @@
+import { resolveRasterUrl } from '../../ui/boot/image-format.ts'
 import { type GameUiPanelName, getGameCutout, getGameUiPanel } from '../../ui/game-assets.ts'
 import { getHudIcon, type HudIconName } from '../../ui/hud-sprites.ts'
 import { wireAssetFrameGrid } from './asset-lightbox.ts'
@@ -53,7 +54,7 @@ function cutoutPath(name: (typeof MAIN_FLOW_CUTOUTS)[number]): string {
 }
 
 function iconPath(name: string): string {
-  return `/assets/hud/icons/${name}.png`
+  return resolveRasterUrl(`/assets/hud/icons/${name}.png`)
 }
 
 function collectPanels(): StaticAsset[] {

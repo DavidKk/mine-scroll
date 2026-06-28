@@ -25,7 +25,7 @@ const inputBase =
 
 function formatSubmittedAt(timestamp: number): string {
   if (!timestamp) return '—'
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Date(timestamp).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

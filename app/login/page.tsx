@@ -10,7 +10,7 @@ import { LoginForm } from './login-form'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: '登录',
+  title: 'Sign in',
   robots: NOINDEX_ROBOTS,
 }
 

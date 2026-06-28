@@ -1,41 +1,77 @@
-# 扫雷 Web 游戏
+# Minesweeper
 
-经典 Windows 风格扫雷 MVP（9×9 / 10 雷）。
+Neon-styled minesweeper built with **Next.js** and a **Canvas 2D** game client. Play classic, hex, and endless modes in the browser, with ranked leaderboards and internal asset tooling for development.
 
-包管理器：**pnpm**（见 `package.json` 的 `packageManager` 字段）。
+Package manager: **pnpm** (see `packageManager` in `package.json`).
 
-## 开发
+## Features
+
+- **Classic** — configurable board size and mine count, chord reveals, first-click safety
+- **Hex** — hexagonal grid with 6-neighbor logic
+- **Endless** — scrolling board, dynamic mine density, lives, combo scoring, and manual scroll
+- **Ranked leaderboard** — server-backed top scores with anti-cheat hooks (KV / Redis)
+- **Admin tools** — asset lab, UI lab, responsive matrix (auth required)
+
+## Quick start
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-## 文档
+Open [http://localhost:3000](http://localhost:3000). The app redirects to `/play` for the game shell.
 
-- `docs/PROJECT.md` — 迭代进度与 Current Task
-- `docs/SPEC.md` — 游戏规则
-- `docs/ARCHITECTURE.md` — 技术架构
+## Scripts
 
-## 构建
+| Command          | Description                             |
+| ---------------- | --------------------------------------- |
+| `pnpm dev`       | Next.js dev server                      |
+| `pnpm build`     | Optimize boot assets + production build |
+| `pnpm start`     | Serve production build                  |
+| `pnpm test`      | Jest unit tests                         |
+| `pnpm typecheck` | TypeScript check                        |
+| `pnpm ok`        | format + lint + build + test            |
 
-```bash
-pnpm build
-pnpm start
-pnpm test
+## Project layout
+
+```
+app/              Next.js App Router (pages, API routes, auth)
+game-client/      Canvas runtime, HUD, boot loader, admin chrome
+shared/core/      Pure game logic (no DOM)
+services/         Auth, leaderboard, KV storage
+public/assets/    Game sprites, audio, brand assets
+docs/             Specs, architecture, iteration notes
 ```
 
-## Admin 认证
+Game rules and mode details live in `docs/SPEC.md` and `docs/MODES.md`.
 
-`/admin/*`（Asset Lab、UI Lab、Responsive Matrix）需要登录。
+## Admin authentication
 
-| 环境     | 方式                                                     |
-| -------- | -------------------------------------------------------- |
-| 生产     | Signet（`SIGNET_SDK_URL`）                               |
-| 本地 dev | 可选 Signet + 可选 `ACCESS_USERNAME` / `ACCESS_PASSWORD` |
+Routes under `/admin/*` (asset lab, UI lab, responsive matrix) require sign-in.
 
-必需：`JWT_SECRET`、`JWT_EXPIRES_IN`。部署时在认证中心注册回调：
+| Environment | Method                                              |
+| ----------- | --------------------------------------------------- |
+| Production  | Signet (`SIGNET_SDK_URL`)                           |
+| Local dev   | Signet and/or `ACCESS_USERNAME` + `ACCESS_PASSWORD` |
 
-`https://<域名>/auth/vercel-2fa/callback`
+Required: `JWT_SECRET`, `JWT_EXPIRES_IN`. Register this callback in the auth center:
 
-详见 `.env.example`。
+```
+https://<your-domain>/auth/vercel-2fa/callback
+```
+
+Copy `.env.example` to `.env.local` and fill in values. For ranked runs in production, link Vercel KV or Upstash Redis (`KV_REST_API_*` or `UPSTASH_REDIS_REST_*`).
+
+## Documentation
+
+| Doc                            | Contents                          |
+| ------------------------------ | --------------------------------- |
+| `docs/PROJECT.md`              | Current task and iteration status |
+| `docs/SPEC.md`                 | Classic minesweeper rules         |
+| `docs/MODES.md`                | Classic, hex, and endless modes   |
+| `docs/ARCHITECTURE.md`         | Stack and layering                |
+| `docs/NEXTJS-PLATFORM-PLAN.md` | Next.js platform split            |
+
+## License
+
+Private project.
