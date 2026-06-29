@@ -23,7 +23,7 @@ export async function createRankedRunOnServer(): Promise<RankedRunStart> {
 }
 
 export function createRankedSession(seed: number) {
-  return createSessionWithSeed(seed)
+  return createSessionWithSeed(seed, 'expert')
 }
 
 export async function finishRankedRunOnServer(

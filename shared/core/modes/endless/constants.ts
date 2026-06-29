@@ -13,7 +13,9 @@ export const ENDLESS_SCROLL_MS_START = 9000
 export const ENDLESS_SCROLL_MS_MIN = 1500
 export const ENDLESS_SCROLL_DECAY = 0.94
 export const SCROLL_STEP_MS = 50_000
+/** @deprecated Expert ranked curve — use {@link EXPERT_PRESET} from `./presets.ts`. */
 export const SCROLL_INTERVAL_TIERS_MS = [9000, 7500, 6300, 5300, 4500, 3800, 3200, 2700, 2300, 2000, 1500] as const
+/** @deprecated Expert ranked curve — use {@link EXPERT_PRESET} from `./presets.ts`. */
 export const SCROLL_BATCH_TIERS = [1, 2, 3, 4, 5] as const
 export const ENDLESS_SCROLL_BATCH_MAX = 5
 export const ENDLESS_LIVES = 5

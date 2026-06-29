@@ -1,4 +1,10 @@
-import { collectScrollLeavingMineCells, endlessScrollTick, getEndlessScrollPressure, getEndlessScrollProfile, SCROLL_STEP_MS } from '@shared/core/modes/endless/index.ts'
+import {
+  collectScrollLeavingMineCells,
+  endlessScrollTick,
+  getEndlessPresetForSession,
+  getEndlessScrollPressure,
+  getEndlessScrollProfileForSession,
+} from '@shared/core/modes/endless/index.ts'
 import type { ModeSession } from '@shared/core/types.ts'
 
 import { GAME_ASSET_TUNING } from '../../ui/game-assets.ts'
@@ -37,7 +43,7 @@ function buildScrollPressure(runtime: GameSessionRuntime, scrollDeadlineAt: numb
   if (!pressure) return undefined
   return {
     ...pressure,
-    batchRows: getEndlessScrollProfile(getScrollElapsedMsFromRuntime(runtime)).batchRows,
+    batchRows: getEndlessScrollProfileForSession(runtime.session, getScrollElapsedMsFromRuntime(runtime)).batchRows,
   }
 }
 
@@ -84,7 +90,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
   function scheduleNextScroll(): void {
     if (runtime.session.state.status !== 'playing') return
 
-    const profile = getEndlessScrollProfile(getElapsedMs())
+    const profile = getEndlessScrollProfileForSession(runtime.session, getElapsedMs())
     runtime.scrollIntervalMs = profile.intervalMs
     runtime.scrollDeadlineAt = Date.now() + profile.intervalMs
     render()
@@ -137,7 +143,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
       runtime.scrollTimeoutId = null
     }
 
-    const profile = getEndlessScrollProfile(getElapsedMs())
+    const profile = getEndlessScrollProfileForSession(runtime.session, getElapsedMs())
     const batchRows = profile.batchRows
     const leavingMines = collectScrollLeavingMineCells(runtime.session, batchRows)
 
@@ -165,7 +171,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
   function bumpScrollDifficultyForDebug(): boolean {
     if (runtime.session.state.status !== 'playing') return false
     markGameClockStarted()
-    runtime.scrollGameStartedAt = Math.max(0, runtime.scrollGameStartedAt - SCROLL_STEP_MS)
+    runtime.scrollGameStartedAt = Math.max(0, runtime.scrollGameStartedAt - getEndlessPresetForSession(runtime.session).scrollStepMs)
     if (runtime.scrollTimeoutId !== null) {
       window.clearTimeout(runtime.scrollTimeoutId)
       runtime.scrollTimeoutId = null

@@ -1,5 +1,5 @@
 import type { AiMove } from '@shared/core/ai/types.ts'
-import { getEndlessScrollProfile } from '@shared/core/modes/endless/index.ts'
+import { getEndlessScrollProfileForSession } from '@shared/core/modes/endless/index.ts'
 import { sessionVisibleRows } from '@shared/core/modes/endless/views.ts'
 import { MINES_PER_LIFE } from '@shared/core/modes/engine.ts'
 import type { LifeLossReport, ModeSession } from '@shared/core/types.ts'
@@ -77,7 +77,7 @@ function appendDeathDebug(
   context?: SessionApplyContext
 ): void {
   const elapsed = getScrollElapsedMs()
-  const profile = getEndlessScrollProfile(elapsed)
+  const profile = getEndlessScrollProfileForSession(next, elapsed)
   const depth = next.scrollRowCount ?? 0
   const seed = next.state.board.worldSeed ?? 'n/a'
   const interval = profile ? `${(profile.intervalMs / 1000).toFixed(1)}s` : 'n/a'

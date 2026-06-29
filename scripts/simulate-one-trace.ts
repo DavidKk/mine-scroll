@@ -1,5 +1,11 @@
 import { getEndlessAiStepMs } from '../shared/core/ai/solver.ts'
-import { createEndlessSession, endlessScrollTick, getEndlessScrollIntervalMsFromElapsed, getEndlessScrollProfile } from '../shared/core/modes/endless/index.ts'
+import {
+  createEndlessSession,
+  endlessScrollTick,
+  getEndlessPresetForSession,
+  getEndlessScrollIntervalMsFromElapsed,
+  getEndlessScrollProfileForSession,
+} from '../shared/core/modes/endless/index.ts'
 import { applyAiMove, getAiAnalysis } from '../shared/core/modes/engine.ts'
 
 const SIM_TICK_MS = 50
@@ -13,7 +19,7 @@ session = {
 
 let elapsed = 0
 let nextAiAt = 0
-let nextScrollAt = getEndlessScrollIntervalMsFromElapsed(0)
+let nextScrollAt = getEndlessScrollIntervalMsFromElapsed(0, getEndlessPresetForSession(session).id)
 let steps = 0
 let waits = 0
 const t0 = Date.now()
@@ -41,7 +47,7 @@ while (session.state.status !== 'lost' && elapsed < MAX_ELAPSED) {
   if (session.state.status === 'lost') break
 
   if (elapsed >= nextScrollAt) {
-    const profile = getEndlessScrollProfile(elapsed)
+    const profile = getEndlessScrollProfileForSession(session, elapsed)
     session = endlessScrollTick(session, profile.batchRows)
     console.log(`scroll depth=${session.scrollRowCount} lives=${session.lives} batch=${profile.batchRows}`)
     nextScrollAt += profile.intervalMs

@@ -1,6 +1,12 @@
 import { aiMoveFromScreenRow, analyzeSession } from '@shared/core/ai/solver.ts'
 import { visibleViewStart } from '@shared/core/modes/endless/grid.ts'
-import { endlessBeginRun, endlessScreenRowToLocal, endlessScrollTick, getEndlessScrollProfile, isEndlessInteractiveScreenRowForSession } from '@shared/core/modes/endless/index.ts'
+import {
+  endlessBeginRun,
+  endlessScreenRowToLocal,
+  endlessScrollTick,
+  getEndlessScrollProfileForSession,
+  isEndlessInteractiveScreenRowForSession,
+} from '@shared/core/modes/endless/index.ts'
 import { chordAt, createSessionWithSeed, revealAt, toggleMarkAt } from '@shared/core/modes/engine.ts'
 import type { ModeSession } from '@shared/core/types.ts'
 
@@ -12,11 +18,11 @@ function applyAutoScrolls(session: ModeSession, fromT: number, toT: number): Mod
   let elapsed = Math.max(0, fromT)
 
   while (next.state.status === 'playing' && elapsed < toT) {
-    const profile = getEndlessScrollProfile(elapsed)
+    const profile = getEndlessScrollProfileForSession(next, elapsed)
     const nextAt = elapsed + profile.intervalMs
     if (nextAt > toT) break
     elapsed = nextAt
-    next = endlessScrollTick(next, getEndlessScrollProfile(elapsed).batchRows)
+    next = endlessScrollTick(next, getEndlessScrollProfileForSession(next, elapsed).batchRows)
   }
 
   return next
@@ -28,7 +34,7 @@ function applyPlayerAction(session: ModeSession, action: DerivedPlayerAction): {
   }
 
   if (action.kind === 'scroll') {
-    const profile = getEndlessScrollProfile(action.t)
+    const profile = getEndlessScrollProfileForSession(session, action.t)
     const next = endlessScrollTick(session, profile.batchRows)
     return { session: next, ok: true }
   }
@@ -95,7 +101,7 @@ export function replayRankedRun(seed: number, events: RunInputEvent[]): ReplayRe
     }
   }
 
-  let session = createSessionWithSeed(seed)
+  let session = createSessionWithSeed(seed, 'expert')
   const layoutEvent = events.find((event): event is Extract<RunInputEvent, { e: 'layout' }> => event.e === 'layout')
   if (layoutEvent?.layout.rows) {
     session.endlessVisibleRows = layoutEvent.layout.rows

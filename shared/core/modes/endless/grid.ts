@@ -2,6 +2,7 @@ import { cloneBoard, type Coord } from '../../board.ts'
 import type { Board, Cell, ModeSession } from '../../types.ts'
 import { cellKey } from '../../types.ts'
 import { ENDLESS_COLS, ENDLESS_LIVES, ENDLESS_MAX_MINES_PER_ROW, ENDLESS_VISIBLE_ROWS, ENDLESS_WINDOW_ROWS, getEndlessMineRatio } from './constants.ts'
+import { DEFAULT_ARCADE_PRESET_ID, type EndlessDifficultyPresetId } from './presets.ts'
 
 function isMineAt(worldRow: number, col: number, seed: number, scrollDepth: number): boolean {
   const ratio = getEndlessMineRatio(scrollDepth)
@@ -159,7 +160,7 @@ export function createEndlessSession(): ModeSession {
   return createEndlessSessionWithSeed(seed)
 }
 
-export function createEndlessSessionWithSeed(seed: number): ModeSession {
+export function createEndlessSessionWithSeed(seed: number, presetId: EndlessDifficultyPresetId = DEFAULT_ARCADE_PRESET_ID): ModeSession {
   const normalizedSeed = seed >>> 0
   const board = createInitialBoard(normalizedSeed)
   applyMinesFromSeed(board)
@@ -171,6 +172,7 @@ export function createEndlessSessionWithSeed(seed: number): ModeSession {
       board,
       modeId: 'endless',
     },
+    endlessPresetId: presetId,
     lives: ENDLESS_LIVES,
     endlessOriginMinRow: board.minRow!,
     endlessViewStart: visibleViewStart(board),

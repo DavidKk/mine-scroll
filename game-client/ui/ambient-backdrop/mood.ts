@@ -1,4 +1,4 @@
-import { getEndlessScrollProfile, SCROLL_BATCH_TIERS, SCROLL_INTERVAL_TIERS_MS } from '@shared/core/modes/endless/index.ts'
+import { DEFAULT_ARCADE_PRESET_ID, getEndlessDifficultyPreset, getEndlessScrollProfile } from '@shared/core/modes/endless/index.ts'
 
 import { clamp01, lerp } from './math.ts'
 import type { BackdropDifficultyInput, BackdropMood } from './types.ts'
@@ -13,9 +13,11 @@ export function computeBackdropMood(input: BackdropDifficultyInput, combo = 0): 
   }
 
   if (input.status === 'playing') {
-    const profile = getEndlessScrollProfile(input.scrollElapsedMs)
-    const speedNorm = profile.speedTier / Math.max(1, SCROLL_INTERVAL_TIERS_MS.length - 1)
-    const batchNorm = profile.batchTier / Math.max(1, SCROLL_BATCH_TIERS.length - 1)
+    const presetId = input.presetId ?? DEFAULT_ARCADE_PRESET_ID
+    const preset = getEndlessDifficultyPreset(presetId)
+    const profile = getEndlessScrollProfile(input.scrollElapsedMs, presetId)
+    const speedNorm = profile.speedTier / Math.max(1, preset.scrollIntervalTiersMs.length - 1)
+    const batchNorm = profile.batchTier / Math.max(1, preset.scrollBatchTiers.length - 1)
     const depthNorm = clamp01(input.scrollDepth / 80)
     heat = clamp01(0.12 + speedNorm * 0.3 + batchNorm * 0.24 + depthNorm * 0.22)
     if (input.maxLives > 0) {

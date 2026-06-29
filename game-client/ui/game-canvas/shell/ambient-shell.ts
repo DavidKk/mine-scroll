@@ -26,6 +26,7 @@ export function drawAmbientShellBackdrop(rt: GameCanvasRuntime, shellCtx: Canvas
       scrollDepth: stats?.backdrop?.scrollDepth ?? 0,
       lives: stats?.backdrop?.livesCurrent ?? 5,
       maxLives: stats?.backdrop?.livesMax ?? 5,
+      presetId: stats?.backdrop?.presetId,
     },
     stats?.combo ?? 0
   )

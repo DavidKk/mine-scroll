@@ -1,4 +1,4 @@
-import { ENDLESS_SCROLL_MS_MIN, getEndlessScrollIntervalMsFromElapsed, getEndlessScrollProfile } from '../modes/endless/index.ts'
+import { getEndlessPresetForSession, getEndlessScrollIntervalMsFromElapsed, getEndlessScrollProfile, getPresetMinIntervalMs } from '../modes/endless/index.ts'
 import type { ModeSession } from '../types.ts'
 import { resolveAiBlockedSets } from './ai-blocked.ts'
 import { parseKey } from './deduction.ts'
@@ -14,9 +14,11 @@ export function getEndlessAiStepMs(session: ModeSession, elapsedMs = 0): number 
   const board = buildSolverBoard(session)
   if (bottomRowNeedsWork(board)) return 120
 
-  const interval = getEndlessScrollIntervalMsFromElapsed(elapsedMs)
-  const profile = getEndlessScrollProfile(elapsedMs)
-  if (interval <= ENDLESS_SCROLL_MS_MIN + 100) return Math.max(80, Math.round(150 / profile.batchRows))
+  const preset = getEndlessPresetForSession(session)
+  const interval = getEndlessScrollIntervalMsFromElapsed(elapsedMs, preset.id)
+  const profile = getEndlessScrollProfile(elapsedMs, preset.id)
+  const minInterval = getPresetMinIntervalMs(preset)
+  if (interval <= minInterval + 100) return Math.max(80, Math.round(150 / profile.batchRows))
   if (interval <= 2500) return Math.max(100, Math.round(250 / profile.batchRows))
   return Math.max(120, Math.round(400 / profile.batchRows))
 }
@@ -46,7 +48,7 @@ export function analyzeSession(session: ModeSession, elapsedMs = 0): AiAnalysis 
 
   const blocks = resolveAiBlockedSets(session)
   const lives = session.lives ?? 5
-  const batchRows = getEndlessScrollProfile(elapsedMs).batchRows
+  const batchRows = getEndlessScrollProfile(elapsedMs, getEndlessPresetForSession(session).id).batchRows
   const { deduced, chords, move } = solveBoard(board, lives, blocks, batchRows)
 
   const safe = [...deduced.safe].map(parseKey).filter(({ row, col }) => board.canAct(row, col))

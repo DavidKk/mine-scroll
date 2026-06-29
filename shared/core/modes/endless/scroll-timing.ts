@@ -1,4 +1,7 @@
-import { ENDLESS_SCROLL_DECAY, ENDLESS_SCROLL_MS_MIN, ENDLESS_SCROLL_MS_START, SCROLL_BATCH_TIERS, SCROLL_INTERVAL_TIERS_MS, SCROLL_STEP_MS } from './constants.ts'
+import type { ModeSession } from '../../types.ts'
+import { ENDLESS_SCROLL_DECAY, ENDLESS_SCROLL_MS_MIN, ENDLESS_SCROLL_MS_START } from './constants.ts'
+import type { EndlessDifficultyPreset, EndlessDifficultyPresetId } from './presets.ts'
+import { getEndlessPresetForSession, resolveScrollPreset } from './presets.ts'
 
 export type EndlessScrollStepKind = 'speed' | 'batch'
 
@@ -10,30 +13,38 @@ export interface EndlessScrollProfile {
   nextStepInMs: number
   speedTier: number
   batchTier: number
+  presetId: EndlessDifficultyPresetId
 }
 
-export function getEndlessScrollProfile(elapsedMs: number): EndlessScrollProfile {
+export function getEndlessScrollProfile(elapsedMs: number, presetOrId?: EndlessDifficultyPreset | EndlessDifficultyPresetId): EndlessScrollProfile {
+  const preset = resolveScrollPreset(presetOrId)
   const elapsed = Math.max(0, elapsedMs)
-  const step = Math.floor(elapsed / SCROLL_STEP_MS)
-  const speedTier = Math.min(SCROLL_INTERVAL_TIERS_MS.length - 1, Math.floor((step + 1) / 2))
-  const batchTier = Math.min(SCROLL_BATCH_TIERS.length - 1, Math.floor(step / 2))
+  const { scrollStepMs, scrollIntervalTiersMs, scrollBatchTiers } = preset
+  const step = Math.floor(elapsed / scrollStepMs)
+  const speedTier = Math.min(scrollIntervalTiersMs.length - 1, Math.floor((step + 1) / 2))
+  const batchTier = Math.min(scrollBatchTiers.length - 1, Math.floor(step / 2))
   const nextStep = step + 1
-  const nextBatchTier = Math.min(SCROLL_BATCH_TIERS.length - 1, Math.floor(nextStep / 2))
+  const nextBatchTier = Math.min(scrollBatchTiers.length - 1, Math.floor(nextStep / 2))
   const nextStepKind: EndlessScrollStepKind = nextBatchTier > batchTier ? 'batch' : 'speed'
 
   return {
-    intervalMs: SCROLL_INTERVAL_TIERS_MS[speedTier]!,
-    batchRows: SCROLL_BATCH_TIERS[batchTier]!,
+    intervalMs: scrollIntervalTiersMs[speedTier]!,
+    batchRows: scrollBatchTiers[batchTier]!,
     step,
     nextStepKind,
-    nextStepInMs: SCROLL_STEP_MS - (elapsed % SCROLL_STEP_MS),
+    nextStepInMs: scrollStepMs - (elapsed % scrollStepMs),
     speedTier,
     batchTier,
+    presetId: preset.id,
   }
 }
 
-export function getEndlessScrollIntervalMsFromElapsed(elapsedMs: number): number {
-  return getEndlessScrollProfile(elapsedMs).intervalMs
+export function getEndlessScrollProfileForSession(session: ModeSession, elapsedMs: number): EndlessScrollProfile {
+  return getEndlessScrollProfile(elapsedMs, getEndlessPresetForSession(session))
+}
+
+export function getEndlessScrollIntervalMsFromElapsed(elapsedMs: number, presetOrId?: EndlessDifficultyPreset | EndlessDifficultyPresetId): number {
+  return getEndlessScrollProfile(elapsedMs, presetOrId).intervalMs
 }
 
 export function formatEndlessScrollHud(profile: EndlessScrollProfile): string {
@@ -43,12 +54,13 @@ export function formatEndlessScrollHud(profile: EndlessScrollProfile): string {
 }
 
 export function formatEndlessScrollBadge(profile: EndlessScrollProfile): string {
+  const preset = resolveScrollPreset(profile.presetId)
   const nextSec = Math.ceil(profile.nextStepInMs / 1000)
   if (profile.nextStepKind === 'batch') {
-    const nextBatch = SCROLL_BATCH_TIERS[Math.min(profile.batchTier + 1, SCROLL_BATCH_TIERS.length - 1)]!
+    const nextBatch = preset.scrollBatchTiers[Math.min(profile.batchTier + 1, preset.scrollBatchTiers.length - 1)]!
     return `Next tier ${nextSec}s · batch → ×${nextBatch} rows`
   }
-  const nextInterval = SCROLL_INTERVAL_TIERS_MS[Math.min(profile.speedTier + 1, SCROLL_INTERVAL_TIERS_MS.length - 1)]!
+  const nextInterval = preset.scrollIntervalTiersMs[Math.min(profile.speedTier + 1, preset.scrollIntervalTiersMs.length - 1)]!
   return `Next tier ${nextSec}s · faster → ${(nextInterval / 1000).toFixed(1)}s`
 }
 

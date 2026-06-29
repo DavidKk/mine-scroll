@@ -1,3 +1,5 @@
+import type { EndlessDifficultyPresetId } from './modes/endless/presets.ts'
+
 export type CellMark = 'none' | 'flag'
 
 export interface Cell {
@@ -113,6 +115,8 @@ export interface ModeSession {
   hitMineKeys?: string[]
   aiOscillationBlocked?: string[]
   aiContradictedFlags?: string[]
+  /** Scroll difficulty curve — `challenge` arcade default, `expert` ranked. */
+  endlessPresetId?: EndlessDifficultyPresetId
   lastLifeLoss?: LifeLossReport
   lastAutoHeal?: AutoHealReport
   lastDefuseScore?: DefuseScoreReport

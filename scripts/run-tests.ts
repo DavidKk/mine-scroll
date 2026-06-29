@@ -21,6 +21,7 @@ import { cloneBoard } from '../shared/core/board.ts'
 import { applyMineDefuseOnRowScrollOff, BASE_MINE_SCORE, clearDefuseStreakOnMistake, MINES_PER_LIFE } from '../shared/core/mines-defused.ts'
 import {
   applyMinesFromSeed,
+  CHALLENGE_PRESET,
   collectScrollLeavingMineCells,
   createEndlessSession,
   ENDLESS_COLS,
@@ -54,7 +55,7 @@ import {
   testResolveRasterUrlUsesWebpWhenSupported,
   testSortBootAssetsForLoadPrioritizesHeavyWithinTier,
 } from './boot-loader-tests.ts'
-import { testResolveKvDirectEnv, testResolveKvMissingReturnsNull, testResolveKvPrefersDirectOverPrefixed,testResolveKvPrefixedVercelEnv } from './kv-tests.ts'
+import { testResolveKvDirectEnv, testResolveKvMissingReturnsNull, testResolveKvPrefersDirectOverPrefixed, testResolveKvPrefixedVercelEnv } from './kv-tests.ts'
 import {
   testLeaderboardScoreBreakthroughWithEmptyHistory,
   testLeaderboardViewModelKeepsSelfInRankedList,
@@ -144,21 +145,35 @@ function endlessSessionWithLeavingMines(): ModeSession {
 }
 
 function testScrollProfile(): void {
-  const start = getEndlessScrollProfile(0)
-  assert.equal(start.intervalMs, SCROLL_INTERVAL_TIERS_MS[0])
-  assert.equal(start.batchRows, SCROLL_BATCH_TIERS[0])
+  const challengeStart = getEndlessScrollProfile(0)
+  assert.equal(challengeStart.intervalMs, CHALLENGE_PRESET.scrollIntervalTiersMs[0])
+  assert.equal(challengeStart.batchRows, CHALLENGE_PRESET.scrollBatchTiers[0])
+  assert.equal(challengeStart.presetId, 'challenge')
 
-  const firstSpeedStep = getEndlessScrollProfile(50_000)
+  const challengeMaxed = getEndlessScrollProfile(1_000_000, 'challenge')
+  assert.equal(challengeMaxed.intervalMs, CHALLENGE_PRESET.scrollIntervalTiersMs.at(-1))
+  assert.equal(challengeMaxed.batchRows, CHALLENGE_PRESET.scrollBatchTiers.at(-1))
+
+  const expertStart = getEndlessScrollProfile(0, 'expert')
+  assert.equal(expertStart.intervalMs, SCROLL_INTERVAL_TIERS_MS[0])
+  assert.equal(expertStart.batchRows, SCROLL_BATCH_TIERS[0])
+
+  const firstSpeedStep = getEndlessScrollProfile(50_000, 'expert')
   assert.equal(firstSpeedStep.intervalMs, SCROLL_INTERVAL_TIERS_MS[1])
   assert.equal(firstSpeedStep.batchRows, SCROLL_BATCH_TIERS[0])
 
-  const firstBatchStep = getEndlessScrollProfile(100_000)
+  const firstBatchStep = getEndlessScrollProfile(100_000, 'expert')
   assert.equal(firstBatchStep.intervalMs, SCROLL_INTERVAL_TIERS_MS[1])
   assert.equal(firstBatchStep.batchRows, SCROLL_BATCH_TIERS[1])
 
-  const maxed = getEndlessScrollProfile(1_000_000)
-  assert.equal(maxed.intervalMs, ENDLESS_SCROLL_MS_MIN)
-  assert.equal(maxed.batchRows, SCROLL_BATCH_TIERS.at(-1))
+  const expertMaxed = getEndlessScrollProfile(1_000_000, 'expert')
+  assert.equal(expertMaxed.intervalMs, ENDLESS_SCROLL_MS_MIN)
+  assert.equal(expertMaxed.batchRows, SCROLL_BATCH_TIERS.at(-1))
+}
+
+function testArcadeSessionDefaultsToChallengePreset(): void {
+  const session = createEndlessSession()
+  assert.equal(session.endlessPresetId, 'challenge')
 }
 
 function testEndlessMineRatioRampsToClassicPlusHalf(): void {
@@ -867,6 +882,7 @@ function testDifficultyAlertAnchorSitsAboveBoard(): void {
 
 const tests: Array<[string, () => void | Promise<void>]> = [
   ['scroll profile speeds up and increases batch size', testScrollProfile],
+  ['arcade session defaults to challenge preset', testArcadeSessionDefaultsToChallengePreset],
   ['endless mine ratio ramps to classic plus 50 percent density', testEndlessMineRatioRampsToClassicPlusHalf],
   ['endless generated rows cap local mine piles', testEndlessGeneratedRowsCapMines],
   ['pending reveals do not leak offscreen until visible', testPendingRevealsDoNotLeakOffscreenUntilVisible],

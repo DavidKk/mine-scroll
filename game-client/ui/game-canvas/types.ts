@@ -49,6 +49,7 @@ export interface GameCanvasHudStats {
     scrollDepth: number
     livesCurrent: number
     livesMax: number
+    presetId?: import('@shared/core/modes/endless/presets.ts').EndlessDifficultyPresetId
   }
   difficulty?: {
     speedTier: number

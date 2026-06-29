@@ -5,7 +5,7 @@ import {
   endlessBeginRun,
   endlessScreenRowToLocal,
   getEndlessPreviewRows,
-  getEndlessScrollProfile,
+  getEndlessScrollProfileForSession,
   isEndlessInteractiveScreenRowForSession,
   sessionVisibleRows,
 } from '@shared/core/modes/endless/index.ts'
@@ -344,7 +344,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     const lives = runtime.session.lives ?? 0
     const maxLives = 5
     const scrollElapsed = runtime.scrollGameStartedAt > 0 ? Date.now() - runtime.scrollGameStartedAt : 0
-    const scrollProfile = getEndlessScrollProfile(scrollElapsed)
+    const scrollProfile = getEndlessScrollProfileForSession(runtime.session, scrollElapsed)
     const playing = runtime.session.state.status === 'playing'
     return {
       score: runtime.session.score ?? 0,
@@ -361,6 +361,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         scrollDepth: runtime.backdropScrollDepth,
         livesCurrent: lives,
         livesMax: maxLives,
+        presetId: runtime.session.endlessPresetId,
       },
       difficulty: {
         speedTier: scrollProfile.speedTier,

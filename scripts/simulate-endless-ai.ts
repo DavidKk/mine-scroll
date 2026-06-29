@@ -1,14 +1,16 @@
 /**
  * Headless endless-mode AI simulation — measures survival to max scroll speed.
- * Run: pnpm exec tsx scripts/simulate-endless-ai.ts [runs]
+ * Run: pnpm simulate:ai [runs] [challenge|expert]
  */
 import { getEndlessAiStepMs } from '../shared/core/ai/solver.ts'
 import {
-  createEndlessSession,
-  ENDLESS_SCROLL_MS_MIN,
+  createEndlessSessionWithSeed,
+  type EndlessDifficultyPresetId,
   endlessScrollTick,
+  getEndlessPresetForSession,
   getEndlessScrollIntervalMsFromElapsed,
-  getEndlessScrollProfile,
+  getEndlessScrollProfileForSession,
+  getPresetMinIntervalMs,
 } from '../shared/core/modes/endless/index.ts'
 import { applyAiMove, getAiAnalysis } from '../shared/core/modes/engine.ts'
 import type { ModeSession } from '../shared/core/types.ts'
@@ -17,8 +19,14 @@ const SIM_TICK_MS = 50
 const MAX_SCROLL_TARGET = 40
 const MAX_SIM_ELAPSED_MS = 240_000
 
-function maxSpeedAt(elapsedMs: number): boolean {
-  return getEndlessScrollIntervalMsFromElapsed(elapsedMs) <= ENDLESS_SCROLL_MS_MIN
+function parsePresetArg(value: string | undefined): EndlessDifficultyPresetId {
+  if (value === 'expert' || value === 'challenge') return value
+  return 'challenge'
+}
+
+function maxSpeedAt(session: ModeSession, elapsedMs: number): boolean {
+  const preset = getEndlessPresetForSession(session)
+  return getEndlessScrollIntervalMsFromElapsed(elapsedMs, preset.id) <= getPresetMinIntervalMs(preset)
 }
 
 function bottomRowUnresolved(session: ModeSession): number {
@@ -46,19 +54,16 @@ interface RunStats {
   reason: string
 }
 
-function simulateOne(seedIndex: number): RunStats {
-  let session: ModeSession = createEndlessSession()
+function simulateOne(seedIndex: number, presetId: EndlessDifficultyPresetId): RunStats {
+  let session: ModeSession = createEndlessSessionWithSeed(((seedIndex + 1) * 2654435761) >>> 0, presetId)
   session = {
     ...session,
-    state: {
-      ...session.state,
-      board: { ...session.state.board, worldSeed: ((seedIndex + 1) * 2654435761) >>> 0 },
-    },
+    state: { ...session.state, status: 'playing' },
   }
 
   let elapsed = 0
   let nextAiAt = 0
-  let nextScrollAt = getEndlessScrollIntervalMsFromElapsed(0)
+  let nextScrollAt = getEndlessScrollIntervalMsFromElapsed(0, presetId)
   let guessHits = 0
   let guessTotal = 0
   let waitTicks = 0
@@ -91,12 +96,12 @@ function simulateOne(seedIndex: number): RunStats {
     if (elapsed >= nextScrollAt) {
       const livesBefore = session.lives ?? 5
       const unresolved = bottomRowUnresolved(session)
-      const profile = getEndlessScrollProfile(elapsed)
+      const profile = getEndlessScrollProfileForSession(session, elapsed)
       session = endlessScrollTick(session, profile.batchRows)
       const livesAfter = session.lives ?? 0
       if (livesAfter < livesBefore) bottomPenalties += 1
       if (session.state.status === 'lost') break
-      nextScrollAt += getEndlessScrollProfile(elapsed).intervalMs
+      nextScrollAt += getEndlessScrollProfileForSession(session, elapsed).intervalMs
       if (unresolved > 0 && livesAfter < livesBefore) {
         lastMoveKind = `scroll penalty with ${unresolved} bottom cells`
       }
@@ -107,7 +112,7 @@ function simulateOne(seedIndex: number): RunStats {
   }
 
   const depth = session.scrollRowCount ?? 0
-  const maxSpeedReached = maxSpeedAt(elapsed) || depth >= 29
+  const maxSpeedReached = maxSpeedAt(session, elapsed) || depth >= 29
 
   return {
     seed: seedIndex,
@@ -125,9 +130,12 @@ function simulateOne(seedIndex: number): RunStats {
 }
 
 function main(): void {
-  const runs = Number(process.argv[2] ?? 20)
+  const argRuns = process.argv[2]
+  const argPreset = process.argv[3]
+  const runs = Number(argRuns && !Number.isNaN(Number(argRuns)) ? argRuns : 20)
+  const presetId = parsePresetArg(argPreset ?? (argRuns === 'challenge' || argRuns === 'expert' ? argRuns : undefined))
   const results: RunStats[] = []
-  for (let i = 0; i < runs; i += 1) results.push(simulateOne(i))
+  for (let i = 0; i < runs; i += 1) results.push(simulateOne(i, presetId))
 
   const reached = results.filter((r) => r.maxSpeedReached && !r.lost).length
   const avgDepth = results.reduce((s, r) => s + r.scrollDepth, 0) / results.length
@@ -140,7 +148,7 @@ function main(): void {
       results.reduce((s, r) => s + r.guessTotal, 0)
     )
 
-  console.log(`\n=== Endless AI simulation (${runs} runs) ===`)
+  console.log(`\n=== Endless AI simulation (${runs} runs, preset=${presetId}) ===`)
   console.log(`Reached max scroll (depth >= 29): ${reached}/${runs}`)
   console.log(`Avg scroll depth: ${avgDepth.toFixed(1)}`)
   console.log(`Avg bottom-row penalties: ${avgPenalties.toFixed(2)}`)

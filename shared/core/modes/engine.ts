@@ -8,6 +8,7 @@ import {
   createEndlessSession,
   createEndlessSessionWithSeed,
   endlessChordAt,
+  type EndlessDifficultyPresetId,
   endlessRevealAt,
   endlessScrollTick,
   endlessToggleMarkAt,
@@ -19,8 +20,8 @@ export function createSession(): ModeSession {
   return createEndlessSession()
 }
 
-export function createSessionWithSeed(seed: number): ModeSession {
-  return createEndlessSessionWithSeed(seed)
+export function createSessionWithSeed(seed: number, presetId?: EndlessDifficultyPresetId): ModeSession {
+  return createEndlessSessionWithSeed(seed, presetId)
 }
 
 export function getFlagCount(state: ModeSession['state']): number {

@@ -1,3 +1,4 @@
+import type { EndlessDifficultyPresetId } from '@shared/core/modes/endless/presets.ts'
 import type { GameStatus } from '@shared/core/types.ts'
 
 import type { ScrollPressureState } from '../renderer/index.ts'
@@ -9,6 +10,7 @@ export interface BackdropDifficultyInput {
   scrollDepth: number
   lives: number
   maxLives: number
+  presetId?: EndlessDifficultyPresetId
   scrollPressure?: ScrollPressureState
 }
 
