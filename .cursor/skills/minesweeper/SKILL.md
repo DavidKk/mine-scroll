@@ -20,6 +20,8 @@ description: >-
 
 专项方案（按需）：
 
+- `docs/TUTORIAL-PLAN.md` — 新手教程（固定盘、Canvas 引导、不计榜）
+- `docs/DIFFICULTY-PRESET-PLAN.md` — 无尽难度四档 preset、排位锁专家
 - `docs/MOBILE-TOUCH-INPUT-PLAN.md` — 移动端触摸映射
 - `docs/ENDLESS-HUD-FEEDBACK-UX-PLAN.md` — HUD 视觉变更（与 refactor 分离）
 

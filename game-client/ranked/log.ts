@@ -1,4 +1,4 @@
-import { brandLogPrefix } from '../../../lib/brand.ts'
+import { brandLogPrefix } from '../../lib/brand.ts'
 import { isDev } from '../env.ts'
 
 const PREFIX = brandLogPrefix('ranked')
