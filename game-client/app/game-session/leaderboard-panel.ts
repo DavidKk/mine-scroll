@@ -545,7 +545,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       subtitleEl.textContent = resolveSubtitle(body?.storage, options.isRankedMode?.() ?? false)
 
       if (body?.storage === 'none') {
-        applyStatus('Link a Vercel KV store to this project, then run vercel env pull.', 'error')
+        applyStatus('Global leaderboard needs Vercel KV — you can still play locally.', 'idle')
       } else {
         applyStatus('')
       }

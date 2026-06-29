@@ -49,6 +49,7 @@ import {
   testDedupeBootAssetsMergesByUrl,
   testIsAudioBootUrlDetectsWav,
   testMobileBlockingBootAssetsPromotesOptionalAndAudio,
+  testRankedStorageUnavailableMessage,
   testResolveRasterUrlKeepsPngWhenUnsupported,
   testResolveRasterUrlUsesWebpWhenSupported,
   testSortBootAssetsForLoadPrioritizesHeavyWithinTier,
@@ -933,6 +934,7 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['boot image format keeps png when unsupported', testResolveRasterUrlKeepsPngWhenUnsupported],
   ['mobile boot promotes optional assets and audio', testMobileBlockingBootAssetsPromotesOptionalAndAudio],
   ['boot audio url detection', testIsAudioBootUrlDetectsWav],
+  ['ranked storage unavailable message', testRankedStorageUnavailableMessage],
 ]
 
 for (const [name, run] of tests) {

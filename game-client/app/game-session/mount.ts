@@ -18,6 +18,7 @@ import { createRankedInputRecorder } from '../../ranked/input-recorder.ts'
 import { createRankedInputUploader } from '../../ranked/input-uploader.ts'
 import { isRankedMode } from '../../ranked/is-ranked-mode.ts'
 import { createRankedRunOnServer, createRankedSession, finishRankedRunOnServer } from '../../ranked/ranked-run-client.ts'
+import { isRankedStorageUnavailableMessage } from '../../ranked/ranked-storage.ts'
 import type { RunInputEvent } from '../../ranked/types.ts'
 import {
   appendLocalScoreRecord,
@@ -397,10 +398,15 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         devLog(`Ranked run ${run.runId.slice(0, 8)}…`)
       } catch (error) {
         if (runGeneration !== sessionGeneration) return
-        devWarn(error instanceof Error ? error.message : 'Failed to start ranked run')
-        runtime.startOverlayOpen = true
-        render()
-        return
+        const message = error instanceof Error ? error.message : 'Failed to start ranked run'
+        devWarn(message)
+        if (!isRankedStorageUnavailableMessage(message)) {
+          runtime.startOverlayOpen = true
+          notify.error(message)
+          render()
+          return
+        }
+        notify.warn('Ranked storage offline — starting local endless run')
       }
     }
 
