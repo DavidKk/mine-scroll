@@ -287,7 +287,13 @@ export function getEndlessShellReserves(viewportW: number, viewportH: number): E
  * Desktop: cell size from available width; tighten by height only when the board is too tall.
  * Mobile: width-first (board spans viewport), then clamp by available height.
  */
-export function computeEndlessBoardCellSize(cols: number, rows: number, viewportW: number, viewportH: number, limits: { min?: number; max?: number } = {}): number {
+export function computeEndlessBoardCellSize(
+  cols: number,
+  rows: number,
+  viewportW: number,
+  viewportH: number,
+  limits: { min?: number; max?: number; previewRows?: number } = {}
+): number {
   const reserves = getEndlessShellReserves(viewportW, viewportH)
   const min = limits.min ?? 18
   const max = limits.max ?? DEFAULT_CELL_SIZE
