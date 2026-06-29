@@ -11,7 +11,7 @@ export interface BootAsset {
   optional?: boolean
 }
 
-export type BootProgressLabel = 'starting' | 'tiles' | 'ui' | 'fx' | 'ready'
+export type BootProgressLabel = 'starting' | 'tiles' | 'ui' | 'fx' | 'audio' | 'ready'
 
 export interface BootProgress {
   ratio: number

@@ -47,6 +47,8 @@ import {
   testCollectBootAssetsHasNoDuplicateUrls,
   testComputeBootProgressClampsRatio,
   testDedupeBootAssetsMergesByUrl,
+  testIsAudioBootUrlDetectsWav,
+  testMobileBlockingBootAssetsPromotesOptionalAndAudio,
   testResolveRasterUrlKeepsPngWhenUnsupported,
   testResolveRasterUrlUsesWebpWhenSupported,
   testSortBootAssetsForLoadPrioritizesHeavyWithinTier,
@@ -929,6 +931,8 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['boot registry has unique urls', testCollectBootAssetsHasNoDuplicateUrls],
   ['boot image format resolves webp when supported', testResolveRasterUrlUsesWebpWhenSupported],
   ['boot image format keeps png when unsupported', testResolveRasterUrlKeepsPngWhenUnsupported],
+  ['mobile boot promotes optional assets and audio', testMobileBlockingBootAssetsPromotesOptionalAndAudio],
+  ['boot audio url detection', testIsAudioBootUrlDetectsWav],
 ]
 
 for (const [name, run] of tests) {

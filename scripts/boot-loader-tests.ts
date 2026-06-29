@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 
 import { collectBootAssets, dedupeBootAssets } from '../game-client/ui/boot/asset-registry.ts'
+import { buildMobileBlockingBootAssets, isAudioBootUrl } from '../game-client/ui/boot/boot-blocking.ts'
 import { computeBootProgress } from '../game-client/ui/boot/boot-sequence.ts'
 import { applyBootWeightMap } from '../game-client/ui/boot/boot-weights.ts'
 import { configureBootImageFormatForTests, resetBootImageFormatForTests, resolveRasterUrl } from '../game-client/ui/boot/image-format.ts'
 import { sortBootAssetsForLoad } from '../game-client/ui/boot/load-priority.ts'
+import { buildAudioBootAssets } from '../game-client/ui/boot/preload-audio.ts'
 import type { BootAsset } from '../game-client/ui/boot/types.ts'
 
 function asset(id: string, overrides: Partial<BootAsset> = {}): BootAsset {
@@ -84,4 +86,18 @@ export function testResolveRasterUrlKeepsPngWhenUnsupported(): void {
   configureBootImageFormatForTests(false, { '/assets/a.png': '/assets/a.webp' })
   assert.equal(resolveRasterUrl('/assets/a.png'), '/assets/a.png')
   resetBootImageFormatForTests()
+}
+
+export function testMobileBlockingBootAssetsPromotesOptionalAndAudio(): void {
+  const blocking = [asset('opt', { tier: 2, optional: true }), asset('req', { tier: 1, optional: false })]
+  const audio = buildAudioBootAssets()
+  const merged = buildMobileBlockingBootAssets(blocking, audio)
+  assert.equal(merged.find((entry) => entry.id === 'opt')?.optional, false)
+  assert.ok(merged.some((entry) => entry.id === 'audio.bgm-idle' && entry.tier === 2 && entry.optional === false))
+  assert.equal(merged.length, blocking.length + audio.length)
+}
+
+export function testIsAudioBootUrlDetectsWav(): void {
+  assert.equal(isAudioBootUrl('/assets/game/audio/bgm-idle.wav'), true)
+  assert.equal(isAudioBootUrl('/assets/a.png'), false)
 }

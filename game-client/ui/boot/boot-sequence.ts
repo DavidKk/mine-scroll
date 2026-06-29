@@ -1,8 +1,11 @@
 import { markBootComplete, setBootManifest } from './asset-cache.ts'
 import { loadBootAssets } from './asset-loader.ts'
 import { buildBootAssetList } from './asset-registry.ts'
+import { buildMobileBlockingBootAssets } from './boot-blocking.ts'
+import { isMobileBootClient } from './boot-client.ts'
 import { initBootImageFormat } from './image-format.ts'
 import { sortBootAssetsForLoad } from './load-priority.ts'
+import { buildAudioBootAssets } from './preload-audio.ts'
 import type { BootAsset, BootAssetGroup, BootProgress, BootProgressLabel, BootResult, BootSequenceOptions } from './types.ts'
 
 const MIN_BOOT_DISPLAY_MS = 400
@@ -11,6 +14,7 @@ let bootPromise: Promise<BootResult> | null = null
 
 function groupLabel(group: BootAssetGroup): BootProgressLabel {
   if (group === 'tiles') return 'tiles'
+  if (group === 'audio') return 'audio'
   if (group === 'hud-icons' || group === 'panels' || group === 'hud-feedback') return 'ui'
   return 'fx'
 }
@@ -58,7 +62,10 @@ async function runOnce(options: BootSequenceOptions = {}): Promise<BootResult> {
   if (manifest) setBootManifest(manifest)
 
   const { blocking, background } = partitionByTier(assets)
-  const totalWeight = blocking.reduce((sum, asset) => sum + asset.weight, 0)
+  const strictMobile = isMobileBootClient()
+  const audioAssets = buildAudioBootAssets()
+  const effectiveBlocking = strictMobile ? buildMobileBlockingBootAssets(blocking, audioAssets) : blocking
+  const totalWeight = effectiveBlocking.reduce((sum, asset) => sum + asset.weight, 0)
   let completedWeight = 0
   loadedCount = 0
   currentLabel = 'starting'
@@ -68,7 +75,7 @@ async function runOnce(options: BootSequenceOptions = {}): Promise<BootResult> {
   const assetRatio = () => (totalWeight > 0 ? MANIFEST_PROGRESS + ASSET_PROGRESS * (completedWeight / totalWeight) : MANIFEST_PROGRESS)
 
   const emitAssets = () => {
-    onProgress?.(computeBootProgress(assetRatio(), currentLabel, loadedCount, blocking.length, currentGroup))
+    onProgress?.(computeBootProgress(assetRatio(), currentLabel, loadedCount, effectiveBlocking.length, currentGroup))
   }
 
   emitAssets()
@@ -78,7 +85,7 @@ async function runOnce(options: BootSequenceOptions = {}): Promise<BootResult> {
 
   const blockingTiers = [1, 2] as const
   for (const tier of blockingTiers) {
-    const tierAssets = sortBootAssetsForLoad(blocking.filter((asset) => asset.tier === tier))
+    const tierAssets = sortBootAssetsForLoad(effectiveBlocking.filter((asset) => asset.tier === tier))
     if (tierAssets.length === 0) continue
 
     await loadBootAssets({
@@ -89,7 +96,7 @@ async function runOnce(options: BootSequenceOptions = {}): Promise<BootResult> {
         loadedCount += 1
         if (result.ok) {
           completedWeight += asset.weight
-        } else if (asset.optional) {
+        } else if (asset.optional && !strictMobile) {
           failedOptional.push(asset)
         } else {
           failedRequired.push(asset)
@@ -115,7 +122,7 @@ async function runOnce(options: BootSequenceOptions = {}): Promise<BootResult> {
   currentLabel = 'ready'
   emit(1)
 
-  if (background.length > 0) {
+  if (background.length > 0 && !strictMobile) {
     void loadBootAssets({ assets: background, maxConcurrent, signal })
   }
 

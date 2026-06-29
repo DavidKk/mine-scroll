@@ -23,6 +23,21 @@ export function drawFullscreenHud(
   const { scale } = stage
   const isMobile = stage.profile === 'mobile'
   const hudAlpha = intro && !intro.complete ? intro.hudAlpha : 1
+  const showIntroLineOnly = intro && !intro.complete
+
+  if (!isMobile && !showIntroLineOnly) {
+    const barX = 0
+    const barY = stage.hudY
+    const barW = shellW
+    const topBarH = stage.hudH
+    const topLine = shellCtx.createLinearGradient(barX, barY, barX + barW, barY)
+    topLine.addColorStop(0, 'rgba(59, 130, 246, 0)')
+    topLine.addColorStop(0.18, 'rgba(59, 130, 246, 0.36)')
+    topLine.addColorStop(0.82, 'rgba(59, 130, 246, 0.36)')
+    topLine.addColorStop(1, 'rgba(59, 130, 246, 0)')
+    shellCtx.fillStyle = topLine
+    shellCtx.fillRect(barX, barY + topBarH + 2 * scale, barW, Math.max(1, scale))
+  }
 
   if (hudAlpha <= 0.01) return
 

@@ -1,6 +1,6 @@
 import { drawHudIcon } from '../../hud-sprites.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
-import { drawHudSideChipBackground, drawHudSideChipIcon, getHudSideChipLayout } from './side-chip-layout.ts'
+import { drawDesktopHudSideChipIcon, drawHudSideChipBackground, drawHudSideChipIcon, getHudSideChipLayout } from './side-chip-layout.ts'
 
 export function drawBgmMuteHud(
   rt: GameCanvasRuntime,
@@ -18,23 +18,23 @@ export function drawBgmMuteHud(
   const { hitSize, iconSize } = layout
   const cx = rectX + hitSize / 2
   const cy = rectY + hitSize / 2
+  const chipRect = { x: rectX, y: rectY, w: hitSize, h: hitSize }
 
-  rt.state.bgmMuteRect = { x: rectX, y: rectY, w: hitSize, h: hitSize }
+  rt.state.bgmMuteRect = chipRect
 
-  const emphasized = layout.isMobile
-  shellCtx.save()
-  drawHudSideChipBackground(shellCtx, { x: rectX, y: rectY, w: hitSize, h: hitSize }, scale, hovered, muted ? 'rose' : 'cyan', emphasized)
   const icon = muted ? (hovered ? 'volume-off-hover' : 'volume-off') : hovered ? 'volume-on-hover' : 'volume-on'
-  drawHudSideChipIcon(
-    shellCtx,
-    () =>
-      drawHudIcon(shellCtx, icon, cx - iconSize / 2, cy - iconSize / 2, {
-        size: iconSize,
-      }),
-    scale,
-    muted ? 'rose' : 'cyan',
-    hovered,
-    emphasized
-  )
-  shellCtx.restore()
+  const drawIcon = () =>
+    drawHudIcon(shellCtx, icon, cx - iconSize / 2, cy - iconSize / 2, {
+      size: iconSize,
+    })
+
+  if (layout.isMobile) {
+    shellCtx.save()
+    drawHudSideChipBackground(shellCtx, chipRect, scale, hovered, muted ? 'rose' : 'cyan', true)
+    drawHudSideChipIcon(shellCtx, drawIcon, scale, muted ? 'rose' : 'cyan', hovered, true)
+    shellCtx.restore()
+    return
+  }
+
+  drawDesktopHudSideChipIcon(shellCtx, drawIcon, chipRect, iconSize, hovered, muted ? '255, 64, 82' : '45, 236, 255')
 }

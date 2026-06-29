@@ -8,6 +8,7 @@ const LABEL_TEXT: Record<BootProgressLabel, string> = {
   tiles: 'LOADING BOARD',
   ui: 'LOADING UI',
   fx: 'LOADING FX',
+  audio: 'LOADING AUDIO',
   ready: 'READY',
 }
 

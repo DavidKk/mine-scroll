@@ -1,6 +1,6 @@
 import { drawHudIcon } from '../../hud-sprites.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
-import { drawHudSideChipBackground, drawHudSideChipIcon, getHudSideChipLayout, stackHudSideChipBelow } from './side-chip-layout.ts'
+import { drawDesktopHudSideChipIcon, drawHudSideChipBackground, drawHudSideChipIcon, getHudSideChipLayout, stackHudSideChipBelow } from './side-chip-layout.ts'
 
 function drawLeaderboardUnseenFx(
   shellCtx: CanvasRenderingContext2D,
@@ -80,29 +80,30 @@ export function drawLeaderboardHud(
 
   rt.state.leaderboardRect = chipRect
 
-  const emphasized = layout.isMobile
-  const accent = layout.isMobile || unseenUpdate ? 'gold' : 'cyan'
+  const iconDrawSize = unseenUpdate ? iconSize * (1 + (0.5 + Math.sin(Date.now() / 260) * 0.5) * 0.05) : iconSize
+  const iconOffset = (iconSize - iconDrawSize) / 2
+  const drawIcon = () =>
+    drawHudIcon(shellCtx, hovered ? 'leaderboard-hover' : 'leaderboard', cx - iconSize / 2 + iconOffset, cy - iconSize / 2 + iconOffset, {
+      size: iconDrawSize,
+    })
+
+  if (layout.isMobile) {
+    shellCtx.save()
+    if (unseenUpdate) {
+      drawLeaderboardUnseenFx(shellCtx, rectX, rectY, chipSize, cx, cy, iconSize, scale)
+      rt.scheduleAnimationFrame?.()
+    }
+    drawHudSideChipBackground(shellCtx, chipRect, scale, hovered || unseenUpdate, unseenUpdate ? 'gold' : 'cyan', true)
+    drawHudSideChipIcon(shellCtx, drawIcon, scale, unseenUpdate ? 'gold' : 'cyan', hovered || unseenUpdate, true)
+    shellCtx.restore()
+    return
+  }
 
   shellCtx.save()
   if (unseenUpdate) {
     drawLeaderboardUnseenFx(shellCtx, rectX, rectY, chipSize, cx, cy, iconSize, scale)
     rt.scheduleAnimationFrame?.()
   }
-
-  drawHudSideChipBackground(shellCtx, { x: rectX, y: rectY, w: chipSize, h: chipSize }, scale, hovered || unseenUpdate, accent, emphasized)
-
-  const iconDrawSize = unseenUpdate ? iconSize * (1 + (0.5 + Math.sin(Date.now() / 260) * 0.5) * 0.05) : iconSize
-  const iconOffset = (iconSize - iconDrawSize) / 2
-  drawHudSideChipIcon(
-    shellCtx,
-    () =>
-      drawHudIcon(shellCtx, hovered ? 'leaderboard-hover' : 'leaderboard', cx - iconSize / 2 + iconOffset, cy - iconSize / 2 + iconOffset, {
-        size: iconDrawSize,
-      }),
-    scale,
-    accent,
-    hovered || unseenUpdate,
-    emphasized
-  )
+  drawDesktopHudSideChipIcon(shellCtx, drawIcon, chipRect, iconSize, hovered || unseenUpdate)
   shellCtx.restore()
 }

@@ -1,4 +1,6 @@
 import { getCachedImage, hasCachedImage, setCachedImage } from './asset-cache.ts'
+import { warmAudioClipAsync } from './audio-cache.ts'
+import { isAudioBootUrl } from './boot-blocking.ts'
 import { resolveRasterUrl } from './image-format.ts'
 import { sortBootAssetsForLoad } from './load-priority.ts'
 import type { BootAsset, BootAssetResult } from './types.ts'
@@ -83,9 +85,32 @@ async function loadImageWithRetry(canonicalUrl: string, signal?: AbortSignal): P
   throw lastError
 }
 
+async function loadAudioWithRetry(url: string, signal?: AbortSignal): Promise<void> {
+  let lastError: unknown
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      await warmAudioClipAsync(url, signal)
+      return
+    } catch (error) {
+      lastError = error
+      if (signal?.aborted) throw error
+      if (attempt < MAX_RETRIES) {
+        await sleep(RETRY_DELAYS_MS[attempt] ?? 900, signal)
+      }
+    }
+  }
+
+  throw lastError
+}
+
 export async function loadBootAsset(asset: BootAsset, signal?: AbortSignal): Promise<BootAssetResult> {
   try {
-    await loadImageWithRetry(asset.url, signal)
+    if (isAudioBootUrl(asset.url)) {
+      await loadAudioWithRetry(asset.url, signal)
+    } else {
+      await loadImageWithRetry(asset.url, signal)
+    }
     return { id: asset.id, url: asset.url, ok: true }
   } catch {
     return { id: asset.id, url: asset.url, ok: false }

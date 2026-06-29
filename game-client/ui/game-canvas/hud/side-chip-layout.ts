@@ -14,8 +14,12 @@ export interface HudSideChipLayout {
 
 export type HudSideChipAccent = 'cyan' | 'gold' | 'rose'
 
-/** Pre-start side controls (volume / leaderboard) scale vs base HUD chip sizing. */
-const SIDE_CHIP_SIZE_SCALE = 1.5
+/** Mobile pre-start side controls scale vs base HUD chip sizing. */
+const MOBILE_SIDE_CHIP_SIZE_SCALE = 1.5
+/** Desktop: compact chips — no mobile legibility boost. */
+const DESKTOP_SIDE_CHIP_SIZE_SCALE = 1
+/** Desktop: nudge volume / leaderboard stack below the lives row. */
+const DESKTOP_SIDE_CHIP_Y_NUDGE = 24
 /** Mobile: vertical gap between volume and leaderboard chips. */
 const MOBILE_SIDE_CHIP_STACK_GAP = 32
 /** Mobile idle: extra icon legibility vs grid backdrop. */
@@ -33,10 +37,11 @@ export function getHudSideChipLayout(rt: GameCanvasRuntime, anchorX: number, hud
   const isMobile = rt.state.stageLayout?.profile === 'mobile'
   const heartIconSize = hudHeartIconSize(rt, scale)
   const gridCellSize = rt.state.squareLayout?.grid.cellSize ?? 32 * scale
-  const baseIconSize = isMobile ? Math.max(22, Math.min(30, gridCellSize * 0.68)) : Math.max(28, Math.min(40, gridCellSize * 0.92))
+  const baseIconSize = isMobile ? Math.max(22, Math.min(30, gridCellSize * 0.68)) : Math.max(22, Math.min(32, gridCellSize * 0.72))
+  const sizeScale = isMobile ? MOBILE_SIDE_CHIP_SIZE_SCALE : DESKTOP_SIDE_CHIP_SIZE_SCALE
   const iconBoost = isMobile ? MOBILE_SIDE_CHIP_ICON_BOOST : 1
-  const iconSize = baseIconSize * SIDE_CHIP_SIZE_SCALE * iconBoost
-  const hitPad = (isMobile ? Math.max(8, 9 * scale) : Math.max(10, 12 * scale)) * SIDE_CHIP_SIZE_SCALE
+  const iconSize = baseIconSize * sizeScale * iconBoost
+  const hitPad = (isMobile ? Math.max(8, 9 * scale) : Math.max(8, 10 * scale)) * (isMobile ? MOBILE_SIDE_CHIP_SIZE_SCALE : 1)
   const hitSize = iconSize + hitPad
   const metrics =
     lives && !isMobile ? hudHeartRowMetrics(rt, anchorX, hudY, lives, scale) : { x: anchorX - hitSize, cy: hudY + 31 * scale, iconSize: heartIconSize, gap: 0, rowW: hitSize }
@@ -44,7 +49,7 @@ export function getHudSideChipLayout(rt: GameCanvasRuntime, anchorX: number, hud
   return {
     hitSize,
     rectX: anchorX - hitSize,
-    topY: isMobile ? hudY : metrics.cy + heartIconSize / 2 + 12 * scale,
+    topY: isMobile ? hudY : metrics.cy + heartIconSize / 2 + 12 * scale + DESKTOP_SIDE_CHIP_Y_NUDGE * scale,
     iconSize,
     isMobile,
     scale,
@@ -52,7 +57,7 @@ export function getHudSideChipLayout(rt: GameCanvasRuntime, anchorX: number, hud
 }
 
 export function stackHudSideChipBelow(rect: { y: number; h: number }, layout: HudSideChipLayout): { x: number; y: number; w: number; h: number } {
-  const gap = (layout.isMobile ? MOBILE_SIDE_CHIP_STACK_GAP : 16) * layout.scale
+  const gap = (layout.isMobile ? MOBILE_SIDE_CHIP_STACK_GAP : 6) * layout.scale
   return {
     x: layout.rectX,
     y: rect.y + rect.h + gap,
@@ -181,6 +186,32 @@ export function drawHudSideChipIcon(
   shellCtx.shadowBlur = 0
   shellCtx.globalCompositeOperation = 'lighter'
   shellCtx.globalAlpha = hovered ? 0.35 : emphasized ? 0.22 : 0.14
+  drawIcon()
+  shellCtx.restore()
+}
+
+/** Desktop: icon-only chip — no plate/backdrop (pre-mobile styling). */
+export function drawDesktopHudSideChipIcon(
+  shellCtx: CanvasRenderingContext2D,
+  drawIcon: () => void,
+  rect: { x: number; y: number; w: number; h: number },
+  iconSize: number,
+  hovered: boolean,
+  glowRgb = '45, 236, 255'
+): void {
+  const cx = rect.x + rect.w / 2
+  const cy = rect.y + rect.h / 2
+  shellCtx.save()
+  if (hovered) {
+    shellCtx.globalCompositeOperation = 'lighter'
+    const glow = shellCtx.createRadialGradient(cx, cy, iconSize * 0.16, cx, cy, iconSize * 0.72)
+    glow.addColorStop(0, `rgba(${glowRgb}, 0.22)`)
+    glow.addColorStop(1, 'rgba(45, 236, 255, 0)')
+    shellCtx.fillStyle = glow
+    shellCtx.fillRect(rect.x - iconSize * 0.35, rect.y - iconSize * 0.35, rect.w + iconSize * 0.7, rect.h + iconSize * 0.7)
+    shellCtx.globalCompositeOperation = 'source-over'
+  }
+  shellCtx.globalAlpha = hovered ? 1 : 0.9
   drawIcon()
   shellCtx.restore()
 }
