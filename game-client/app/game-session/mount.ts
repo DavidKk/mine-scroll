@@ -406,7 +406,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           render()
           return
         }
-        notify.warn('Ranked storage offline — starting local endless run')
+        notify.warning('Ranked storage offline — starting local endless run')
       }
     }
 
