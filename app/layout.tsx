@@ -1,6 +1,8 @@
 import './globals.css'
 import '@game-client/styles/main.css'
 
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import type { Metadata, Viewport } from 'next'
 
 import { VideoGameJsonLd } from '@/app/components/video-game-json-ld'
@@ -55,6 +57,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <Analytics />
+      <SpeedInsights />
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
