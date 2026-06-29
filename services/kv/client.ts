@@ -1,7 +1,8 @@
 /**
  * KV client wrapper (Upstash Redis).
  *
- * Production: `UPSTASH_REDIS_REST_*` or Vercel-linked `KV_REST_API_*`.
+ * Production: `UPSTASH_REDIS_REST_*`, `KV_REST_API_*`, or prefixed Vercel store vars
+ * such as `minescroll_KV_REST_API_*`.
  * Local dev without env: shared in-process memory (globalThis + optional disk cache).
  */
 
@@ -9,6 +10,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { Redis } from '@upstash/redis'
+
+import { hasKvRestCredentials, resolveKvRestCredentials } from './resolve-credentials.ts'
 
 const GLOBAL_MEMORY_KEY = '__chill_kv_memory_store__'
 const DEV_CACHE_FILE = path.join(process.cwd(), '.next/cache/chill-kv-memory.json')
@@ -25,9 +28,7 @@ interface MemoryEntry {
 type MemoryStore = Map<string, MemoryEntry>
 
 function hasRedisEnv(): boolean {
-  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN
-  return Boolean(url && token)
+  return hasKvRestCredentials()
 }
 
 function useMemoryStore(): boolean {
@@ -77,11 +78,12 @@ function scheduleDevCachePersist(): void {
 
 export function getKvClient(): Redis | null {
   if (client !== null) return client
-  if (!hasRedisEnv()) return null
+  const credentials = resolveKvRestCredentials()
+  if (!credentials) return null
 
   client = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN!,
+    url: credentials.url,
+    token: credentials.token,
   })
   return client
 }

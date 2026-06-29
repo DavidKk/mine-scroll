@@ -22,6 +22,9 @@ declare namespace NodeJS {
     /** Injected when a KV store is linked on Vercel */
     KV_REST_API_URL?: string
     KV_REST_API_TOKEN?: string
+    /** Vercel named KV store — prefix matches the storage resource name */
+    minescroll_KV_REST_API_URL?: string
+    minescroll_KV_REST_API_TOKEN?: string
   }
 }
 

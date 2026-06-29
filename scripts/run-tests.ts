@@ -54,6 +54,7 @@ import {
   testResolveRasterUrlUsesWebpWhenSupported,
   testSortBootAssetsForLoadPrioritizesHeavyWithinTier,
 } from './boot-loader-tests.ts'
+import { testResolveKvDirectEnv, testResolveKvMissingReturnsNull, testResolveKvPrefersDirectOverPrefixed,testResolveKvPrefixedVercelEnv } from './kv-tests.ts'
 import {
   testLeaderboardScoreBreakthroughWithEmptyHistory,
   testLeaderboardViewModelKeepsSelfInRankedList,
@@ -935,6 +936,10 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['mobile boot promotes optional assets and audio', testMobileBlockingBootAssetsPromotesOptionalAndAudio],
   ['boot audio url detection', testIsAudioBootUrlDetectsWav],
   ['ranked storage unavailable message', testRankedStorageUnavailableMessage],
+  ['kv env direct credentials', testResolveKvDirectEnv],
+  ['kv env prefixed vercel credentials', testResolveKvPrefixedVercelEnv],
+  ['kv env prefers direct credentials', testResolveKvPrefersDirectOverPrefixed],
+  ['kv env missing credentials', testResolveKvMissingReturnsNull],
 ]
 
 for (const [name, run] of tests) {
