@@ -1,6 +1,6 @@
 import { computeBackdropMood, drawAmbientBackdrop, smoothBackdropMood } from '../../ambient-backdrop.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
-import { RUNTIME_CONSTANTS } from '../runtime/state.ts'
+import { ambientFrameMs, backdropLiteStars, backdropParticleScale } from '../runtime/mobile-perf.ts'
 
 export function drawModernBackground(_rt: GameCanvasRuntime, shellCtx: CanvasRenderingContext2D, shellW: number, shellH: number): void {
   const bg = shellCtx.createLinearGradient(0, 0, 0, shellH)
@@ -11,7 +11,7 @@ export function drawModernBackground(_rt: GameCanvasRuntime, shellCtx: CanvasRen
 }
 
 function backdropCacheKey(rt: GameCanvasRuntime, now: number): string {
-  const bucket = Math.floor(now / RUNTIME_CONSTANTS.AMBIENT_FRAME_MS)
+  const bucket = Math.floor(now / ambientFrameMs(rt.state.width))
   const mood = rt.state.backdropMood
   return `${rt.state.width}x${rt.state.height}|${bucket}|${Math.round(mood.heat * 100)}|${Math.round(mood.energy * 100)}|${Math.round(mood.intensity * 100)}|${rt.state.currentStatus}`
 }
@@ -29,7 +29,7 @@ export function drawAmbientShellBackdrop(rt: GameCanvasRuntime, shellCtx: Canvas
     },
     stats?.combo ?? 0
   )
-  const dtMs = rt.state.lastBackdropSampleAt > 0 ? now - rt.state.lastBackdropSampleAt : RUNTIME_CONSTANTS.AMBIENT_FRAME_MS
+  const dtMs = rt.state.lastBackdropSampleAt > 0 ? now - rt.state.lastBackdropSampleAt : ambientFrameMs(rt.state.width)
   rt.state.lastBackdropSampleAt = now
   rt.state.backdropMood = smoothBackdropMood(rt.state.backdropMood, target, dtMs)
 
@@ -39,6 +39,8 @@ export function drawAmbientShellBackdrop(rt: GameCanvasRuntime, shellCtx: Canvas
     nowMs: now,
     status: rt.state.currentStatus,
     mood: rt.state.backdropMood,
+    particleScale: backdropParticleScale(rt.state.width),
+    liteStars: backdropLiteStars(rt.state.width),
     boardSafeRect: rt.state.squareLayout
       ? {
           x: rt.state.boardOffsetX,

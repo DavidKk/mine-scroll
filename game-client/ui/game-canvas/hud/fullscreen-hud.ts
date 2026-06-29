@@ -22,23 +22,7 @@ export function drawFullscreenHud(
   const stage = rt.state.stageLayout
   const { scale } = stage
   const isMobile = stage.profile === 'mobile'
-  const topBarH = stage.hudH
   const hudAlpha = intro && !intro.complete ? intro.hudAlpha : 1
-  const showIntroLineOnly = intro && !intro.complete
-
-  const barX = 0
-  const barY = stage.hudY
-  const barW = shellW
-
-  if (!showIntroLineOnly) {
-    const topLine = shellCtx.createLinearGradient(barX, barY, barX + barW, barY)
-    topLine.addColorStop(0, 'rgba(59, 130, 246, 0)')
-    topLine.addColorStop(0.18, 'rgba(59, 130, 246, 0.36)')
-    topLine.addColorStop(0.82, 'rgba(59, 130, 246, 0.36)')
-    topLine.addColorStop(1, 'rgba(59, 130, 246, 0)')
-    shellCtx.fillStyle = topLine
-    shellCtx.fillRect(barX, barY + topBarH + 2 * scale, barW, Math.max(1, scale))
-  }
 
   if (hudAlpha <= 0.01) return
 
@@ -46,28 +30,25 @@ export function drawFullscreenHud(
   shellCtx.globalAlpha = hudAlpha
 
   const livesRaw = stats?.lives
+  const barY = stage.hudY
   const hudY = barY + (isMobile ? 3 : 7) * scale
   drawScoreHud(rt, shellCtx, stage.scoreAnchor.x, hudY, stats?.score ?? 0, scale)
   if (!isMobile) {
     drawComboHud(rt, shellCtx, stage.comboHudAnchor.x, hudY, stats?.combo ?? 0, scale)
   }
   drawLivesHud(rt, shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale)
-  if (shell.getBgmMuted && shell.onToggleBgmMute) {
-    drawBgmMuteHud(rt, shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale, shell.getBgmMuted(), rt.state.uiHoverTarget === 'bgm-mute')
+  const showPreStartControls = rt.state.currentStatus === 'idle'
+  if (showPreStartControls && shell.getBgmMuted && shell.onToggleBgmMute) {
+    drawBgmMuteHud(rt, shellCtx, stage.sideControlsAnchor.x, stage.sideControlsAnchor.y, livesRaw, scale, shell.getBgmMuted(), rt.state.uiHoverTarget === 'bgm-mute')
   } else {
     rt.state.bgmMuteRect = null
   }
 
-  if (shell.onOpenLeaderboard) {
+  if (showPreStartControls && shell.onOpenLeaderboard) {
     const unseenUpdate = shell.hasLeaderboardUnseenUpdate?.() ?? false
-    drawLeaderboardHud(rt, shellCtx, stage.livesAnchor.x, hudY, livesRaw, scale, rt.state.uiHoverTarget === 'leaderboard', unseenUpdate)
+    drawLeaderboardHud(rt, shellCtx, stage.sideControlsAnchor.x, stage.sideControlsAnchor.y, livesRaw, scale, rt.state.uiHoverTarget === 'leaderboard', unseenUpdate)
   } else {
     rt.state.leaderboardRect = null
-  }
-
-  const combo = stats?.combo ?? 0
-  if (isMobile && combo > 1) {
-    drawComboHud(rt, shellCtx, stage.comboHudAnchor.x, stage.comboHudAnchor.y, combo, scale)
   }
 
   const livesParsed = parseLivesDisplay(livesRaw)

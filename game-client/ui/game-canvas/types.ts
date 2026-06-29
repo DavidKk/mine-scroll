@@ -2,6 +2,7 @@ import type { AiHintDisplay } from '@shared/core/ai/types.ts'
 import type { GameStatus } from '@shared/core/types.ts'
 
 import type { ScrollPressureState } from '../renderer/index.ts'
+import { resolveCanvasDpr } from './runtime/mobile-perf.ts'
 
 export interface GameCanvasCallbacks {
   onReveal(row: number, col: number): void
@@ -135,7 +136,7 @@ export interface GameCanvasController {
 }
 
 export function applyCanvasSize(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, width: number, height: number): void {
-  const dpr = window.devicePixelRatio || 1
+  const dpr = resolveCanvasDpr(width)
   canvas.width = width * dpr
   canvas.height = height * dpr
   canvas.style.width = `${width}px`

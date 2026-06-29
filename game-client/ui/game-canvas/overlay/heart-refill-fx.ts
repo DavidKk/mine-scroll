@@ -21,7 +21,7 @@ export function drawHeartRefillFx(rt: GameCanvasRuntime, shellCtx: CanvasRenderi
     return
   }
   const stageScale = rt.state.stageLayout.scale
-  const hudY = rt.state.stageLayout.hudY + 7 * stageScale
+  const hudY = rt.state.stageLayout.hudY + (rt.state.stageLayout.profile === 'mobile' ? 3 : 7) * stageScale
   const lives: LivesDisplay = { current: rt.state.heartRefillTargetIndex + 1, max: rt.state.heartRefillMax }
   const metrics = hudHeartRowMetrics(rt, rt.state.stageLayout.livesAnchor.x, hudY, lives, stageScale)
   const slotCx = metrics.x + rt.state.heartRefillTargetIndex * (metrics.iconSize + metrics.gap) + metrics.iconSize / 2

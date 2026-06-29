@@ -3,6 +3,7 @@ import type { CellView, GameStatus } from '@shared/core/types.ts'
 
 import { renderBoardStaticFrame, type RenderState } from '../../renderer/index.ts'
 import type { GameCanvasRuntime } from './context.ts'
+import { resolveCanvasDpr } from './mobile-perf.ts'
 
 const FNV_OFFSET = 2166136261
 const FNV_PRIME = 16777619
@@ -65,7 +66,7 @@ export function computeBoardLayerCacheKey(
 export function ensureBoardLayerCache(rt: GameCanvasRuntime, state: RenderState & { rows: number; cols: number }): void {
   const layout = rt.state.squareLayout!
   const key = computeBoardLayerCacheKey(rt, state)
-  const dpr = window.devicePixelRatio || 1
+  const dpr = resolveCanvasDpr(rt.state.width)
   const cacheW = Math.round(layout.width * dpr)
   const cacheH = Math.round(layout.height * dpr)
 

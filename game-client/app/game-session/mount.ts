@@ -1,12 +1,13 @@
 import { getModeEntry } from '@shared/core/modes/catalog.ts'
+import { visibleViewStart } from '@shared/core/modes/endless/grid.ts'
 import {
   ENDLESS_PREVIEW_ROWS,
-  ENDLESS_VISIBLE_ROWS,
   endlessBeginRun,
   endlessScreenRowToLocal,
   getEndlessPreviewRows,
   getEndlessScrollProfile,
-  isEndlessInteractiveScreenRow,
+  isEndlessInteractiveScreenRowForSession,
+  sessionVisibleRows,
 } from '@shared/core/modes/endless/index.ts'
 import { chordAt, createSession, getFlagCount, revealAt, toCellViews, toggleMarkAt } from '@shared/core/modes/engine.ts'
 import type { ModeSession } from '@shared/core/types.ts'
@@ -39,6 +40,7 @@ import {
 } from '../../storage/ranked-local-store.ts'
 import { createGameAudio, hadMineLifeLoss, playFlagToggleAudio, playHealRewardAudio, playLifeLossAudio, playRevealAudio } from '../../ui/game-audio.ts'
 import { createGameCanvas, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts'
+import { resolveViewportEndlessVisibleRows } from '../../ui/game-stage-layout.ts'
 import { createGameNotificationStack } from '../../ui/notification.ts'
 import { createAiController } from './ai-loop.ts'
 import { devLog, devWarn } from './dev-log.ts'
@@ -47,6 +49,35 @@ import { createLeaderboardPanel } from './leaderboard-panel.ts'
 import { applySessionUpdate, createGameLog, formatCell, logPlayerAction } from './logging.ts'
 import { createScrollController } from './scroll.ts'
 import type { GameSessionCallbacks, GameSessionRuntime } from './types.ts'
+
+function applyViewportEndlessVisibleRows(session: ModeSession, options: { preserveViewStart?: boolean } = {}): ModeSession {
+  const viewportW = typeof window !== 'undefined' ? window.innerWidth : 390
+  const viewportH = typeof window !== 'undefined' ? window.innerHeight : 844
+  const previewRows = getEndlessPreviewRows(session)
+  let visibleRows = resolveViewportEndlessVisibleRows(viewportW, viewportH, previewRows)
+  let next: ModeSession = {
+    ...session,
+    endlessVisibleRows: visibleRows,
+    endlessViewStart: options.preserveViewStart
+      ? (session.endlessViewStart ?? visibleViewStart(session.state.board, visibleRows))
+      : visibleViewStart(session.state.board, visibleRows),
+  }
+  const refinedPreview = getEndlessPreviewRows(next)
+  if (refinedPreview !== previewRows) {
+    const refinedRows = resolveViewportEndlessVisibleRows(viewportW, viewportH, refinedPreview)
+    if (refinedRows !== visibleRows) {
+      visibleRows = refinedRows
+      next = {
+        ...next,
+        endlessVisibleRows: refinedRows,
+        endlessViewStart: options.preserveViewStart
+          ? (session.endlessViewStart ?? visibleViewStart(next.state.board, refinedRows))
+          : visibleViewStart(next.state.board, refinedRows),
+      }
+    }
+  }
+  return next
+}
 
 function createInitialRuntime(session: ModeSession): GameSessionRuntime {
   return {
@@ -89,7 +120,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     await saveDisplayName(name)
     await ensurePlayerId()
   })
-  const runtime = createInitialRuntime(createSession())
+  const runtime = createInitialRuntime(applyViewportEndlessVisibleRows(createSession()))
   const gameAudio = createGameAudio({ bgmMuted: loadLocalSettings().bgmMuted })
   let tracePersistTimer: number | null = null
 
@@ -128,7 +159,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     const flagCount = getFlagCount(runtime.session.state)
     const { cols } = runtime.session.state.board
     runtime.view?.render(toCellViews(runtime.session), runtime.session.state.status, flagCount, {
-      rows: ENDLESS_VISIBLE_ROWS,
+      rows: sessionVisibleRows(runtime.session),
       cols,
       aiHint: runtime.aiHint,
       previewRows: getEndlessPreviewRows(runtime.session),
@@ -359,7 +390,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         runtime.rankedRunId = run.runId
         runtime.rankedFinishStatus = null
         rankedUploader.bindRun(run.runId)
-        runtime.session = createRankedSession(run.seed)
+        runtime.session = applyViewportEndlessVisibleRows(createRankedSession(run.seed))
         rankedRecorder.start()
         rankedRecorder.markBegin()
         await createRunTrace(run.runId, run.seed)
@@ -392,7 +423,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     rankedUploader.dispose()
     rankedUploader = createRankedInputUploader()
     runtime.view?.destroy()
-    runtime.session = createSession()
+    runtime.session = applyViewportEndlessVisibleRows(createSession())
     runtime.rankedRunId = null
     runtime.rankedFinishStatus = null
     runtime.scrollGameStartedAt = 0
@@ -415,7 +446,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
   function mountCanvas(): GameCanvasController {
     canvasContainer.replaceChildren()
     const { cols } = runtime.session.state.board
-    const gridRows = ENDLESS_VISIBLE_ROWS
+    const gridRows = sessionVisibleRows(runtime.session)
     const fullscreenShell = {
       getStats: () => getCanvasHudStats(),
       isLogOpen: () => isDev && runtime.logOpen,
@@ -494,7 +525,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         onReset: () => restartGame(),
         onReveal(row, col) {
           if (runtime.session.state.status !== 'idle' && runtime.session.state.status !== 'playing') return
-          if (!isEndlessInteractiveScreenRow(row)) return
+          if (!isEndlessInteractiveScreenRowForSession(runtime.session, row)) return
           const beforeLives = runtime.session.lives
           const beforeBoard = runtime.session.state.board
           logPlayerAction(gameLog, 'reveal', row, col)
@@ -512,7 +543,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         },
         onToggleFlag(row, col) {
           if (runtime.session.state.status !== 'idle' && runtime.session.state.status !== 'playing') return
-          if (!isEndlessInteractiveScreenRow(row)) return
+          if (!isEndlessInteractiveScreenRowForSession(runtime.session, row)) return
           const localRow = toBoardRow(row)
           const cell = runtime.session.state.board.cells[localRow]?.[col]
           if (!cell || cell.revealed) return
@@ -528,7 +559,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         },
         onChord(row, col) {
           if (runtime.session.state.status !== 'playing') return
-          if (!isEndlessInteractiveScreenRow(row)) return
+          if (!isEndlessInteractiveScreenRowForSession(runtime.session, row)) return
           const beforeLives = runtime.session.lives
           logPlayerAction(gameLog, 'Chord', row, col)
           const next = chordAt(runtime.session, toBoardRow(row), col)
@@ -545,12 +576,11 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         },
       },
       {
-        fixedGridRows: ENDLESS_VISIBLE_ROWS,
         endlessPreviewRows: ENDLESS_PREVIEW_ROWS,
         fitViewport: {
           cols: runtime.session.state.board.cols,
-          rows: ENDLESS_VISIBLE_ROWS,
-          maxCellSize: 40,
+          rows: gridRows,
+          maxCellSize: 48,
           minCellSize: 18,
         },
         getScrollPressure: () => scroll.getScrollPressureState(),
@@ -616,6 +646,17 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
 
   window.addEventListener('keydown', onKeyDown)
 
+  const onViewportResize = () => {
+    const preserveViewStart = runtime.session.state.status === 'playing'
+    const next = applyViewportEndlessVisibleRows(runtime.session, { preserveViewStart })
+    if (next.endlessVisibleRows === runtime.session.endlessVisibleRows && (preserveViewStart || next.endlessViewStart === runtime.session.endlessViewStart)) {
+      return
+    }
+    runtime.session = next
+    render()
+  }
+  window.addEventListener('resize', onViewportResize)
+
   function cleanup(): void {
     sessionGeneration += 1
     if (tracePersistTimer !== null) {
@@ -626,6 +667,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     ai.stopAiAuto()
     rankedRecorder.stop()
     window.removeEventListener('keydown', onKeyDown)
+    window.removeEventListener('resize', onViewportResize)
     runtime.view?.destroy()
     gameAudio.destroy()
     logPanel?.dispose()

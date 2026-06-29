@@ -21,7 +21,7 @@ export function drawDevAutoButton(
   shellCtx.save()
   shellCtx.textAlign = 'center'
   shellCtx.textBaseline = 'middle'
-  shellCtx.font = `800 ${Math.max(8, 9 * scale)}px ${FONTS.mono}`
+  shellCtx.font = `800 ${Math.max(9, 10 * scale)}px ${FONTS.mono}`
   shellCtx.fillStyle = active ? '#bbf7d0' : '#64748b'
   shellCtx.fillText('AUTO', x + w / 2, y + h / 2 + 0.5 * scale)
   shellCtx.restore()
@@ -41,7 +41,7 @@ export function drawDevSpeedUpButton(
   shellCtx.textAlign = 'center'
   shellCtx.textBaseline = 'middle'
   shellCtx.fillStyle = enabled ? '#fde68a' : '#475569'
-  shellCtx.font = `900 ${Math.max(11, 12 * scale)}px ${FONTS.display}`
+  shellCtx.font = `900 ${Math.max(12, 13 * scale)}px ${FONTS.display}`
   shellCtx.fillText('↑', x + w / 2, y + h / 2 + 0.5 * scale)
   shellCtx.restore()
 }

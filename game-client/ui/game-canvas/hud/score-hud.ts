@@ -1,3 +1,4 @@
+import { MOBILE_SCORE_PANEL_SCALE } from '../../game-stage-layout.ts'
 import { FONTS, THEME } from '../../theme.ts'
 import { HUD_FEEDBACK_ASSETS, SCORE_DIGIT_ASSETS } from '../assets/hud-feedback-assets.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
@@ -101,14 +102,15 @@ export function drawScoreHud(rt: GameCanvasRuntime, shellCtx: CanvasRenderingCon
   const pulseT = Math.max(0, Math.min(1, pulseElapsed / RUNTIME_CONSTANTS.SCORE_HUD_PULSE_MS))
   const pulse = pulseElapsed < RUNTIME_CONSTANTS.SCORE_HUD_PULSE_MS ? Math.sin(pulseT * Math.PI) * (1 - pulseT * 0.35) : 0
   const panelPulseScale = 1 + pulse * 0.018
-  const panelW = (isMobile ? 168 : 248) * scale
-  const panelH = (isMobile ? 54 : 80) * scale
-  const panelCx = x + (isMobile ? 78 : 118) * scale
-  const panelCy = y + (isMobile ? 18 : 27) * scale
+  const mobileScoreScale = MOBILE_SCORE_PANEL_SCALE
+  const panelW = (isMobile ? 204 * mobileScoreScale : 248) * scale
+  const panelH = (isMobile ? 66 * mobileScoreScale : 80) * scale
+  const panelCx = x + (isMobile ? 96 * mobileScoreScale : 118) * scale
+  const panelCy = y + (isMobile ? 24 * mobileScoreScale : 27) * scale
   const asset = drawFeedbackAsset(rt, shellCtx, HUD_FEEDBACK_ASSETS.scorePanelV6, panelCx, panelCy, panelW, panelH, panelPulseScale, 0.92)
   if (!asset) {
-    const chipW = (isMobile ? 92 : 116) * scale
-    const chipH = (isMobile ? 34 : 46) * scale
+    const chipW = (isMobile ? 108 * mobileScoreScale : 116) * scale
+    const chipH = (isMobile ? 40 * mobileScoreScale : 46) * scale
     drawTopHudChip(rt, shellCtx, x - 8 * scale, y - 2 * scale, chipW, chipH, 'rgba(96, 165, 250, 0.68)', 'left')
     shellCtx.save()
     shellCtx.textAlign = 'left'
@@ -120,15 +122,15 @@ export function drawScoreHud(rt: GameCanvasRuntime, shellCtx: CanvasRenderingCon
     shellCtx.shadowBlur = 7 * scale
     shellCtx.fillStyle = THEME.hudText
     const fallbackText = String(displayScore)
-    setFittedMonoFont(rt, shellCtx, fallbackText, (isMobile ? 68 : 86) * scale, (isMobile ? 13 : 15) * scale, 10 * scale, 850)
-    shellCtx.fillText(fallbackText, x - 2 * scale, y + (isMobile ? 12 : 15) * scale)
+    setFittedMonoFont(rt, shellCtx, fallbackText, (isMobile ? 82 * mobileScoreScale : 86) * scale, (isMobile ? 16 * mobileScoreScale : 15) * scale, 10 * scale, 850)
+    shellCtx.fillText(fallbackText, x - 2 * scale, y + (isMobile ? 14 * mobileScoreScale : 15) * scale)
     shellCtx.restore()
     return
   }
 
   const text = String(displayScore)
   const basePanelH = asset.h / panelPulseScale
-  const digitMaxH = Math.min(basePanelH * 0.155, 15 * scale)
+  const digitMaxH = Math.min(basePanelH * (isMobile ? 0.18 : 0.155), (isMobile ? 18 * mobileScoreScale : 15) * scale)
   const digitX = asset.x + asset.w * 0.34
   const digitCy = asset.y + asset.h * 0.475
   const digitMaxW = asset.w * 0.52
@@ -148,7 +150,7 @@ export function drawScoreHud(rt: GameCanvasRuntime, shellCtx: CanvasRenderingCon
   shellCtx.shadowColor = 'rgba(45, 236, 255, 0.42)'
   shellCtx.shadowBlur = 7 * scale
   shellCtx.fillStyle = '#d8fbff'
-  setFittedMonoFont(rt, shellCtx, text, digitMaxW, 15 * scale, 10 * scale, 850)
+  setFittedMonoFont(rt, shellCtx, text, digitMaxW, (isMobile ? 18 * mobileScoreScale : 15) * scale, 10 * scale, 850)
   shellCtx.fillText(text, digitX, digitCy)
   shellCtx.restore()
 }

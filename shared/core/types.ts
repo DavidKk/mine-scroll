@@ -99,6 +99,8 @@ export interface ModeSession {
   state: GameState
   endlessOriginMinRow?: number
   endlessViewStart?: number
+  /** Playable screen rows (default desktop {@link ENDLESS_VISIBLE_ROWS}). */
+  endlessVisibleRows?: number
   scrollRowCount?: number
   lives?: number
   revealedCount?: number

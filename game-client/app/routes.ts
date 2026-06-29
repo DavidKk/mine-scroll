@@ -5,6 +5,7 @@ export const ROUTES = {
   assets: '/admin/assets',
   lab: '/admin/lab',
   responsive: '/admin/responsive',
+  layoutEditor: '/admin/layout-editor',
 } as const
 
 export type AssetLabSection = 'sources' | 'sprites' | 'animations' | 'game-ui' | 'background' | 'audio'
@@ -16,6 +17,10 @@ export const UI_LAB_DEFAULT_PANEL: UiLabPanelId = 'asset-sheets'
 export const RESPONSIVE_PANELS = ['matrix', 'checklist'] as const
 export type ResponsivePanelId = (typeof RESPONSIVE_PANELS)[number]
 export const RESPONSIVE_DEFAULT_PANEL: ResponsivePanelId = 'matrix'
+
+export const LAYOUT_EDITOR_PANELS = ['editor', 'workflow'] as const
+export type LayoutEditorPanelId = (typeof LAYOUT_EDITOR_PANELS)[number]
+export const LAYOUT_EDITOR_DEFAULT_PANEL: LayoutEditorPanelId = 'editor'
 
 const ASSET_SECTIONS: AssetLabSection[] = ['sources', 'sprites', 'animations', 'game-ui', 'background', 'audio']
 
@@ -212,6 +217,59 @@ export function canonicalResponsivePath(pathname = window.location.pathname): st
   if (path === ROUTES.responsive) return responsivePanelPath(RESPONSIVE_DEFAULT_PANEL)
   if (path.startsWith(`${ROUTES.responsive}/`) && resolveResponsivePanelId(path) === null) {
     return responsivePanelPath(RESPONSIVE_DEFAULT_PANEL)
+  }
+  return null
+}
+
+export function isLayoutEditorPanel(value: string): value is LayoutEditorPanelId {
+  return (LAYOUT_EDITOR_PANELS as readonly string[]).includes(value)
+}
+
+export function layoutEditorPanelPath(panelId: LayoutEditorPanelId): string {
+  return `${ROUTES.layoutEditor}/${encodeURIComponent(panelId)}`
+}
+
+export function parseLayoutEditorPathFromSegments(segments: string[] | undefined): { panelId: string | null } {
+  const parts = segments?.filter(Boolean) ?? []
+  if (parts.length === 0) return { panelId: null }
+
+  try {
+    const panelId = decodeURIComponent(parts.join('/'))
+    return { panelId: isLayoutEditorPanel(panelId) ? panelId : null }
+  } catch {
+    return { panelId: null }
+  }
+}
+
+export function resolveLayoutEditorPanelId(pathname = window.location.pathname): LayoutEditorPanelId | null {
+  const path = normalizePath(pathname)
+  if (!path.startsWith(`${ROUTES.layoutEditor}/`)) return null
+
+  const rest = path.slice(`${ROUTES.layoutEditor}/`.length)
+  if (!rest) return null
+
+  try {
+    const panelId = decodeURIComponent(rest.split('/')[0] ?? '')
+    return isLayoutEditorPanel(panelId) ? panelId : null
+  } catch {
+    return null
+  }
+}
+
+export function syncLayoutEditorPanelPath(panelId: LayoutEditorPanelId, mode: 'push' | 'replace' = 'push'): void {
+  const path = layoutEditorPanelPath(panelId)
+  const current = normalizePath(window.location.pathname)
+  if (path === current) return
+
+  if (mode === 'replace') replaceAppPath(path)
+  else navigateApp(path)
+}
+
+export function canonicalLayoutEditorPath(pathname = window.location.pathname): string | null {
+  const path = normalizePath(pathname)
+  if (path === ROUTES.layoutEditor) return layoutEditorPanelPath(LAYOUT_EDITOR_DEFAULT_PANEL)
+  if (path.startsWith(`${ROUTES.layoutEditor}/`) && resolveLayoutEditorPanelId(path) === null) {
+    return layoutEditorPanelPath(LAYOUT_EDITOR_DEFAULT_PANEL)
   }
   return null
 }

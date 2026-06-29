@@ -150,8 +150,8 @@ function createInitialBoard(seed: number): Board {
   }
 }
 
-export function visibleViewStart(board: Board): number {
-  return Math.max(0, board.rows - ENDLESS_VISIBLE_ROWS)
+export function visibleViewStart(board: Board, visibleRows = ENDLESS_VISIBLE_ROWS): number {
+  return Math.max(0, board.rows - visibleRows)
 }
 
 export function createEndlessSession(): ModeSession {
@@ -222,9 +222,9 @@ export function removeBottomRow(board: Board): Board {
   return next
 }
 
-export function compactTrailingBlankRows(board: Board): Board {
+export function compactTrailingBlankRows(board: Board, visibleRows = ENDLESS_VISIBLE_ROWS): Board {
   let next = board
-  while (next.rows > ENDLESS_VISIBLE_ROWS && isRowAllBlank(next, next.rows - 1)) {
+  while (next.rows > visibleRows && isRowAllBlank(next, next.rows - 1)) {
     next = removeBottomRow(next)
   }
   return next
@@ -238,8 +238,8 @@ function ensureWindowRows(board: Board, scrollDepth: number): Board {
   return next
 }
 
-export function compactAndBufferBoard(board: Board, scrollDepth: number): Board {
-  return ensureWindowRows(compactTrailingBlankRows(board), scrollDepth)
+export function compactAndBufferBoard(board: Board, scrollDepth: number, visibleRows = ENDLESS_VISIBLE_ROWS): Board {
+  return ensureWindowRows(compactTrailingBlankRows(board, visibleRows), scrollDepth)
 }
 
 /** Whether the bottom row is all hidden and unflagged (scroll life-loss exempt). */

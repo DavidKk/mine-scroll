@@ -2,6 +2,9 @@
 
 export const ENDLESS_COLS = 9
 export const ENDLESS_VISIBLE_ROWS = 18
+/** Mobile visible rows are computed from viewport height (see game-stage-layout). */
+export const ENDLESS_MOBILE_MIN_VISIBLE_ROWS = 12
+export const ENDLESS_MOBILE_MAX_VISIBLE_ROWS = 24
 export const ENDLESS_PREVIEW_ROWS = 0.5
 export const ENDLESS_PREVIEW_SOURCE_ROWS = 1
 export const ENDLESS_WINDOW_BUFFER = 12

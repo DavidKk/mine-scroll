@@ -1,4 +1,4 @@
-import { type AdminRailId, createAdminShell } from './admin-shell.ts'
+import { type AdminRailId, type AdminTopModule, createAdminShell } from './admin-shell.ts'
 import { populateAdminSubnav } from './asset-gallery/editor-shell.ts'
 
 export interface AdminModuleNavItem {
@@ -9,7 +9,8 @@ export interface AdminModuleNavItem {
 }
 
 export interface MountAdminModuleShellOptions {
-  activeRail: AdminRailId
+  activeModule: AdminTopModule
+  activeRail?: AdminRailId
   onNavigate: (path: string) => void
   eyebrow: string
   title: string
@@ -28,9 +29,10 @@ function resolveActivePanelId(items: AdminModuleNavItem[], panelId: string): str
 }
 
 export function mountAdminModuleShell(root: HTMLElement, options: MountAdminModuleShellOptions): () => void {
-  const { activeRail, onNavigate, eyebrow, title, description, navItems, panels, initialPanelId, subnavLabel = 'Views', footerNote, onPanelSelect } = options
+  const { activeModule, activeRail, onNavigate, eyebrow, title, description, navItems, panels, initialPanelId, subnavLabel = 'Views', footerNote, onPanelSelect } = options
 
   const layout = createAdminShell({
+    activeModule,
     activeRail,
     onNavigate,
     withSubnav: true,

@@ -3,6 +3,7 @@ import type { Board, LifeLossCell, LifeLossCellKind, LifeLossReport, ModeSession
 import { ENDLESS_SCROLL_BATCH_MAX } from './constants.ts'
 import { compactAndBufferBoard, compactTrailingBlankRows, isRowAllBlank, prependRow, recomputeAllAdjacent, removeBottomRow, visibleViewStart } from './grid.ts'
 import { applyLifeLoss, syncPendingReveals, toScreenRow } from './reveal-pipeline.ts'
+import { sessionVisibleRows, viewStartForSession } from './views.ts'
 
 function isBottomCellScrollExempt(session: ModeSession, board: Board, localRow: number, col: number): boolean {
   const cell = board.cells[localRow]![col]!
@@ -59,7 +60,7 @@ export function collectScrollLeavingMineCells(session: ModeSession, batchRows: n
 
   const board = session.state.board
   const rows = Math.max(1, Math.min(batchRows, board.rows))
-  const viewStart = session.endlessViewStart ?? visibleViewStart(board)
+  const viewStart = viewStartForSession(session)
   const out: ScrollLeavingMineCell[] = []
 
   for (let i = 0; i < rows; i += 1) {
@@ -160,8 +161,9 @@ interface SingleRowScrollResult {
 /** Single-row scroll (no life charge here — batch layer settles damage). */
 function performSingleRowScroll(session: ModeSession): SingleRowScrollResult {
   const scrollRowCount = (session.scrollRowCount ?? 0) + 1
+  const visibleRows = sessionVisibleRows(session)
   let board = prependRow(session.state.board, scrollRowCount)
-  const viewStart = visibleViewStart(board)
+  const viewStart = visibleViewStart(board, visibleRows)
   const bottomLocal = board.rows - 1
   const damage = computeBottomRowScrollDamage(session, board, bottomLocal)
   const banked = damage === 0 ? applyMineDefuseOnRowScrollOff(session, board, bottomLocal) : null
@@ -169,14 +171,14 @@ function performSingleRowScroll(session: ModeSession): SingleRowScrollResult {
   const lifeLoss = damage > 0 ? buildScrollLifeLoss(sessionAfterBank, board, bottomLocal, viewStart) : undefined
 
   const { board: afterScroll } = scrollOffBottomRow(sessionAfterBank, board)
-  board = compactAndBufferBoard(afterScroll, scrollRowCount)
+  board = compactAndBufferBoard(afterScroll, scrollRowCount, visibleRows)
   recomputeAllAdjacent(board)
   const pending = syncPendingReveals(sessionAfterBank, board)
 
   const nextSession: ModeSession = {
     ...sessionAfterBank,
     state: { ...sessionAfterBank.state, board, status: 'playing' },
-    endlessViewStart: visibleViewStart(board),
+    endlessViewStart: visibleViewStart(board, visibleRows),
     scrollRowCount,
     revealedCount: (session.revealedCount ?? 0) + pending.revealed,
     pendingRevealKeys: pending.pendingRevealKeys,

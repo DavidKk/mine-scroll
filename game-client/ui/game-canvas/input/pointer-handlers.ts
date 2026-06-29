@@ -4,6 +4,7 @@ import { beginPanelTransition } from '../overlay/panel-transition.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
 import type { FlagSwipePreviewState } from '../runtime/state.ts'
 import { useDesktopMouseInput, useTouchPointerInput } from './input-profile.ts'
+import { rebindCanvasInputListeners } from './listener-bindings.ts'
 import { createTouchGestureController, type TouchGestureController } from './touch-gesture.ts'
 import { hitInteractiveUi, hitReset, insideRect } from './ui-hit-test.ts'
 
@@ -306,8 +307,10 @@ export function destroyTouchGesture(rt: GameCanvasRuntime): void {
   rt.touchGesture = undefined
 }
 
-/** Re-bind touch controller when viewport crosses mobile/desktop breakpoint. */
+/** Re-bind listeners when viewport crosses mobile/desktop breakpoint. */
 export function syncInputProfile(rt: GameCanvasRuntime): void {
+  rebindCanvasInputListeners(rt)
+
   if (useTouchPointerInput(rt.state.width)) {
     if (!rt.touchGesture) initTouchGesture(rt)
     return

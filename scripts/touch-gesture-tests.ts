@@ -63,6 +63,8 @@ export function testInputProfileDetection(): void {
   assert.equal(isDesktopInputProfile(390), false)
   assert.equal(useTouchGestureInput(390), true)
   assert.equal(useTouchGestureInput(1280), isDualInputDebugEnabled())
+  assert.equal(useDesktopMouseInput(390), false)
   assert.equal(useDesktopMouseInput(1280), true)
+  assert.equal(useTouchPointerInput(390), true)
   assert.equal(useTouchPointerInput(1280), isDualInputDebugEnabled())
 }

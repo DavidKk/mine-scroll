@@ -1,6 +1,6 @@
 import { drawHudIcon } from '../../hud-sprites.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
-import { getHudSideChipLayout, stackHudSideChipBelow } from './side-chip-layout.ts'
+import { drawHudSideChipBackground, drawHudSideChipIcon, getHudSideChipLayout, stackHudSideChipBelow } from './side-chip-layout.ts'
 
 function drawLeaderboardUnseenFx(
   shellCtx: CanvasRenderingContext2D,
@@ -80,28 +80,29 @@ export function drawLeaderboardHud(
 
   rt.state.leaderboardRect = chipRect
 
+  const emphasized = layout.isMobile
+  const accent = layout.isMobile || unseenUpdate ? 'gold' : 'cyan'
+
   shellCtx.save()
   if (unseenUpdate) {
     drawLeaderboardUnseenFx(shellCtx, rectX, rectY, chipSize, cx, cy, iconSize, scale)
     rt.scheduleAnimationFrame?.()
   }
 
-  if (hovered) {
-    shellCtx.globalCompositeOperation = 'lighter'
-    const glow = shellCtx.createRadialGradient(cx, cy, iconSize * 0.12, cx, cy, iconSize * 0.75)
-    glow.addColorStop(0, 'rgba(45, 236, 255, 0.22)')
-    glow.addColorStop(1, 'rgba(45, 236, 255, 0)')
-    shellCtx.fillStyle = glow
-    shellCtx.fillRect(rectX - iconSize * 0.35, rectY - iconSize * 0.35, chipSize + iconSize * 0.7, chipSize + iconSize * 0.7)
-    shellCtx.globalCompositeOperation = 'source-over'
-  }
+  drawHudSideChipBackground(shellCtx, { x: rectX, y: rectY, w: chipSize, h: chipSize }, scale, hovered || unseenUpdate, accent, emphasized)
 
   const iconDrawSize = unseenUpdate ? iconSize * (1 + (0.5 + Math.sin(Date.now() / 260) * 0.5) * 0.05) : iconSize
   const iconOffset = (iconSize - iconDrawSize) / 2
-
-  shellCtx.globalAlpha = hovered || unseenUpdate ? 1 : 0.9
-  drawHudIcon(shellCtx, hovered ? 'leaderboard-hover' : 'leaderboard', cx - iconSize / 2 + iconOffset, cy - iconSize / 2 + iconOffset, {
-    size: iconDrawSize,
-  })
+  drawHudSideChipIcon(
+    shellCtx,
+    () =>
+      drawHudIcon(shellCtx, hovered ? 'leaderboard-hover' : 'leaderboard', cx - iconSize / 2 + iconOffset, cy - iconSize / 2 + iconOffset, {
+        size: iconDrawSize,
+      }),
+    scale,
+    accent,
+    hovered || unseenUpdate,
+    emphasized
+  )
   shellCtx.restore()
 }

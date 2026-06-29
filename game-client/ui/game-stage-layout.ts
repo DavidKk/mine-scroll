@@ -1,4 +1,6 @@
-import { CELL_GAP, computeViewportCellSize, DEFAULT_CELL_SIZE, GRID_PADDING } from './theme.ts'
+import { ENDLESS_COLS, ENDLESS_MOBILE_MAX_VISIBLE_ROWS, ENDLESS_MOBILE_MIN_VISIBLE_ROWS, ENDLESS_VISIBLE_ROWS } from '@shared/core/modes/endless/constants.ts'
+
+import { CELL_GAP, DEFAULT_CELL_SIZE, GRID_PADDING } from './theme.ts'
 
 export interface Rect {
   x: number
@@ -35,6 +37,8 @@ export interface GameStageLayout {
   spaceButtonRect: Rect
   scoreAnchor: Point
   livesAnchor: Point
+  /** Volume / leaderboard chips (top-right on mobile; stacks under lives on desktop). */
+  sideControlsAnchor: Point
   countdownAnchor: Point
   /** Persistent combo HUD anchor (top on desktop, above bottom rail on mobile). */
   comboHudAnchor: Point
@@ -66,17 +70,41 @@ const DESKTOP_SCROLL_BUTTON_MIN_W = 128
 const MOBILE_SCROLL_BUTTON_MIN_W = 104
 const BOTTOM_RAIL_MIN_H = 54
 const DESKTOP_BREAKPOINT_W = 768
+/** Horizontal inset for board cell-size math (mobile uses minimal side gutter). */
+const MOBILE_BOARD_SIDE_INSET = 6
 /** Extra row reserve when fitting cell size so the board does not hug top/bottom edges. */
 const BOARD_HEIGHT_ROW_RESERVE = 1
 const BOARD_VERT_MARGIN_BASE = 6
 /** Mobile: persistent COMBO rail above the grid. */
-const MOBILE_COMBO_BAND_H = 46
-/** Mobile: SPEED UP / life-loss alert band below COMBO. */
+const MOBILE_COMBO_BAND_H = 12
+/** Mobile: SPEED UP / life-loss alert band below HUD. */
 const MOBILE_ALERT_BAND_H = 38
-/** Matches drawDifficultyAlert maxH / 2. */
-const MOBILE_ALERT_VISUAL_HALF_H = 30
-/** Mobile: clearance between alert visuals and first playable row. */
-const MOBILE_BOARD_TOP_FEEDBACK_GAP = 4
+/** Mobile: header block height (score + lives stacked). */
+const MOBILE_HUD_H = 124
+/** Mobile score panel scale multiplier (applied in score-hud). */
+export const MOBILE_SCORE_PANEL_SCALE = 1.5
+/** Mobile: lives row inset from left HUD edge. */
+const MOBILE_LIVES_LEFT_INSET = 8
+/** Mobile: extra nudge right for lives row (within score band). */
+export const MOBILE_LIVES_X_NUDGE = 14
+/** Mobile: lift lives row by this many row-heights (1 = one full heart row up). */
+export const MOBILE_LIVES_LIFT_ROWS = 1
+/** Mobile: fine-tune lives row down (screen px). */
+export const MOBILE_LIVES_Y_NUDGE = 16
+/** Mobile: gap below score panel before lives row. */
+export const MOBILE_SCORE_LIVES_GAP = 6
+/** Mobile: heart icon scale vs base mobile HUD hearts. */
+export const MOBILE_LIVES_SIZE_SCALE = 2
+/** Mobile: volume / leaderboard stack top — fraction of viewport height. */
+const MOBILE_SIDE_CONTROLS_Y_RATIO = 0.15
+/** Mobile: bottom padding below SCROLL rail (tighter to screen edge). */
+const MOBILE_BOTTOM_PAD = 2
+/** Mobile: clearance between board bottom and bottom rail. */
+const MOBILE_BOARD_BOTTOM_MARGIN = 2
+/** Mobile: extra visible rows beyond height-fit (fills gap above bottom rail). */
+const MOBILE_BOARD_EXTRA_ROWS = 3
+/** Mobile: post-layout Y nudge (px). Positive = down; does not change rows or cell size. */
+const MOBILE_BOARD_Y_NUDGE = 22
 /** Desktop: min clearance between board-top alerts and grid. */
 const DESKTOP_ALERT_BOARD_CLEARANCE = 10
 /** Desktop: nudge SPEED UP / life-loss alerts downward. */
@@ -88,6 +116,132 @@ function clamp(min: number, max: number, value: number): number {
 
 export function getEndlessLayoutProfile(viewportW: number): EndlessLayoutProfile {
   return viewportW >= DESKTOP_BREAKPOINT_W ? 'desktop' : 'mobile'
+}
+
+export function resolveViewportEndlessVisibleRows(viewportW: number, viewportH?: number, previewRows = 0): number {
+  if (getEndlessLayoutProfile(viewportW) !== 'mobile') return ENDLESS_VISIBLE_ROWS
+  const vh = viewportH ?? (typeof window !== 'undefined' ? window.innerHeight : BASE_STAGE_H)
+  return computeEndlessMobileBoardFit(ENDLESS_COLS, viewportW, vh, { previewRows }).visibleRows
+}
+
+export interface EndlessMobileBoardFit {
+  cellSize: number
+  visibleRows: number
+  /** Rows before height clamp (after extra-row boost). */
+  targetRows: number
+  /** Vertical centering when rows are trimmed: (targetRows - visibleRows) / 2 × row step. */
+  rowCenterNudge: number
+}
+
+function mobileRowStep(cellSize: number): number {
+  return cellSize + CELL_GAP
+}
+
+/** Shift board toward vertical center when height fit drops visible rows below target. */
+export function mobileBoardRowCenterNudge(cellSize: number, targetRows: number, visibleRows: number): number {
+  const rowsTrimmed = Math.max(0, targetRows - visibleRows)
+  return (rowsTrimmed / 2) * mobileRowStep(cellSize)
+}
+
+function mobileWidthCellSize(availW: number, cols: number, min: number, max: number): number {
+  return clamp(min, max, Math.floor((availW + CELL_GAP) / cols - CELL_GAP))
+}
+
+function mobileEndlessCellSize(viewportW: number, viewportH: number, limits: { min?: number; max?: number } = {}): number {
+  const reserves = getEndlessShellReserves(viewportW, viewportH)
+  const min = limits.min ?? 18
+  const max = limits.max ?? 48
+  const pad = GRID_PADDING * 2
+  const availW = Math.max(120, viewportW - reserves.side * 2 - pad)
+  return mobileWidthCellSize(availW, ENDLESS_COLS, min, max)
+}
+
+/** Mobile board canvas top Y — HUD clearance baseline for fit + render. */
+export function mobileBoardCanvasY(reserves: EndlessShellReserves, _cellSize?: number): number {
+  return reserves.top
+}
+
+function mobileBoardBottomLimit(reserves: EndlessShellReserves, viewportH: number): number {
+  return viewportH - reserves.bottomRailH - reserves.bottomPad - MOBILE_BOARD_BOTTOM_MARGIN * reserves.scale
+}
+
+/** Cap offset from `mobileBoardCanvasY` so the board stays above the bottom rail. */
+function clampMobileBoardYOffset(reserves: EndlessShellReserves, boardH: number, viewportH: number, desiredOffset: number): number {
+  const top = mobileBoardCanvasY(reserves)
+  const maxOffset = mobileBoardBottomLimit(reserves, viewportH) - top - boardH
+  return Math.min(desiredOffset, Math.max(0, Math.floor(maxOffset)))
+}
+
+function mobileBoardPixelSpan(visibleRows: number, previewRows: number, cellSize: number): number {
+  return gridPixelSpan(visibleRows + previewRows, cellSize)
+}
+
+function tryGrowMobileVisibleRows(
+  visibleRows: number,
+  fitCell: number,
+  previewRows: number,
+  availH: number,
+  min: number,
+  maxRows: number
+): { visibleRows: number; fitCell: number } {
+  if (visibleRows >= maxRows) return { visibleRows, fitCell }
+  if (mobileBoardPixelSpan(visibleRows + 1, previewRows, fitCell) <= availH) {
+    return { visibleRows: visibleRows + 1, fitCell }
+  }
+  for (let cell = fitCell - 1; cell >= min; cell -= 1) {
+    if (mobileBoardPixelSpan(visibleRows + 1, previewRows, cell) <= availH) {
+      return { visibleRows: visibleRows + 1, fitCell: cell }
+    }
+  }
+  return { visibleRows, fitCell }
+}
+
+/** Mobile: full-width cells, row count chosen to fill HUD → bottom rail. */
+export function computeEndlessMobileBoardFit(
+  cols: number,
+  viewportW: number,
+  viewportH: number,
+  limits: { min?: number; max?: number; previewRows?: number } = {}
+): EndlessMobileBoardFit {
+  const previewRows = limits.previewRows ?? 0
+  const reserves = getEndlessShellReserves(viewportW, viewportH)
+  const min = limits.min ?? 18
+  const max = limits.max ?? 48
+  const pad = GRID_PADDING * 2
+  const availW = Math.max(120, viewportW - reserves.side * 2 - pad)
+
+  const cellSize = mobileWidthCellSize(availW, cols, min, max)
+  const boardTop = mobileBoardCanvasY(reserves, cellSize)
+  const boardBottom = mobileBoardBottomLimit(reserves, viewportH)
+  const availH = Math.max(120, boardBottom - boardTop)
+
+  let visibleRows = ENDLESS_MOBILE_MIN_VISIBLE_ROWS
+  while (visibleRows < ENDLESS_MOBILE_MAX_VISIBLE_ROWS) {
+    if (mobileBoardPixelSpan(visibleRows + 1, previewRows, cellSize) > availH) break
+    visibleRows += 1
+  }
+
+  const heightFitRows = visibleRows
+  const targetRows = Math.min(ENDLESS_MOBILE_MAX_VISIBLE_ROWS, Math.max(ENDLESS_MOBILE_MIN_VISIBLE_ROWS, heightFitRows + MOBILE_BOARD_EXTRA_ROWS))
+  visibleRows = mobileBoardPixelSpan(targetRows, previewRows, cellSize) <= availH ? targetRows : heightFitRows
+
+  let fitCell = cellSize
+
+  while (visibleRows > ENDLESS_MOBILE_MIN_VISIBLE_ROWS && mobileBoardPixelSpan(visibleRows, previewRows, fitCell) > availH) {
+    visibleRows -= 1
+  }
+
+  while (mobileBoardPixelSpan(visibleRows, previewRows, fitCell) > availH && fitCell > min) {
+    fitCell -= 1
+  }
+
+  const grown = tryGrowMobileVisibleRows(visibleRows, fitCell, previewRows, availH, min, ENDLESS_MOBILE_MAX_VISIBLE_ROWS)
+  visibleRows = grown.visibleRows
+  fitCell = grown.fitCell
+
+  const rowCenterNudge = mobileBoardRowCenterNudge(fitCell, targetRows, visibleRows)
+
+  return { cellSize: fitCell, visibleRows, targetRows, rowCenterNudge }
 }
 
 /** Shell (HUD / bottom rail) scale: desktop follows viewport width; mobile uses contain. */
@@ -109,23 +263,19 @@ export function getEndlessShellReserves(viewportW: number, viewportH: number): E
   const profile = getEndlessLayoutProfile(viewportW)
   const scale = computeGameStageScale(viewportW, viewportH)
   const safe = 16 * scale
-  const hudH = (profile === 'mobile' ? 38 : 56) * scale
-  const hudGap = (profile === 'mobile' ? 4 : 8) * scale
+  const hudH = (profile === 'mobile' ? MOBILE_HUD_H : 56) * scale
+  const hudGap = (profile === 'mobile' ? 6 : 8) * scale
   const bottomRailH = Math.max(BOTTOM_RAIL_MIN_H, (profile === 'mobile' ? BOTTOM_RAIL_MIN_H : ENDLESS_BOTTOM_RAIL_H) * scale)
-  const bottomPad = profile === 'mobile' ? Math.max(8, 8 * scale) : 6 * scale
+  const bottomPad = profile === 'mobile' ? Math.max(MOBILE_BOTTOM_PAD, MOBILE_BOTTOM_PAD * scale) : 6 * scale
   const boardMargin = BOARD_VERT_MARGIN_BASE * scale
-  const mobileGridOriginEstimate = GRID_PADDING + 14 * scale
-  const mobileTopFeedback =
-    profile === 'mobile'
-      ? MOBILE_COMBO_BAND_H * scale + MOBILE_ALERT_BAND_H * scale * 0.5 + MOBILE_ALERT_VISUAL_HALF_H * scale + MOBILE_BOARD_TOP_FEEDBACK_GAP * scale - mobileGridOriginEstimate
-      : 0
+  const mobileBoardBottomMargin = MOBILE_BOARD_BOTTOM_MARGIN * scale
   return {
     scale,
     profile,
     safe,
-    top: hudH + hudGap + boardMargin + mobileTopFeedback,
-    bottom: bottomRailH + bottomPad + boardMargin,
-    side: 16,
+    top: hudH + hudGap + boardMargin,
+    bottom: bottomRailH + bottomPad + (profile === 'mobile' ? mobileBoardBottomMargin : boardMargin),
+    side: profile === 'mobile' ? MOBILE_BOARD_SIDE_INSET : 16,
     hudY: 0,
     hudH,
     bottomRailH,
@@ -135,7 +285,7 @@ export function getEndlessShellReserves(viewportW: number, viewportH: number): E
 
 /**
  * Desktop: cell size from available width; tighten by height only when the board is too tall.
- * Mobile: contain (both axes); tune separately later.
+ * Mobile: width-first (board spans viewport), then clamp by available height.
  */
 export function computeEndlessBoardCellSize(cols: number, rows: number, viewportW: number, viewportH: number, limits: { min?: number; max?: number } = {}): number {
   const reserves = getEndlessShellReserves(viewportW, viewportH)
@@ -145,19 +295,13 @@ export function computeEndlessBoardCellSize(cols: number, rows: number, viewport
   const availW = Math.max(120, viewportW - reserves.side * 2 - pad)
   const availH = Math.max(120, viewportH - reserves.top - reserves.bottom - pad)
 
-  if (reserves.profile === 'mobile') {
-    return computeViewportCellSize(
-      cols,
-      rows + BOARD_HEIGHT_ROW_RESERVE,
-      viewportW,
-      viewportH,
-      { safe: reserves.side, top: reserves.top, bottom: reserves.bottom },
-      { min, max, fillHeight: true }
-    )
-  }
-
   const fromW = Math.floor((availW + CELL_GAP) / cols - CELL_GAP)
   let cell = clamp(min, max, fromW)
+
+  if (reserves.profile === 'mobile') {
+    return computeEndlessMobileBoardFit(cols, viewportW, viewportH, limits).cellSize
+  }
+
   const fromHReserve = Math.floor((availH + CELL_GAP) / (rows + BOARD_HEIGHT_ROW_RESERVE) - CELL_GAP)
   cell = clamp(min, max, Math.min(cell, fromHReserve))
   if (gridPixelSpan(rows, cell) > availH) {
@@ -173,7 +317,15 @@ export function computeGameStageCellSize(viewportW: number, viewportH: number, l
   return Math.round(clamp(min, max, BASE_CELL_SIZE * computeGameStageScale(viewportW, viewportH)))
 }
 
-export function computeGameStageLayout(viewportW: number, viewportH: number, boardW: number, boardH: number): GameStageLayout {
+export function computeGameStageLayout(
+  viewportW: number,
+  viewportH: number,
+  boardW: number,
+  boardH: number,
+  cellSize?: number,
+  visibleRows?: number,
+  mobileRowCenterNudge = 0
+): GameStageLayout {
   const reserves = getEndlessShellReserves(viewportW, viewportH)
   const scale = reserves.scale
   const profile = reserves.profile
@@ -189,12 +341,18 @@ export function computeGameStageLayout(viewportW: number, viewportH: number, boa
   const boardAreaBottom = viewportH - reserves.bottom
   const boardX = (viewportW - boardW) / 2
   const slack = Math.max(0, boardAreaBottom - boardAreaTop - boardH)
-  const boardY = profile === 'desktop' ? boardAreaTop + slack * 0.5 : getMobileBoardCanvasY({ viewportW, hudY, hudH, boardY: 0, scale, profile }, estimateMobileGridOriginY(boardH))
+  const mobileCell = cellSize ?? mobileEndlessCellSize(viewportW, viewportH)
+  const mobileYOffset =
+    profile === 'mobile' && visibleRows != null
+      ? clampMobileBoardYOffset(reserves, boardH, viewportH, MOBILE_BOARD_Y_NUDGE + mobileRowCenterNudge)
+      : MOBILE_BOARD_Y_NUDGE + mobileRowCenterNudge
+  const boardY = profile === 'desktop' ? boardAreaTop + slack * 0.5 : mobileBoardCanvasY(reserves, mobileCell) + mobileYOffset
 
-  const devBtnH = (profile === 'desktop' ? 22 : 20) * scale
-  const devAutoW = (profile === 'desktop' ? 44 : 40) * scale
-  const devSpeedW = (profile === 'desktop' ? 26 : 24) * scale
+  const devBtnH = (profile === 'desktop' ? 26 : 23) * scale
+  const devAutoW = (profile === 'desktop' ? 50 : 46) * scale
+  const devSpeedW = (profile === 'desktop' ? 30 : 27) * scale
   const devInset = safe + 8 * scale
+  const cornerInset = profile === 'mobile' ? MOBILE_BOARD_SIDE_INSET + 4 * scale : devInset
   const bottomRailRect: Rect = {
     x: 0,
     y: viewportH - reserves.bottomRailH - reserves.bottomPad,
@@ -203,14 +361,14 @@ export function computeGameStageLayout(viewportW: number, viewportH: number, boa
   }
 
   const autoRect: Rect = {
-    x: Math.max(safe, viewportW - devAutoW - devInset),
-    y: bottomRailRect.y - devBtnH - 6 * scale,
+    x: viewportW - devAutoW - cornerInset,
+    y: bottomRailRect.y + (bottomRailRect.h - devBtnH) / 2,
     w: devAutoW,
     h: devBtnH,
   }
-  const devButtonGap = 5 * scale
+  const devButtonGap = 6 * scale
   const devSpeedRect: Rect = {
-    x: Math.max(safe, autoRect.x - devSpeedW - devButtonGap),
+    x: Math.max(cornerInset, autoRect.x - devSpeedW - devButtonGap),
     y: autoRect.y,
     w: devSpeedW,
     h: devBtnH,
@@ -235,6 +393,7 @@ export function computeGameStageLayout(viewportW: number, viewportH: number, boa
   const hudGap = (profile === 'mobile' ? 4 : 8) * scale
   const boardMargin = BOARD_VERT_MARGIN_BASE * scale
   const comboHudAnchor: Point = profile === 'mobile' ? { x: viewportW / 2, y: hudBottom + hudGap + boardMargin } : { x: viewportW / 2, y: hudY }
+  const mobileHudLeft = MOBILE_BOARD_SIDE_INSET * scale
 
   return {
     viewportW,
@@ -256,8 +415,12 @@ export function computeGameStageLayout(viewportW: number, viewportH: number, boa
     devSpeedRect,
     bottomRailRect,
     spaceButtonRect,
-    scoreAnchor: { x: safe, y: hudY },
-    livesAnchor: { x: viewportW - safe, y: hudY },
+    scoreAnchor: { x: profile === 'mobile' ? mobileHudLeft : safe, y: hudY },
+    livesAnchor: profile === 'mobile' ? { x: mobileHudLeft + MOBILE_LIVES_LEFT_INSET * scale, y: hudY } : { x: viewportW - safe, y: hudY },
+    sideControlsAnchor: {
+      x: viewportW - safe,
+      y: profile === 'mobile' ? viewportH * MOBILE_SIDE_CONTROLS_Y_RATIO : hudY,
+    },
     countdownAnchor: { x: viewportW / 2, y: hudY },
     comboHudAnchor,
   }
@@ -293,19 +456,11 @@ export function getComboFeedbackAnchor(viewportW: number, viewportH: number, lay
 
 type BoardTopEventLayout = Pick<GameStageLayout, 'viewportW' | 'hudY' | 'hudH' | 'boardY' | 'scale' | 'profile'>
 
-function estimateMobileGridOriginY(boardH: number): number {
-  const bandRows = 18.5
-  const innerH = Math.max(1, boardH - GRID_PADDING * 2)
-  const cellStep = innerH / bandRows
-  return GRID_PADDING + 0.5 * cellStep
-}
-
-/** Mobile board canvas Y: first playable row sits just below SPEED UP / life-loss alerts. */
-export function getMobileBoardCanvasY(layout: BoardTopEventLayout, gridOriginY: number): number {
-  const alertAnchor = getDifficultyAlertAnchor(layout)
-  const alertBottom = alertAnchor.y + MOBILE_ALERT_VISUAL_HALF_H * layout.scale
-  const gap = MOBILE_BOARD_TOP_FEEDBACK_GAP * layout.scale
-  return alertBottom + gap - gridOriginY
+/** Mobile board canvas Y — grid starts just below HUD; combo/alerts overlay top rows. */
+export function getMobileBoardCanvasY(layout: BoardTopEventLayout, _gridOriginY?: number): number {
+  const hudBottom = layout.hudY + layout.hudH
+  const gap = (layout.profile === 'mobile' ? 2 : 8) * layout.scale
+  return hudBottom + gap
 }
 
 function mobileBoardTopFeedbackStack(layout: BoardTopEventLayout): {

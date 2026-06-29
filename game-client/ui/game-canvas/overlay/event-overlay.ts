@@ -187,14 +187,10 @@ export function drawFullscreenOverlay(
   if (rt.state.currentStatus === 'idle' && (shell.showStartOverlay?.() ?? true) && (!intro || intro.startPanelAlpha > 0.01)) {
     const isMobile = rt.state.stageLayout?.profile === 'mobile'
     const scale = rt.state.stageLayout?.scale ?? 1
-    const hudBottom = (rt.state.stageLayout?.hudY ?? 0) + (rt.state.stageLayout?.hudH ?? 0) + 6 * scale
-    const bottomLimit = (rt.state.stageLayout?.bottomRailRect.y ?? shellH) - (isMobile ? 58 * scale : 16 * scale)
     const w = Math.min(isMobile ? 300 : 420, shellW - (isMobile ? 24 : 40), Math.max(isMobile ? 240 : 280, rt.state.boardWidth * (isMobile ? 0.88 : 1.08)))
-    const h = Math.min(Math.round(w * (246 / 364)), Math.max(120, bottomLimit - hudBottom))
+    const h = Math.min(Math.round(w * (246 / 364)), Math.max(120, shellH - (isMobile ? 48 : 64) * scale))
     const x = (shellW - w) / 2
-    const boardTop = rt.state.boardOffsetY + 4 * scale
-    const minY = Math.max(hudBottom, boardTop)
-    const y = Math.min(minY + Math.max(0, (bottomLimit - minY - h) * 0.35), bottomLimit - h)
+    const y = (shellH - h) / 2
     const now = performance.now()
     const action = panelTransitionProgress(rt, 'start', now)
     const introScale = intro?.startPanelScale ?? 1
@@ -228,7 +224,7 @@ export function drawFullscreenOverlay(
     const panelW = Math.min(480, shellW - 40, Math.max(300, rt.state.boardWidth * 1.18))
     const panelH = Math.round(panelW * (269 / 430))
     const panelX = (shellW - panelW) / 2
-    const panelY = Math.max(96, rt.state.boardOffsetY + rt.state.boardHeight * 0.42 - panelH / 2)
+    const panelY = (shellH - panelH) / 2
     const now = performance.now()
     const action = panelTransitionProgress(rt, 'retry', now)
     const shake = action > 0 && action < 0.55 ? Math.sin(action * Math.PI * 18) * (1 - action) * Math.min(panelW, panelH) * 0.012 : 0

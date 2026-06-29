@@ -1,3 +1,5 @@
+import type { GameStatus } from '@shared/core/types.ts'
+
 import { clamp01, easeOutCubic } from '../../primitives/index.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
 import { RUNTIME_CONSTANTS } from '../runtime/state.ts'
@@ -105,6 +107,15 @@ export function isGameIntroBlockingInput(rt: GameCanvasRuntime, now: number): bo
   return progress.animating || !progress.interactable
 }
 
+/** Pre-start board alpha — ghosted so side chips (volume / leaderboard) read as interactive controls. */
+export function idleBoardDrawAlpha(status: GameStatus, intro: GameIntroProgress | null): number {
+  if (status !== 'idle') return 1
+  if (intro && !intro.complete) {
+    return 0.34 + intro.boardReveal * 0.2
+  }
+  return 0.48
+}
+
 /** Horizontal energy line expanding from center (top HUD rail + bottom rail). */
 export function drawIntroEnergyLine(shellCtx: CanvasRenderingContext2D, cx: number, y: number, fullWidth: number, scale: number, lineScale: number): void {
   if (lineScale <= 0.001 || fullWidth <= 0) return
@@ -123,9 +134,6 @@ export function drawGameIntroChrome(rt: GameCanvasRuntime, shellCtx: CanvasRende
   if (progress.complete || !rt.state.stageLayout) return
   const stage = rt.state.stageLayout
   const { scale } = stage
-  const topY = stage.hudY + stage.hudH + 2 * scale
-  drawIntroEnergyLine(shellCtx, shellW / 2, topY, shellW, scale, progress.lineScale)
-
   const rail = stage.bottomRailRect
   const bottomY = rail.y + rail.h * 0.52
   shellCtx.save()

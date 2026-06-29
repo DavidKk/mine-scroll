@@ -2,9 +2,10 @@ import { resolveRasterUrl } from '../../ui/boot/image-format.ts'
 import { type GameUiPanelName, getGameCutout, getGameUiPanel } from '../../ui/game-assets.ts'
 import { getHudIcon, type HudIconName } from '../../ui/hud-sprites.ts'
 import { wireAssetFrameGrid } from './asset-lightbox.ts'
+import { mountBootLoadingLabPanel } from './boot-loading-lab.ts'
 import { createPanelHead } from './editor-shell.ts'
 
-export type GameUiLabPanelId = 'panels' | 'icons' | 'cutouts'
+export type GameUiLabPanelId = 'panels' | 'icons' | 'cutouts' | 'loading'
 
 const MAIN_FLOW_PANELS: GameUiPanelName[] = ['start-panel', 'game-over-panel']
 
@@ -139,6 +140,7 @@ function createStaticGridPanel(title: string, description: string, items: Static
 
 export function gameUiNavItems(): Array<{ id: GameUiLabPanelId; label: string; count?: number }> {
   return [
+    { id: 'loading', label: 'Boot loading' },
     { id: 'panels', label: 'Panels', count: MAIN_FLOW_PANELS.length },
     { id: 'icons', label: 'HUD icons', count: MAIN_FLOW_ICONS.length },
     { id: 'cutouts', label: 'HUD cutouts', count: MAIN_FLOW_CUTOUTS.length },
@@ -149,7 +151,9 @@ export function mountGameUiPanels(): {
   panels: Partial<Record<GameUiLabPanelId, HTMLElement>>
   dispose: () => void
 } {
+  const loadingLab = mountBootLoadingLabPanel()
   const panels: Partial<Record<GameUiLabPanelId, HTMLElement>> = {
+    loading: loadingLab.panel,
     panels: createStaticGridPanel('UI panels', '', collectPanels()),
     icons: createStaticGridPanel('HUD icons', '', collectIcons()),
     cutouts: createStaticGridPanel('HUD cutouts', '', collectCutouts()),
@@ -157,6 +161,6 @@ export function mountGameUiPanels(): {
 
   return {
     panels,
-    dispose: () => undefined,
+    dispose: () => loadingLab.dispose(),
   }
 }

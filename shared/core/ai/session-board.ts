@@ -1,5 +1,5 @@
 import { getNeighbors, isCellActive } from '../board.ts'
-import { ENDLESS_VISIBLE_ROWS } from '../modes/endless/index.ts'
+import { sessionVisibleRows } from '../modes/endless/views.ts'
 import type { Board, ModeSession } from '../types.ts'
 
 export interface SolverCell {
@@ -46,7 +46,7 @@ export function buildSolverBoard(session: ModeSession): SolverBoard {
   const board = session.state.board
   const isEndless = session.modeId === 'endless'
   const viewStart = isEndless ? (session.endlessViewStart ?? 0) : 0
-  const viewEnd = isEndless ? viewStart + ENDLESS_VISIBLE_ROWS : board.rows
+  const viewEnd = isEndless ? viewStart + sessionVisibleRows(session) : board.rows
 
   return {
     rows: board.rows,

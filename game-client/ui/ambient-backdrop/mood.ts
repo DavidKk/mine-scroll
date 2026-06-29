@@ -42,6 +42,7 @@ export interface BackdropParticlesTuning {
   glow: number
   drift: number
   streakIntensity: number
+  liteStars?: boolean
 }
 
 export interface BackdropGlyphsTuning {

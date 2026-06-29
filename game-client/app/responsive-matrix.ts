@@ -339,6 +339,7 @@ export function mountResponsiveMatrix(root: HTMLElement, initialPanelId: string 
   const resolvedPanelId: ResponsivePanelId = initialPanelId && isResponsivePanel(initialPanelId) ? initialPanelId : RESPONSIVE_DEFAULT_PANEL
 
   const disposeShell = mountAdminModuleShell(root, {
+    activeModule: 'assets',
     activeRail: 'responsive',
     onNavigate,
     eyebrow: 'Responsive',

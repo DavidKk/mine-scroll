@@ -1,4 +1,4 @@
-import { computeEndlessBoardCellSize } from '../../game-stage-layout.ts'
+import { computeEndlessBoardCellSize, getEndlessLayoutProfile, resolveViewportEndlessVisibleRows } from '../../game-stage-layout.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
 import { applyCanvasSize } from '../types.ts'
 import { applySquareLayout } from './board-layout.ts'
@@ -10,7 +10,8 @@ export function fitCellSizeForViewport(rt: GameCanvasRuntime, viewportW?: number
   const vh = viewportH ?? (rt.fullscreen ? Math.max(480, window.innerHeight) : rt.state.height)
   return computeEndlessBoardCellSize(gridCols, gridRows, vw, vh, {
     min: rt.fitViewport?.minCellSize ?? 18,
-    max: rt.fitViewport?.maxCellSize ?? 36,
+    max: rt.fitViewport?.maxCellSize ?? 48,
+    previewRows: rt.state.currentPreviewRows,
   })
 }
 
@@ -32,8 +33,15 @@ export function syncFullscreenCanvasSize(rt: GameCanvasRuntime): void {
 
 export function syncViewportFitLayout(rt: GameCanvasRuntime): void {
   if (!rt.fitViewport || !rt.state.squareLayout) return
-  const nextCell = fitCellSizeForViewport(rt, rt.state.width, rt.state.height)
-  if (nextCell === rt.state.fittedCellSize) return
+  const vw = rt.state.width
+  const vh = rt.state.height
+  const nextRows = getEndlessLayoutProfile(vw) === 'mobile' ? resolveViewportEndlessVisibleRows(vw, vh, rt.state.currentPreviewRows) : rt.fitViewport.rows
+  const nextCell = fitCellSizeForViewport(rt, vw, vh)
+  const rowsChanged = nextRows !== rt.fitViewport.rows || nextRows !== rt.state.currentRows
+  const cellChanged = nextCell !== rt.state.fittedCellSize
+  if (!rowsChanged && !cellChanged) return
   rt.state.fittedCellSize = nextCell
-  applySquareLayout(rt, rt.fitViewport.rows, rt.fitViewport.cols, rt.state.currentPreviewRows)
+  rt.fitViewport.rows = nextRows
+  rt.state.currentRows = nextRows
+  applySquareLayout(rt, nextRows, rt.fitViewport.cols, rt.state.currentPreviewRows)
 }

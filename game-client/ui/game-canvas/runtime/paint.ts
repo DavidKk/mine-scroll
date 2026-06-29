@@ -4,7 +4,7 @@ import { syncInputProfile } from '../input/pointer-handlers.ts'
 import { syncBoardSizeFromLayout } from '../layout/board-layout.ts'
 import { syncFullscreenCanvasSize } from '../layout/viewport-fit.ts'
 import { drawFullscreenOverlay } from '../overlay/event-overlay.ts'
-import { drawGameIntroChrome, updateGameIntro } from '../overlay/game-intro.ts'
+import { drawGameIntroChrome, idleBoardDrawAlpha, updateGameIntro } from '../overlay/game-intro.ts'
 import { drawAmbientShellBackdrop } from '../shell/ambient-shell.ts'
 import { drawShellBackground } from '../shell/background.ts'
 import { ensureBoardLayerCache } from './board-layer-cache.ts'
@@ -67,7 +67,10 @@ export function paint(rt: GameCanvasRuntime): void {
     const introBoardActive = intro && !intro.complete
     const skipBoard = introBoardActive && intro.boardReveal <= 0
     const useIntroBoard = introBoardActive && intro.boardReveal > 0
+    const boardAlpha = idleBoardDrawAlpha(rt.state.currentStatus, intro)
     if (!skipBoard) {
+      rt.ctx.save()
+      if (boardAlpha < 0.999) rt.ctx.globalAlpha = boardAlpha
       if (useIntroBoard) {
         renderBoardIntroFrame(rt.ctx, rt.state.squareLayout!, boardState, intro.boardReveal, rt.state.currentRows, rt.state.currentCols)
       } else if (rt.state.boardLayerCache) {
@@ -81,6 +84,7 @@ export function paint(rt: GameCanvasRuntime): void {
       if (!useIntroBoard) {
         renderBoardDynamicFrame(rt.ctx, rt.state.squareLayout!, boardState)
       }
+      rt.ctx.restore()
     }
   } else {
     renderFrame(rt.ctx, rt.state.squareLayout!, boardState)

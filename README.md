@@ -21,11 +21,18 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000). The app redirects to `/play` for the game shell.
 
+### Mobile testing (ngrok)
+
+1. Add `NGROK_AUTHTOKEN` to `.env` ([get a free token](https://dashboard.ngrok.com/get-started/your-authtoken)).
+2. Run `pnpm dev:ngrok` and open the printed `/play` URL on your phone.
+3. Optional: append `?fps=1` to show the FPS overlay while profiling.
+
 ## Scripts
 
 | Command          | Description                             |
 | ---------------- | --------------------------------------- |
 | `pnpm dev`       | Next.js dev server                      |
+| `pnpm dev:ngrok` | Dev server + ngrok tunnel (mobile test) |
 | `pnpm build`     | Optimize boot assets + production build |
 | `pnpm start`     | Serve production build                  |
 | `pnpm test`      | Jest unit tests                         |
@@ -60,7 +67,7 @@ Required: `JWT_SECRET`, `JWT_EXPIRES_IN`. Register this callback in the auth cen
 https://<your-domain>/auth/vercel-2fa/callback
 ```
 
-Copy `.env.example` to `.env.local` and fill in values. For ranked runs in production, link Vercel KV or Upstash Redis (`KV_REST_API_*` or `UPSTASH_REDIS_REST_*`).
+Copy `.env.example` to `.env` and fill in values. For ranked runs in production, link Vercel KV or Upstash Redis (`KV_REST_API_*` or `UPSTASH_REDIS_REST_*`).
 
 ## Documentation
 

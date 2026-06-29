@@ -21,12 +21,15 @@ function legacyAssetLabRedirects(): { source: string; destination: string; perma
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@shared/core'],
+  /** Allow webpack HMR when dev server is reached via ngrok (`pnpm dev:ngrok`). */
+  allowedDevOrigins: ['*.ngrok-free.app', '*.ngrok.io', '*.ngrok.app', '*.ngrok.dev'],
   async redirects() {
     return [
       { source: '/admin', destination: '/admin/assets/sources', permanent: false },
       { source: '/admin/assets', destination: '/admin/assets/sources', permanent: false },
       { source: '/admin/lab', destination: '/admin/lab/asset-sheets', permanent: false },
       { source: '/admin/responsive', destination: '/admin/responsive/matrix', permanent: false },
+      { source: '/admin/layout-editor', destination: '/admin/layout-editor/editor', permanent: false },
       ...legacyAssetLabRedirects(),
       { source: '/lab', destination: '/admin/lab/asset-sheets', permanent: false },
       { source: '/responsive', destination: '/admin/responsive/matrix', permanent: false },

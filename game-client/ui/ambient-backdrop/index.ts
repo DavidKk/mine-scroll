@@ -25,13 +25,19 @@ export function drawAmbientBackdrop(ctx: CanvasRenderingContext2D, input: Ambien
   if (shellW <= 0 || shellH <= 0) return
 
   const colors = cosmicPalette(mood.heat)
+  const particleScale = input.particleScale ?? 1
   const layers = resolveBackdropLayers(mood)
+  const particles = {
+    ...layers.particles,
+    density: layers.particles.density * particleScale,
+    liteStars: input.liteStars ?? false,
+  }
 
   ctx.save()
   drawDeepVoid(ctx, shellW, shellH, colors)
-  drawSkyWash(ctx, shellW, shellH, colors, layers.particles.glow)
+  drawSkyWash(ctx, shellW, shellH, colors, particles.glow)
   drawShmupShipLayer(ctx, shellW, shellH, nowMs, colors, layers.shmup)
-  drawParticlesLayer(ctx, shellW, shellH, nowMs, colors, layers.particles)
+  drawParticlesLayer(ctx, shellW, shellH, nowMs, colors, particles)
   drawShmupBulletsLayer(ctx, shellW, shellH, nowMs, colors, layers.shmup)
   drawEdgeFade(ctx, shellW, shellH, mood.intensity)
   ctx.restore()

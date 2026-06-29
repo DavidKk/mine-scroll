@@ -1,6 +1,7 @@
 import { GAME_ASSET_TUNING } from '../../game-assets.ts'
 import { LIFE_LOSS_POPUP_V3_MS } from '../assets/hud-feedback-assets.ts'
 import type { GameCanvasRuntime } from './context.ts'
+import { ambientFrameMs, shouldForceFullscreenAmbient } from './mobile-perf.ts'
 import { RUNTIME_CONSTANTS } from './state.ts'
 
 export function stopPressureRepaint(rt: GameCanvasRuntime): void {
@@ -49,7 +50,7 @@ export function needsContinuousRepaint(rt: GameCanvasRuntime, now: number): 'ful
     if (comboAge < GAME_ASSET_TUNING.fx.comboBurst.durationMs) return 'full'
   }
   if (rt.state.lastCombo > 1 && rt.state.currentStatus === 'playing') return 'ambient'
-  if (rt.fullscreen) return 'ambient'
+  if (rt.fullscreen && shouldForceFullscreenAmbient(rt.state.width, rt.state.currentStatus)) return 'ambient'
   if (rt.state.currentStatus === 'idle') return 'ambient'
   if (rt.state.currentStatus !== 'playing') return false
   if (rt.state.boardPointer !== null) return 'ambient'
@@ -69,12 +70,13 @@ const HEAVY_CELL_FX_COUNT = 16
 const HEAVY_PARTICLE_COUNT = 60
 
 function repaintDelayMs(rt: GameCanvasRuntime, mode: 'full' | 'ambient'): number {
+  const ambientGap = ambientFrameMs(rt.state.width)
   const minGap =
     mode === 'full' && (rt.state.cellEffects.length > HEAVY_CELL_FX_COUNT || rt.state.particles.length > HEAVY_PARTICLE_COUNT)
       ? HEAVY_FULL_FRAME_MS
       : mode === 'full'
         ? 0
-        : RUNTIME_CONSTANTS.AMBIENT_FRAME_MS
+        : ambientGap
   return Math.max(0, minGap - (performance.now() - rt.state.lastPaintAt))
 }
 

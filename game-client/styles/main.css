@@ -697,6 +697,97 @@ body::-webkit-scrollbar {
   align-items: start;
 }
 
+.asset-lab__boot-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(280px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.asset-lab__boot-controls {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.asset-lab__boot-progress {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.asset-lab__boot-range {
+  width: 100%;
+  accent-color: #818cf8;
+}
+
+.asset-lab__boot-progress-value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: #a5b4fc;
+}
+
+.asset-lab__boot-phase-row,
+.asset-lab__boot-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.asset-lab__boot-btn {
+  appearance: none;
+  border: 1px solid rgba(129, 140, 248, 0.42);
+  background: rgba(79, 70, 229, 0.22);
+  color: #e0e7ff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.asset-lab__boot-btn:hover {
+  background: rgba(99, 102, 241, 0.34);
+}
+
+.asset-lab__boot-btn--ghost {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.asset-lab__boot-btn--active {
+  border-color: rgba(45, 236, 255, 0.62);
+  box-shadow: 0 0 0 1px rgba(45, 236, 255, 0.18);
+}
+
+.asset-lab__boot-preview {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(2, 6, 23, 0.55);
+  padding: 16px;
+  overflow: hidden;
+}
+
+.asset-lab__boot-preview-host {
+  margin: 0 auto;
+}
+
+.asset-lab__boot-preview-host--mobile {
+  width: min(100%, 390px);
+}
+
+.asset-lab__boot-preview-host--wide {
+  width: min(100%, 400px);
+}
+
+@media (max-width: 900px) {
+  .asset-lab__boot-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
 .asset-lab__backdrop-preview {
   position: relative;
   width: min(100%, 390px);

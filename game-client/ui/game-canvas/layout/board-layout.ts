@@ -1,4 +1,6 @@
-import { computeGameStageLayout, getMobileBoardCanvasY } from '../../game-stage-layout.ts'
+import { ENDLESS_COLS } from '@shared/core/modes/endless/constants.ts'
+
+import { computeEndlessMobileBoardFit, computeGameStageLayout, getEndlessLayoutProfile } from '../../game-stage-layout.ts'
 import { applyBoardPreviewBand, getBoardOnlyLayoutMetrics, getLayoutMetrics, type LayoutMetrics } from '../../renderer/index.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
 import { applyCanvasSize } from '../types.ts'
@@ -43,11 +45,26 @@ export function syncBoardSizeFromLayout(rt: GameCanvasRuntime): void {
   rt.state.boardWidth = rt.state.squareLayout!.width
   rt.state.boardHeight = rt.state.squareLayout!.height
   if (rt.fullscreen) {
-    rt.state.stageLayout = computeGameStageLayout(rt.state.width, rt.state.height, rt.state.boardWidth, rt.state.boardHeight)
+    const cellSize = rt.state.squareLayout?.grid.cellSize ?? rt.state.fittedCellSize
+    const mobileFit =
+      getEndlessLayoutProfile(rt.state.width) === 'mobile'
+        ? computeEndlessMobileBoardFit(ENDLESS_COLS, rt.state.width, rt.state.height, {
+            min: rt.fitViewport?.minCellSize ?? 18,
+            max: rt.fitViewport?.maxCellSize ?? 48,
+            previewRows: rt.state.currentPreviewRows,
+          })
+        : null
+    rt.state.stageLayout = computeGameStageLayout(
+      rt.state.width,
+      rt.state.height,
+      rt.state.boardWidth,
+      rt.state.boardHeight,
+      cellSize,
+      rt.state.currentRows,
+      mobileFit?.rowCenterNudge ?? 0
+    )
     rt.state.boardOffsetX = Math.round(rt.state.stageLayout.boardX)
-    const gridOriginY = rt.state.squareLayout!.gridOriginY
-    rt.state.boardOffsetY =
-      rt.state.stageLayout.profile === 'mobile' ? Math.round(getMobileBoardCanvasY(rt.state.stageLayout, gridOriginY)) : Math.round(rt.state.stageLayout.boardY)
+    rt.state.boardOffsetY = Math.round(rt.state.stageLayout.boardY)
   }
 }
 

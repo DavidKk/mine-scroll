@@ -1,20 +1,8 @@
 import { BRAND_NAME } from '../../../lib/brand.ts'
 import { layoutSnapshotFromRuntime } from '../../ranked/layout-snapshot.ts'
 import { createFpsOverlay } from './fps-overlay.ts'
-import {
-  destroyTouchGesture,
-  initTouchGesture,
-  onContextMenu,
-  onDoubleClick,
-  onMouseDown,
-  onMouseLeave,
-  onMouseMove,
-  onMouseUp,
-  onPointerCancel,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-} from './input/pointer-handlers.ts'
+import { bindCanvasInputListeners } from './input/listener-bindings.ts'
+import { destroyTouchGesture, initTouchGesture } from './input/pointer-handlers.ts'
 import { initialSquareLayout, syncPreviewLayout, syncSquareLayout } from './layout/board-layout.ts'
 import { resolveInitialCellSize } from './layout/viewport-fit.ts'
 import { clearPendingPanelTransition } from './overlay/panel-transition.ts'
@@ -59,7 +47,7 @@ export function createGameCanvas(
   const wrap = document.createElement('div')
   wrap.className = fullscreen ? 'game-canvas-wrap game-canvas-wrap--fullscreen' : 'game-canvas-wrap'
 
-  const rt = {
+  const rt: GameCanvasRuntime = {
     state: createInitialRuntimeState(currentRows, cols, fixedCellSize, null, 0, 0),
     canvas: document.createElement('canvas'),
     ctx: null as unknown as CanvasRenderingContext2D,
@@ -73,10 +61,11 @@ export function createGameCanvas(
     getScrollPressureFn,
     fullscreen,
     endlessPreviewRows,
+    inputBindings: undefined,
     paint: () => {},
     scheduleAnimationFrame: () => {},
     scheduleContinuousRepaint: () => {},
-  } satisfies GameCanvasRuntime
+  }
 
   rt.state.fittedCellSize = resolveInitialCellSize(rt)
   rt.state.squareLayout = initialSquareLayout(rt, currentRows, cols)
@@ -101,33 +90,9 @@ export function createGameCanvas(
   rt.paint = () => paint(rt)
   bindPaintScheduler(rt)
   initTouchGesture(rt)
+  rt.inputBindings = bindCanvasInputListeners(rt) ?? undefined
 
   const onResize = () => rt.paint()
-  const handleMouseDown = (e: MouseEvent) => onMouseDown(rt, e)
-  const handlePointerDown = (e: PointerEvent) => onPointerDown(rt, e)
-  const handlePointerMove = (e: PointerEvent) => onPointerMove(rt, e)
-  const handlePointerUp = (e: PointerEvent) => onPointerUp(rt, e)
-  const handlePointerCancel = (e: PointerEvent) => onPointerCancel(rt, e)
-  const handleMouseMove = (e: MouseEvent) => onMouseMove(rt, e)
-  const handleMouseUp = (e: MouseEvent) => onMouseUp(rt, e)
-  const handleMouseLeave = () => onMouseLeave(rt)
-  const handleContextMenu = (e: MouseEvent) => onContextMenu(rt, e)
-  const handleDoubleClick = (e: MouseEvent) => onDoubleClick(rt, e)
-
-  rt.canvas.addEventListener('mousedown', handleMouseDown)
-  rt.canvas.addEventListener('pointerdown', handlePointerDown)
-  rt.canvas.addEventListener('pointermove', handlePointerMove)
-  rt.canvas.addEventListener('pointerup', handlePointerUp)
-  rt.canvas.addEventListener('pointercancel', handlePointerCancel)
-  rt.canvas.addEventListener('mousemove', handleMouseMove)
-  rt.canvas.addEventListener('mouseup', handleMouseUp)
-  rt.canvas.addEventListener('mouseleave', handleMouseLeave)
-  window.addEventListener('mouseup', handleMouseUp)
-  window.addEventListener('pointerup', handlePointerUp)
-  window.addEventListener('pointercancel', handlePointerCancel)
-  rt.canvas.addEventListener('contextmenu', handleContextMenu)
-  rt.canvas.addEventListener('dblclick', handleDoubleClick)
-
   if (fullscreen) {
     window.addEventListener('resize', onResize)
     startAmbientLoop(rt)
@@ -205,19 +170,8 @@ export function createGameCanvas(
       clearPendingPanelTransition(rt)
       cancelScheduledPaint(rt)
       destroyTouchGesture(rt)
-      rt.canvas.removeEventListener('mousedown', handleMouseDown)
-      rt.canvas.removeEventListener('pointerdown', handlePointerDown)
-      rt.canvas.removeEventListener('pointermove', handlePointerMove)
-      rt.canvas.removeEventListener('pointerup', handlePointerUp)
-      rt.canvas.removeEventListener('pointercancel', handlePointerCancel)
-      rt.canvas.removeEventListener('mousemove', handleMouseMove)
-      rt.canvas.removeEventListener('mouseup', handleMouseUp)
-      rt.canvas.removeEventListener('mouseleave', handleMouseLeave)
-      window.removeEventListener('mouseup', handleMouseUp)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerCancel)
-      rt.canvas.removeEventListener('contextmenu', handleContextMenu)
-      rt.canvas.removeEventListener('dblclick', handleDoubleClick)
+      rt.inputBindings?.unbind()
+      rt.inputBindings = undefined
       if (fullscreen) window.removeEventListener('resize', onResize)
       rt.fpsOverlay.destroy()
       if (typeof wrap.remove === 'function') {

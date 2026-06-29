@@ -3,27 +3,28 @@ import type { Board, Cell, GameStatus, ModeSession } from '../../types.ts'
 import { cellKey, isCellBlocked } from '../../types.ts'
 import { ENDLESS_LIVES, ENDLESS_PENDING_REVEAL_LOOKAHEAD_ROWS, ENDLESS_PENDING_REVEAL_MAX_PER_SYNC, ENDLESS_PREVIEW_SOURCE_ROWS, ENDLESS_VISIBLE_ROWS } from './constants.ts'
 import { compactAndBufferBoard, getLocalNeighbors, localRowFromWorld, parseWorldCellKey, recomputeAllAdjacent, visibleViewStart, worldCellKey } from './grid.ts'
+import { sessionVisibleRows } from './views.ts'
 
 export interface RevealBounds {
   startRow: number
   endRow: number
 }
 
-function visibleBounds(board: Board): RevealBounds {
-  const startRow = visibleViewStart(board)
+function visibleBounds(board: Board, visibleRows = ENDLESS_VISIBLE_ROWS): RevealBounds {
+  const startRow = visibleViewStart(board, visibleRows)
   return {
     startRow,
-    endRow: Math.min(board.rows, startRow + ENDLESS_VISIBLE_ROWS),
+    endRow: Math.min(board.rows, startRow + visibleRows),
   }
 }
 
 /** Player-actionable row range (includes top half-hidden preview row). */
-export function actionableBounds(board: Board): RevealBounds {
-  const startRow = visibleViewStart(board)
+export function actionableBounds(board: Board, visibleRows = ENDLESS_VISIBLE_ROWS): RevealBounds {
+  const startRow = visibleViewStart(board, visibleRows)
   const previewStart = Math.max(0, startRow - ENDLESS_PREVIEW_SOURCE_ROWS)
   return {
     startRow: startRow > 0 ? previewStart : startRow,
-    endRow: Math.min(board.rows, startRow + ENDLESS_VISIBLE_ROWS),
+    endRow: Math.min(board.rows, startRow + visibleRows),
   }
 }
 
@@ -149,8 +150,8 @@ export function applyLifeLoss(session: ModeSession, board: Board, damage: number
   }
 }
 
-function applyPendingReveals(board: Board, pendingKeys: Iterable<string>): { pendingRevealKeys: string[]; revealed: number } {
-  const bounds = visibleBounds(board)
+function applyPendingReveals(board: Board, pendingKeys: Iterable<string>, visibleRows = ENDLESS_VISIBLE_ROWS): { pendingRevealKeys: string[]; revealed: number } {
+  const bounds = visibleBounds(board, visibleRows)
   const before = cloneBoard(board)
   const remaining: string[] = []
 
@@ -173,8 +174,8 @@ function applyPendingReveals(board: Board, pendingKeys: Iterable<string>): { pen
   }
 }
 
-function collectPendingRevealsFromVisibleTop(board: Board, pendingKeys: Iterable<string>): string[] {
-  const bounds = actionableBounds(board)
+function collectPendingRevealsFromVisibleTop(board: Board, pendingKeys: Iterable<string>, visibleRows = ENDLESS_VISIBLE_ROWS): string[] {
+  const bounds = actionableBounds(board, visibleRows)
   const minPendingRow = Math.max(0, bounds.startRow - ENDLESS_PENDING_REVEAL_LOOKAHEAD_ROWS)
   const pending = new Set(prunePendingRevealKeys(board, pendingKeys))
   const queued = new Set<string>()
@@ -223,15 +224,17 @@ function collectPendingRevealsFromVisibleTop(board: Board, pendingKeys: Iterable
 }
 
 export function syncPendingReveals(session: ModeSession, board: Board): { pendingRevealKeys: string[]; revealed: number } {
-  const applied = applyPendingReveals(board, session.pendingRevealKeys ?? [])
+  const visibleRows = sessionVisibleRows(session)
+  const applied = applyPendingReveals(board, session.pendingRevealKeys ?? [], visibleRows)
   return {
-    pendingRevealKeys: collectPendingRevealsFromVisibleTop(board, applied.pendingRevealKeys),
+    pendingRevealKeys: collectPendingRevealsFromVisibleTop(board, applied.pendingRevealKeys, visibleRows),
     revealed: applied.revealed,
   }
 }
 
 export function finalizeBoard(session: ModeSession, board: Board, status?: GameStatus): { session: ModeSession; autoRevealed: number } {
-  const compacted = compactAndBufferBoard(board, session.scrollRowCount ?? 0)
+  const visibleRows = sessionVisibleRows(session)
+  const compacted = compactAndBufferBoard(board, session.scrollRowCount ?? 0, visibleRows)
   recomputeAllAdjacent(compacted)
   const pending = syncPendingReveals(session, compacted)
   return {
@@ -242,7 +245,7 @@ export function finalizeBoard(session: ModeSession, board: Board, status?: GameS
         board: compacted,
         status: status ?? session.state.status,
       },
-      endlessViewStart: visibleViewStart(compacted),
+      endlessViewStart: visibleViewStart(compacted, visibleRows),
       pendingRevealKeys: pending.pendingRevealKeys,
     },
     autoRevealed: pending.revealed,

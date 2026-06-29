@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 
 import { isLoopingGameFx, resolveFxFrameIndex } from '../game-client/ui/game-assets.ts'
-import { computeGameStageLayout, getBottomFeedbackSlots, getComboFeedbackAnchor, getDifficultyAlertAnchor, getMobileBoardCanvasY } from '../game-client/ui/game-stage-layout.ts'
+import {
+  computeEndlessMobileBoardFit,
+  computeGameStageLayout,
+  getBottomFeedbackSlots,
+  getComboFeedbackAnchor,
+  getDifficultyAlertAnchor,
+  mobileBoardRowCenterNudge,
+  resolveViewportEndlessVisibleRows,
+} from '../game-client/ui/game-stage-layout.ts'
 import { getComboFeedbackPalette, getComboHudTier } from '../game-client/ui/hud-feedback-fx.ts'
 import { getBoardOnlyLayoutMetrics } from '../game-client/ui/renderer/index.ts'
 import { componentProbabilities } from '../shared/core/ai/csp.ts'
@@ -687,22 +695,47 @@ function testBatchScrollAppliesCombinedMineDamage(): void {
   assert.equal(beforeLives - (next.lives ?? 0), Math.min(beforeLives, totalDamage))
 }
 
-function comboAnchorInput(viewportW: number, viewportH: number, visibleRows = ENDLESS_VISIBLE_ROWS) {
-  const boardLayout = getBoardOnlyLayoutMetrics(visibleRows, ENDLESS_COLS)
+function comboAnchorInput(viewportW: number, viewportH: number, visibleRows?: number) {
+  const rows = visibleRows ?? resolveViewportEndlessVisibleRows(viewportW, viewportH)
+  const boardLayout = getBoardOnlyLayoutMetrics(rows, ENDLESS_COLS)
   const stage = computeGameStageLayout(viewportW, viewportH, boardLayout.width, boardLayout.height)
   return {
     stage,
     boardLayout,
+    visibleRows: rows,
     anchor: getComboFeedbackAnchor(viewportW, viewportH, {
       scale: stage.scale,
       boardOffsetY: stage.boardY,
       gridOriginY: boardLayout.gridOriginY,
       cellStep: boardLayout.grid.cellStep,
       cellSize: boardLayout.grid.cellSize,
-      visibleRows,
+      visibleRows: rows,
       bottomRailY: stage.bottomRailRect.y,
     }),
   }
+}
+
+function testMobileBoardRowCenterNudge(): void {
+  const cellSize = 24
+  const rowStep = 27
+  assert.equal(mobileBoardRowCenterNudge(cellSize, 10, 8), rowStep)
+  assert.equal(mobileBoardRowCenterNudge(cellSize, 10, 9), rowStep / 2)
+  assert.equal(mobileBoardRowCenterNudge(cellSize, 10, 10), 0)
+}
+
+function testMobileBoardFitReportsTrimNudge(): void {
+  const fit = computeEndlessMobileBoardFit(ENDLESS_COLS, 390, 844, { previewRows: 0 })
+  if (fit.targetRows > fit.visibleRows) {
+    assert.equal(fit.rowCenterNudge, mobileBoardRowCenterNudge(fit.cellSize, fit.targetRows, fit.visibleRows))
+  } else {
+    assert.equal(fit.rowCenterNudge, 0)
+  }
+}
+
+function testMobileBoardFitFitsExtraRowOnTallPhone(): void {
+  const fit = computeEndlessMobileBoardFit(ENDLESS_COLS, 430, 932, { previewRows: 0 })
+  assert.equal(fit.visibleRows, 16)
+  assert.ok(fit.cellSize >= 18)
 }
 
 function testComboFeedbackAnchorCentersHorizontally(): void {
@@ -715,9 +748,9 @@ function testComboFeedbackAnchorCentersHorizontally(): void {
 function testComboFeedbackAnchorAlignsWithBottomPlayableRow(): void {
   const viewportW = 390
   const viewportH = 844
-  const { stage, boardLayout, anchor } = comboAnchorInput(viewportW, viewportH)
+  const { stage, boardLayout, anchor, visibleRows: rows } = comboAnchorInput(viewportW, viewportH)
 
-  const bottomRowCenterY = stage.boardY + boardLayout.gridOriginY + (ENDLESS_VISIBLE_ROWS - 1) * boardLayout.grid.cellStep + boardLayout.grid.cellSize * 0.42
+  const bottomRowCenterY = stage.boardY + boardLayout.gridOriginY + (rows - 1) * boardLayout.grid.cellStep + boardLayout.grid.cellSize * 0.42
   const minY = stage.boardY + boardLayout.gridOriginY + boardLayout.grid.cellSize * 0.5
   const expectedY = Math.max(minY, Math.min(bottomRowCenterY, stage.bottomRailRect.y - 28 * stage.scale))
   assert.equal(anchor.y, expectedY)
@@ -815,20 +848,16 @@ function testMobileComboHudAnchorSitsInTopFeedbackBand(): void {
   assert.equal(stage.profile, 'mobile')
   const hudBottom = stage.hudY + stage.hudH
   assert.ok(stage.comboHudAnchor.y >= hudBottom + stage.scale * 4, 'combo should sit below HUD')
-  assert.ok(stage.comboHudAnchor.y < stage.boardY - 40 * stage.scale, 'combo should stay above board')
+  assert.ok(stage.comboHudAnchor.y <= stage.boardY + 80 * stage.scale, 'combo overlays top of full-height board')
 }
 
 function testDifficultyAlertAnchorSitsAboveBoard(): void {
   const { stage, boardLayout } = comboAnchorInput(390, 844)
   const anchor = getDifficultyAlertAnchor(stage)
   const hudBottom = stage.hudY + stage.hudH
-  const alertBottom = anchor.y + 30 * stage.scale
-  const boardCanvasY = getMobileBoardCanvasY(stage, boardLayout.gridOriginY)
-  const firstRowTop = boardCanvasY + boardLayout.gridOriginY
-  const minClearance = 4 * stage.scale
+  const boardTop = stage.boardY + boardLayout.gridOriginY
   assert.ok(anchor.y > hudBottom + stage.scale * 8, 'alert should sit below top HUD')
-  assert.ok(firstRowTop >= alertBottom + minClearance - 1, 'first row should sit below alert visuals')
-  assert.ok(firstRowTop <= alertBottom + minClearance + 8 * stage.scale, 'first row should hug alert band')
+  assert.ok(anchor.y >= boardTop - 8 * stage.scale, 'alert overlays top board rows')
   assert.equal(anchor.x, stage.viewportW / 2)
 }
 
@@ -860,6 +889,9 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['scroll proceeds when bottom row is not safe', testScrollProceedsWhenBottomUnsafe],
   ['scroll damage equals leaving mine count', testScrollDamageEqualsLeavingMineCount],
   ['batch scroll applies combined mine damage', testBatchScrollAppliesCombinedMineDamage],
+  ['mobile board row center nudge', testMobileBoardRowCenterNudge],
+  ['mobile board fit reports trim nudge', testMobileBoardFitReportsTrimNudge],
+  ['mobile board fit fits extra row on tall phone', testMobileBoardFitFitsExtraRowOnTallPhone],
   ['combo feedback anchor centers horizontally', testComboFeedbackAnchorCentersHorizontally],
   ['combo feedback anchor aligns with bottom playable row', testComboFeedbackAnchorAlignsWithBottomPlayableRow],
   ['combo feedback anchor sits below hud and above bottom rail', testComboFeedbackAnchorSitsBelowHudAndAboveBottomRail],

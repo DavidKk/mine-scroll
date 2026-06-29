@@ -1,5 +1,6 @@
 import { aiMoveFromScreenRow, analyzeSession } from '@shared/core/ai/solver.ts'
-import { endlessBeginRun, endlessScreenRowToLocal, endlessScrollTick, getEndlessScrollProfile, isEndlessInteractiveScreenRow } from '@shared/core/modes/endless/index.ts'
+import { visibleViewStart } from '@shared/core/modes/endless/grid.ts'
+import { endlessBeginRun, endlessScreenRowToLocal, endlessScrollTick, getEndlessScrollProfile, isEndlessInteractiveScreenRowForSession } from '@shared/core/modes/endless/index.ts'
 import { chordAt, createSessionWithSeed, revealAt, toggleMarkAt } from '@shared/core/modes/engine.ts'
 import type { ModeSession } from '@shared/core/types.ts'
 
@@ -32,7 +33,7 @@ function applyPlayerAction(session: ModeSession, action: DerivedPlayerAction): {
     return { session: next, ok: true }
   }
 
-  if (!isEndlessInteractiveScreenRow(action.screenRow)) {
+  if (!isEndlessInteractiveScreenRowForSession(session, action.screenRow)) {
     return { session, ok: false, error: `Screen row ${action.screenRow} not interactive` }
   }
 
@@ -95,6 +96,11 @@ export function replayRankedRun(seed: number, events: RunInputEvent[]): ReplayRe
   }
 
   let session = createSessionWithSeed(seed)
+  const layoutEvent = events.find((event): event is Extract<RunInputEvent, { e: 'layout' }> => event.e === 'layout')
+  if (layoutEvent?.layout.rows) {
+    session.endlessVisibleRows = layoutEvent.layout.rows
+    session.endlessViewStart = visibleViewStart(session.state.board, layoutEvent.layout.rows)
+  }
   session = endlessBeginRun(session)
 
   const shadowAi: ShadowAiMetrics = { comparedMoves: 0, aiMoveMatches: 0, aiMoveMatchRate: 0 }

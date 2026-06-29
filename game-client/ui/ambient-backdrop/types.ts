@@ -19,6 +19,10 @@ export interface AmbientBackdropInput {
   status: GameStatus
   mood: BackdropMood
   combo?: number
+  /** Mobile perf: scales particle counts (default 1). */
+  particleScale?: number
+  /** Mobile perf: skip expensive star halos. */
+  liteStars?: boolean
   boardSafeRect?: { x: number; y: number; w: number; h: number }
 }
 

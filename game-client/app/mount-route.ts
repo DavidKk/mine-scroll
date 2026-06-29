@@ -4,7 +4,11 @@ import type { AssetLabSection } from './routes.ts'
 import { assetLabSectionPath } from './routes.ts'
 
 export type ClientRoute =
-  { type: 'game' } | { type: 'assets'; section: AssetLabSection; panelId: string | null } | { type: 'lab'; panelId: string | null } | { type: 'responsive'; panelId: string | null }
+  | { type: 'game' }
+  | { type: 'assets'; section: AssetLabSection; panelId: string | null }
+  | { type: 'lab'; panelId: string | null }
+  | { type: 'responsive'; panelId: string | null }
+  | { type: 'layout-editor'; panelId: string | null }
 
 function mountRouteLoading(root: HTMLElement, label: string): void {
   root.className = 'app app--route-loading'
@@ -62,6 +66,13 @@ export function mountClientRoute(root: HTMLElement, route: ClientRoute): () => v
         const { navigateApp } = await import('../navigation.ts')
         mountRoot.replaceChildren()
         return mountResponsiveMatrix(mountRoot, route.panelId, navigateApp)
+      })
+    case 'layout-editor':
+      return mountLazyRoute(root, 'Loading layout editor…', async (mountRoot) => {
+        const { mountLayoutEditor } = await import('./layout-editor.ts')
+        const { navigateApp } = await import('../navigation.ts')
+        mountRoot.replaceChildren()
+        return mountLayoutEditor(mountRoot, route.panelId, navigateApp)
       })
     default: {
       const sessionCleanup = mountGameSession(root)

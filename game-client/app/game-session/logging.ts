@@ -1,5 +1,6 @@
 import type { AiMove } from '@shared/core/ai/types.ts'
-import { ENDLESS_VISIBLE_ROWS, getEndlessScrollProfile } from '@shared/core/modes/endless/index.ts'
+import { getEndlessScrollProfile } from '@shared/core/modes/endless/index.ts'
+import { sessionVisibleRows } from '@shared/core/modes/endless/views.ts'
 import { MINES_PER_LIFE } from '@shared/core/modes/engine.ts'
 import type { LifeLossReport, ModeSession } from '@shared/core/types.ts'
 
@@ -94,8 +95,9 @@ function appendDeathDebug(
   }
 
   const board = next.state.board
-  const start = next.endlessViewStart ?? Math.max(0, board.rows - ENDLESS_VISIBLE_ROWS)
-  const end = Math.min(board.rows, start + ENDLESS_VISIBLE_ROWS)
+  const visibleRows = sessionVisibleRows(next)
+  const start = next.endlessViewStart ?? Math.max(0, board.rows - visibleRows)
+  const end = Math.min(board.rows, start + visibleRows)
   devLog('Review board legend: X=trigger mine !=trigger safe *=mine F=correct flag f=wrong flag ?=hidden .=0')
   for (let row = start; row < end; row += 1) {
     const screenRow = row - start

@@ -2,9 +2,9 @@ import { cloneBoard } from '../../board.ts'
 import { clearDefuseStreakOnMistake, recordMineHitScrollExempt } from '../../mines-defused.ts'
 import type { GameStatus, LifeLossCell, LifeLossReport, ModeSession } from '../../types.ts'
 import { isCellBlocked } from '../../types.ts'
-import { applyMinesFromSeed, getLocalNeighbors, inLocalBounds, visibleViewStart } from './grid.ts'
+import { applyMinesFromSeed, getLocalNeighbors, inLocalBounds } from './grid.ts'
 import { actionableBounds, applyLifeLoss, countNewlyRevealed, finalizeBoard, inRevealBounds, revealSingle, toScreenRow } from './reveal-pipeline.ts'
-import { isEndlessActionableLocalRow } from './views.ts'
+import { isEndlessActionableLocalRow, sessionVisibleRows, viewStartForSession } from './views.ts'
 
 /** Start endless run from the title screen without waiting for first reveal. Mines are fixed at session create. */
 export function endlessBeginRun(session: ModeSession): ModeSession {
@@ -36,12 +36,12 @@ export function endlessRevealAt(session: ModeSession, row: number, col: number):
     status = 'playing'
   }
 
-  const bounds = actionableBounds(board)
+  const bounds = actionableBounds(board, sessionVisibleRows(session))
   const outcome = revealSingle(board, row, col, bounds)
 
   if (outcome === 'mine') {
     const revealedDelta = countNewlyRevealed(before, board)
-    const viewStart = session.endlessViewStart ?? visibleViewStart(before)
+    const viewStart = viewStartForSession(session)
     const screenRow = toScreenRow(row, viewStart)
     const lifeLoss: LifeLossReport = {
       cause: 'mine-reveal',
@@ -82,8 +82,8 @@ export function endlessChordAt(session: ModeSession, row: number, col: number): 
 
   const before = state.board
   const board = cloneBoard(state.board)
-  const viewStart = session.endlessViewStart ?? visibleViewStart(before)
-  const bounds = actionableBounds(board)
+  const viewStart = viewStartForSession(session)
+  const bounds = actionableBounds(board, sessionVisibleRows(session))
   let mineHits = 0
   const mineCells: LifeLossCell[] = []
 

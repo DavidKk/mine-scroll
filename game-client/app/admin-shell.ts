@@ -2,7 +2,19 @@ import { BRAND_MARK_PATH, BRAND_NAME } from '../../lib/brand.ts'
 import { wrapWithCustomScrollbar } from '../ui/custom-scrollbar.ts'
 import { createAdminUserMenu } from './admin-chrome.ts'
 import { bindAdminNavIndicator, playAdminNavIndicatorEntrance } from './admin-nav-indicator.ts'
-import { type AssetLabSection, assetLabSectionPath, labPanelPath, RESPONSIVE_DEFAULT_PANEL, responsivePanelPath, ROUTES, UI_LAB_DEFAULT_PANEL } from './routes.ts'
+import {
+  type AssetLabSection,
+  assetLabSectionPath,
+  labPanelPath,
+  LAYOUT_EDITOR_DEFAULT_PANEL,
+  layoutEditorPanelPath,
+  RESPONSIVE_DEFAULT_PANEL,
+  responsivePanelPath,
+  ROUTES,
+  UI_LAB_DEFAULT_PANEL,
+} from './routes.ts'
+
+export type AdminTopModule = 'assets' | 'leaderboard' | 'layout-editor'
 
 export type AdminRailId = AssetLabSection | 'lab' | 'responsive'
 
@@ -24,8 +36,15 @@ const TOOL_RAIL: Array<{ id: 'lab' | 'responsive'; label: string; short: string;
   { id: 'responsive', label: 'Responsive', short: 'RSP', href: responsivePanelPath(RESPONSIVE_DEFAULT_PANEL) },
 ]
 
+const TOP_MODULES: Array<{ id: AdminTopModule; label: string; href: string }> = [
+  { id: 'assets', label: 'Assets', href: ASSETS_HOME },
+  { id: 'layout-editor', label: 'Layout', href: layoutEditorPanelPath(LAYOUT_EDITOR_DEFAULT_PANEL) },
+  { id: 'leaderboard', label: 'Leaderboard', href: '/admin/leaderboard' },
+]
+
 export interface AdminShellOptions {
-  activeRail: AdminRailId
+  activeModule: AdminTopModule
+  activeRail?: AdminRailId
   onNavigate: (path: string) => void
   withSubnav?: boolean
   eyebrow?: string
@@ -55,7 +74,7 @@ function createAdminBackdrop(): HTMLElement {
   return backdrop
 }
 
-function createAdminHeader(onNavigate: (path: string) => void): HTMLElement {
+function createAdminHeader(onNavigate: (path: string) => void, activeModule: AdminTopModule): HTMLElement {
   const header = document.createElement('header')
   header.className = 'admin-shell__header'
 
@@ -81,22 +100,18 @@ function createAdminHeader(onNavigate: (path: string) => void): HTMLElement {
   modules.className = 'admin-shell__modules'
   modules.setAttribute('aria-label', 'Admin sections')
 
-  const assetsLink = document.createElement('a')
-  assetsLink.href = ASSETS_HOME
-  assetsLink.className = 'admin-shell__module'
-  assetsLink.textContent = 'Assets'
-  assetsLink.setAttribute('aria-current', 'page')
-  assetsLink.addEventListener('click', (event) => {
-    event.preventDefault()
-    onNavigate(ASSETS_HOME)
-  })
-  modules.append(assetsLink)
-
-  const leaderboardLink = document.createElement('a')
-  leaderboardLink.href = '/admin/leaderboard'
-  leaderboardLink.className = 'admin-shell__module'
-  leaderboardLink.textContent = 'Leaderboard'
-  modules.append(leaderboardLink)
+  for (const item of TOP_MODULES) {
+    const link = document.createElement('a')
+    link.href = item.href
+    link.className = 'admin-shell__module'
+    link.textContent = item.label
+    if (item.id === activeModule) link.setAttribute('aria-current', 'page')
+    link.addEventListener('click', (event) => {
+      event.preventDefault()
+      onNavigate(item.href)
+    })
+    modules.append(link)
+  }
 
   bindAdminNavIndicator(modules)
 
@@ -155,17 +170,19 @@ function createAdminRail(active: AdminRailId, onNavigate: (path: string) => void
 }
 
 export function createAdminShell(options: AdminShellOptions): AdminShellLayout {
-  const { activeRail, onNavigate, withSubnav = false, eyebrow = '', title = '', description = '' } = options
+  const { activeModule, activeRail, onNavigate, withSubnav = false, eyebrow = '', title = '', description = '' } = options
 
   const root = document.createElement('div')
-  root.className = 'admin-shell'
+  root.className = `admin-shell${activeModule === 'assets' ? '' : ' admin-shell--no-rail'}`
 
-  root.append(createAdminBackdrop(), createAdminHeader(onNavigate))
+  root.append(createAdminBackdrop(), createAdminHeader(onNavigate, activeModule))
 
   const frame = document.createElement('div')
   frame.className = 'admin-shell__frame'
 
-  frame.append(createAdminRail(activeRail, onNavigate))
+  if (activeModule === 'assets' && activeRail) {
+    frame.append(createAdminRail(activeRail, onNavigate))
+  }
 
   const content = document.createElement('div')
   content.className = 'admin-shell__content'

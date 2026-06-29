@@ -468,6 +468,7 @@ export function mountUiLab(root: HTMLElement, initialPanelId: string | null, onN
   ])
 
   const disposeShell = mountAdminModuleShell(root, {
+    activeModule: 'assets',
     activeRail: 'lab',
     onNavigate,
     eyebrow: 'UI Lab',

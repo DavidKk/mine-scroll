@@ -33,13 +33,13 @@ function starParticleBrightness(seed: number, nowMs: number): { alpha: number; s
 /**
  * Soft star bloom — radial halo + warm core (subtle; no heavy lens flare).
  */
-function drawStarParticle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rgb: string, alpha: number, bright: number, kind: number): void {
+function drawStarParticle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rgb: string, alpha: number, bright: number, kind: number, lite = false): void {
   if (alpha < 0.035) return
 
-  if (bright < 0.38) {
+  if (lite || bright < 0.38) {
     ctx.fillStyle = `rgba(${rgb}, ${alpha * 0.85})`
     ctx.beginPath()
-    ctx.arc(x, y, Math.max(0.45, size * 0.42), 0, Math.PI * 2)
+    ctx.arc(x, y, Math.max(0.45, size * (lite ? 0.5 : 0.42)), 0, Math.PI * 2)
     ctx.fill()
     return
   }
@@ -93,7 +93,16 @@ function drawStarParticle(ctx: CanvasRenderingContext2D, x: number, y: number, s
   }
 }
 /** Sparse full-screen star dust — always visible even at idle intensity. */
-function drawAmbientStarfield(ctx: CanvasRenderingContext2D, shellW: number, shellH: number, nowMs: number, colors: CosmicPalette, density: number, glow: number): void {
+function drawAmbientStarfield(
+  ctx: CanvasRenderingContext2D,
+  shellW: number,
+  shellH: number,
+  nowMs: number,
+  colors: CosmicPalette,
+  density: number,
+  glow: number,
+  liteStars: boolean
+): void {
   const count = Math.floor(AMBIENT_STAR_COUNT * density)
   ctx.save()
   for (let i = 0; i < count; i += 1) {
@@ -104,7 +113,7 @@ function drawAmbientStarfield(ctx: CanvasRenderingContext2D, shellW: number, she
     const alpha = clamp01((0.18 + hash01(seed + 3) * 0.32) * bright * glow)
     const size = (1.1 + hash01(seed + 4) * 2.2) * sizeMul
     const rgb = hash01(seed + 5) > 0.82 ? colors.starWarm : colors.starCool
-    drawStarParticle(ctx, sx, sy, size, rgb, alpha, bright, kind)
+    drawStarParticle(ctx, sx, sy, size, rgb, alpha, bright, kind, liteStars)
   }
   ctx.restore()
 }
@@ -122,7 +131,8 @@ function drawParallaxStarDrift(
   drift: number,
   density: number,
   glow: number,
-  intensity: number
+  intensity: number,
+  liteStars: boolean
 ): void {
   ctx.save()
   const motion = drift * glow
@@ -152,13 +162,14 @@ function drawParallaxStarDrift(
         ctx.stroke()
       }
 
-      drawStarParticle(ctx, sx, sy, size, rgb, alpha, bright, kind)
+      drawStarParticle(ctx, sx, sy, size, rgb, alpha, bright, kind, liteStars)
     }
   }
   ctx.restore()
 }
 
 export function drawParticlesLayer(ctx: CanvasRenderingContext2D, shellW: number, shellH: number, nowMs: number, colors: CosmicPalette, tuning: BackdropParticlesTuning): void {
-  drawAmbientStarfield(ctx, shellW, shellH, nowMs, colors, tuning.density, tuning.glow)
-  drawParallaxStarDrift(ctx, shellW, shellH, nowMs, colors, tuning.drift, tuning.density, tuning.glow, tuning.streakIntensity)
+  const lite = tuning.liteStars ?? false
+  drawAmbientStarfield(ctx, shellW, shellH, nowMs, colors, tuning.density, tuning.glow, lite)
+  drawParallaxStarDrift(ctx, shellW, shellH, nowMs, colors, tuning.drift, tuning.density, tuning.glow, tuning.streakIntensity, lite)
 }

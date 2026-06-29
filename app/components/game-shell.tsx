@@ -23,6 +23,10 @@ function isAdminRoute(route: ClientRoute): boolean {
   return route.type !== 'game'
 }
 
+function adminShellWithRail(route: ClientRoute): boolean {
+  return route.type === 'assets' || route.type === 'lab' || route.type === 'responsive'
+}
+
 export function GameShell({ route }: GameShellProps) {
   const isGame = isGameRoute(route)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -67,12 +71,13 @@ export function GameShell({ route }: GameShellProps) {
     route.type === 'assets' ? route.panelId : '',
     route.type === 'lab' ? route.panelId : '',
     route.type === 'responsive' ? route.panelId : '',
+    route.type === 'layout-editor' ? route.panelId : '',
   ])
 
   return (
     <>
       {showLoader && isGame ? <BootScreenShell ref={bootScreenRef} /> : null}
-      {showLoader && !isGame ? <AdminShellSkeleton withRail={isAdminRoute(route)} withSubnav={isAdminRoute(route)} /> : null}
+      {showLoader && !isGame ? <AdminShellSkeleton withRail={adminShellWithRail(route)} withSubnav={isAdminRoute(route)} /> : null}
       <div ref={rootRef} className="game-root" />
     </>
   )

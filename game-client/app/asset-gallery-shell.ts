@@ -18,6 +18,7 @@ function mountAssetSectionShell(
 ): () => void {
   const meta = assetLabSectionMeta(section)
   const layout = createAdminShell({
+    activeModule: 'assets',
     activeRail: section,
     onNavigate,
     withSubnav: true,

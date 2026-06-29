@@ -1,5 +1,6 @@
 import type { ScrollPressureState } from '../../renderer/index.ts'
 import type { FpsOverlay } from '../fps-overlay.ts'
+import type { CanvasInputBindings } from '../input/listener-bindings.ts'
 import type { TouchGestureController } from '../input/touch-gesture.ts'
 import type { GameCanvasCallbacks, GameCanvasFullscreenOptions, GameCanvasOptions, ViewportFitOptions } from '../types.ts'
 import type { CanvasRuntimeState } from './state.ts'
@@ -12,6 +13,7 @@ export interface GameCanvasRuntime {
   canvasOptions: GameCanvasOptions
   mineTotal: number
   fpsOverlay: FpsOverlay
+  inputBindings?: CanvasInputBindings
   fixedCellSize: number | undefined
   fixedGridRows: number | undefined
   fitViewport: ViewportFitOptions | undefined
