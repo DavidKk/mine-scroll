@@ -11,7 +11,7 @@ export function sortLeaderboardEntries(entries: LeaderboardEntry[]): Leaderboard
   })
 }
 
-function normalizeLeaderboardEntry(entry: LeaderboardEntry): LeaderboardEntry | null {
+export function normalizeLeaderboardEntry(entry: LeaderboardEntry): LeaderboardEntry | null {
   if (
     !entry ||
     typeof entry.id !== 'string' ||

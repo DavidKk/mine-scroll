@@ -7,6 +7,7 @@ export {
   isBetterLeaderboardEntry,
   mergeLeaderboardEntry,
   normalizeLeaderboardEntries,
+  normalizeLeaderboardEntry,
   sanitizeLeaderboardName,
   sanitizeLeaderboardScore,
   sanitizePlayerId,
