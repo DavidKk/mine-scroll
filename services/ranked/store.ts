@@ -143,8 +143,8 @@ export async function finishRankedRun(
 
   const score = sanitizeClaimedScore(claimedScore)
   const depth = sanitizeClaimedDepth(claimedDepth)
-  if (score <= 0) {
-    throw new LeaderboardServiceError('Score must be greater than zero.', 400)
+  if (score < 0) {
+    throw new LeaderboardServiceError('Score must be zero or greater.', 400)
   }
 
   const eventsFromKv = (await getJsonKv<RunInputEvent[]>(eventsKey(runId))) ?? []
@@ -216,7 +216,7 @@ export async function finishRankedRun(
   let saved = false
   let rank: number | undefined
 
-  if (status === 'accepted') {
+  if (status === 'accepted' && verifiedScore > 0) {
     const board = (await getJsonKv<LeaderboardBoard>(LEADERBOARD_KV_KEY)) ?? { entries: [], updatedAt: 0 }
     const upsert = upsertPlayerBestEntry(normalizeLeaderboardEntries(board.entries), {
       id: playerId,
