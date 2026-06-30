@@ -3,6 +3,7 @@ import type { Board, LifeLossCell, LifeLossCellKind, LifeLossReport, ModeSession
 import { ENDLESS_SCROLL_BATCH_MAX } from './constants.ts'
 import { compactAndBufferBoard, compactTrailingBlankRows, isRowAllBlank, prependRow, recomputeAllAdjacent, removeBottomRow, visibleViewStart } from './grid.ts'
 import { applyLifeLoss, syncPendingReveals, toScreenRow } from './reveal-pipeline.ts'
+import { resolveScrollBatchRowsForSession } from './scroll-timing.ts'
 import { sessionVisibleRows, viewStartForSession } from './views.ts'
 
 function isBottomCellScrollExempt(session: ModeSession, board: Board, localRow: number, col: number): boolean {
@@ -12,15 +13,56 @@ function isBottomCellScrollExempt(session: ModeSession, board: Board, localRow: 
   return false
 }
 
-function countRowLeavingPenalty(session: ModeSession, board: Board, localRow: number): number {
-  let count = 0
-  for (let col = 0; col < board.cols; col += 1) {
-    if (penaltyCellKind(session, board, localRow, col)) count += 1
-  }
-  return count
+function resolveLeavingBatchRows(session: ModeSession, batchRows?: number): number {
+  if (batchRows != null) return Math.max(1, Math.min(ENDLESS_SCROLL_BATCH_MAX, batchRows))
+  return resolveScrollBatchRowsForSession(session)
 }
 
-/** Bottom-row scroll damage: one life per undisposed cell leaving the row (unflagged mine, wrong flag, unrevealed). */
+/** Whether a screen row is in the zone about to scroll off (matches danger band). */
+export function isScrollLeavingScreenRow(session: ModeSession, screenRow: number, batchRows?: number): boolean {
+  if (screenRow < 0) return false
+  const visibleRows = sessionVisibleRows(session)
+  if (screenRow >= visibleRows) return false
+  const rows = resolveLeavingBatchRows(session, batchRows)
+  return screenRow >= Math.max(0, visibleRows - rows)
+}
+
+/** Whether a local row is in the zone about to scroll off (danger band / bottom batch). */
+export function isScrollLeavingLocalRow(session: ModeSession, board: Board, localRow: number, batchRows?: number): boolean {
+  if (localRow < 0 || localRow >= board.rows) return false
+  const viewStart = viewStartForSession(session)
+  return isScrollLeavingScreenRow(session, localRow - viewStart, batchRows)
+}
+
+function getRowLeavingPenaltyBreakdown(
+  session: ModeSession,
+  board: Board,
+  localRow: number
+): {
+  mineUnflagged: number
+  unrevealed: number
+  wrongFlag: number
+} {
+  const breakdown = { mineUnflagged: 0, unrevealed: 0, wrongFlag: 0 }
+  for (let col = 0; col < board.cols; col += 1) {
+    const kind = penaltyCellKind(session, board, localRow, col)
+    if (kind === 'mine-unflagged') breakdown.mineUnflagged += 1
+    else if (kind === 'unrevealed') breakdown.unrevealed += 1
+    else if (kind === 'wrong-flag') breakdown.wrongFlag += 1
+  }
+  return breakdown
+}
+
+/** Wrong flags cost at most −1 life per leaving row; mines and unrevealed cells are per-cell. */
+function rowScrollDamageFromBreakdown(breakdown: { mineUnflagged: number; unrevealed: number; wrongFlag: number }): number {
+  return breakdown.mineUnflagged + breakdown.unrevealed + (breakdown.wrongFlag > 0 ? 1 : 0)
+}
+
+function countRowLeavingPenalty(session: ModeSession, board: Board, localRow: number): number {
+  return rowScrollDamageFromBreakdown(getRowLeavingPenaltyBreakdown(session, board, localRow))
+}
+
+/** Bottom-row scroll damage: per-cell for mines/unrevealed; wrong flags capped at −1 per row. */
 export function computeBottomRowScrollDamage(session: ModeSession, board: Board, localRow = board.rows - 1): number {
   if (localRow < 0 || localRow >= board.rows) return 0
   if (board.minesPlaced) {
@@ -30,7 +72,7 @@ export function computeBottomRowScrollDamage(session: ModeSession, board: Board,
   return countRowLeavingPenalty(session, board, localRow)
 }
 
-/** One scroll event with N leaving rows: −1 life per undisposed cell across those rows. */
+/** One scroll event with N leaving rows: per-cell mine/unrevealed; wrong flags −1 max per row. */
 export function computeBatchScrollDamage(session: ModeSession, board: Board, batchRows: number): number {
   const n = Math.max(1, Math.min(batchRows, board.rows))
   let total = 0
@@ -47,13 +89,13 @@ export function isBottomRowScrollSafe(session: ModeSession): boolean {
   return computeBottomRowScrollDamage(session, session.state.board) === 0
 }
 
-/** Screen cells that would cost a life when rows scroll off. */
+/** Screen cells with unflagged mines leaving on scroll (mine explosion FX only). */
 export interface ScrollLeavingMineCell {
   screenRow: number
   col: number
 }
 
-export function collectScrollLeavingMineCells(session: ModeSession, batchRows: number): ScrollLeavingMineCell[] {
+function collectScrollLeavingCellsByKind(session: ModeSession, batchRows: number, kind: LifeLossCellKind): ScrollLeavingMineCell[] {
   if (session.modeId !== 'endless' || session.state.status !== 'playing') return []
 
   const board = session.state.board
@@ -65,12 +107,21 @@ export function collectScrollLeavingMineCells(session: ModeSession, batchRows: n
     const localRow = board.rows - 1 - i
     if (localRow < 0 || isRowAllBlank(board, localRow)) continue
     for (let col = 0; col < board.cols; col += 1) {
-      if (!penaltyCellKind(session, board, localRow, col)) continue
+      if (penaltyCellKind(session, board, localRow, col) !== kind) continue
       out.push({ screenRow: toScreenRow(localRow, viewStart), col })
     }
   }
 
   return out
+}
+
+export function collectScrollLeavingMineCells(session: ModeSession, batchRows: number): ScrollLeavingMineCell[] {
+  return collectScrollLeavingCellsByKind(session, batchRows, 'mine-unflagged')
+}
+
+/** Screen cells with wrong flags leaving on scroll (wrong-flag-break FX, not mine explosion). */
+export function collectScrollLeavingWrongFlagCells(session: ModeSession, batchRows: number): ScrollLeavingMineCell[] {
+  return collectScrollLeavingCellsByKind(session, batchRows, 'wrong-flag')
 }
 
 /** Before batch scroll: all N leaving rows are safe. */
@@ -85,7 +136,7 @@ function penaltyCellKind(session: ModeSession, board: Board, localRow: number, c
   if (cell.isMine) {
     return cell.mark === 'flag' ? null : 'mine-unflagged'
   }
-  if (cell.mark === 'flag') return null
+  if (cell.mark === 'flag') return 'wrong-flag'
   return 'unrevealed'
 }
 
@@ -114,14 +165,16 @@ function buildScrollLifeLoss(session: ModeSession, board: Board, localRow: numbe
       kind,
     })
   }
-  const damage = cells.length
+  const breakdown = getRowLeavingPenaltyBreakdown(session, board, localRow)
+  const damage = rowScrollDamageFromBreakdown(breakdown)
   const cellDesc = cells.map((c) => `(${c.screenRow},${c.col})${cellKindLabel(c.kind)}`).join(' ')
+  const wrongFlagNote = breakdown.wrongFlag > 1 ? ` (${breakdown.wrongFlag} wrong flags → −1 life)` : ''
   return {
     cause: 'scroll-bottom',
     damage,
     cells,
     boardChange: 'Bottom row scrolled off · top row added',
-    reason: `Scroll bottom life loss (−${damage} undisposed cell${damage === 1 ? '' : 's'}) · leaks: ${cellDesc}`,
+    reason: `Scroll bottom life loss (−${damage} life${damage === 1 ? '' : 's'}) · leaks: ${cellDesc}${wrongFlagNote}`,
   }
 }
 
@@ -133,7 +186,7 @@ function mergeScrollLifeLossReports(reports: LifeLossReport[], totalDamage: numb
     damage: totalDamage,
     cells,
     boardChange: reports.length > 1 ? `${reports.length} bottom rows scrolled off · top rows added` : reports[0]!.boardChange,
-    reason: `Scroll bottom life loss (−${totalDamage} undisposed cell${totalDamage === 1 ? '' : 's'}) · leaks: ${cellDesc}`,
+    reason: `Scroll bottom life loss (−${totalDamage} life${totalDamage === 1 ? '' : 's'}) · leaks: ${cellDesc}`,
   }
 }
 
@@ -186,7 +239,7 @@ function performSingleRowScroll(session: ModeSession): SingleRowScrollResult {
 }
 
 /**
- * Conveyor batch tick: each event scrolls batchRows; −1 life per undisposed cell leaving.
+ * Conveyor batch tick: each event scrolls batchRows; mines/unrevealed per cell, wrong flags −1 max per row.
  */
 export function endlessScrollBatch(session: ModeSession, batchRows = 1): ModeSession {
   if (session.state.status !== 'playing') return session

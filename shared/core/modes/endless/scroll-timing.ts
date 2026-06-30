@@ -1,5 +1,5 @@
 import type { ModeSession } from '../../types.ts'
-import { ENDLESS_SCROLL_DECAY, ENDLESS_SCROLL_MS_MIN, ENDLESS_SCROLL_MS_START } from './constants.ts'
+import { ENDLESS_SCROLL_BATCH_MAX, ENDLESS_SCROLL_DECAY, ENDLESS_SCROLL_MS_MIN, ENDLESS_SCROLL_MS_START } from './constants.ts'
 import type { EndlessDifficultyPreset, EndlessDifficultyPresetId } from './presets.ts'
 import { getEndlessPresetForSession, resolveScrollPreset } from './presets.ts'
 
@@ -41,6 +41,20 @@ export function getEndlessScrollProfile(elapsedMs: number, presetOrId?: EndlessD
 
 export function getEndlessScrollProfileForSession(session: ModeSession, elapsedMs: number): EndlessScrollProfile {
   return getEndlessScrollProfile(elapsedMs, getEndlessPresetForSession(session))
+}
+
+/** Leaving-row width for the current scroll tier (client-synced or estimated from depth). */
+export function resolveScrollBatchRowsForSession(session: ModeSession, elapsedMs?: number): number {
+  if (session.scrollBatchRows != null && session.scrollBatchRows > 0) {
+    return Math.max(1, Math.min(ENDLESS_SCROLL_BATCH_MAX, session.scrollBatchRows))
+  }
+  if (elapsedMs != null) {
+    return getEndlessScrollProfileForSession(session, elapsedMs).batchRows
+  }
+  const preset = getEndlessPresetForSession(session)
+  const step = session.scrollRowCount ?? 0
+  const batchTier = Math.min(preset.scrollBatchTiers.length - 1, Math.floor(step / 2))
+  return preset.scrollBatchTiers[batchTier]!
 }
 
 export function getEndlessScrollIntervalMsFromElapsed(elapsedMs: number, presetOrId?: EndlessDifficultyPreset | EndlessDifficultyPresetId): number {

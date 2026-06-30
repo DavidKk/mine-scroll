@@ -454,15 +454,16 @@
 
 **产出：** `shared/core/modes/endless/scroll.ts`、`scripts/run-tests.ts`
 
-**做法摘要：** 错旗在 `endlessToggleMarkAt` 插旗瞬间 −1 命并清消雷连击；卷轴 `penaltyCellKind` 不再对 `wrong-flag` 重复扣血。未翻开格 / 未插旗雷仍按底行离屏扣血。
+**做法摘要：** 错旗插旗不扣血；卷屏离屏时扣血（错旗每行最多 −1，雷/未翻开仍按格）。`collectScrollLeavingMineCells` 仅地雷爆炸 FX；错旗走 `wrong-flag-break` + `lifeWarning`。
 
 **Review 检查项：**
 
-- [x] 错旗插旗即扣血；全插旗无法白嫖消雷
-- [x] 卷轴不对错旗二次扣血
-- [x] `npm run build` + 78 项 `run-tests.ts` 通过
+- [x] 插旗不扣血；离屏结算，错旗与雷扣血规则分离
+- [x] 全插旗无法白嫖消雷（scroll damage > 0 时不入账）
+- [x] 卷屏 FX：仅未插旗雷爆炸，错旗不播 mine 爆炸
+- [x] `npm run build` + 81 项 `run-tests.ts` 通过
 
-**优化项：** 卷轴 detonation FX 仍对所有 penalty 格播 mine 爆炸，错旗可后续接 `wrong-flag-break`
+**优化项：** 未翻开格离屏暂无专用 FX（仅扣血）
 
 **结论：** ✅ 通过
 

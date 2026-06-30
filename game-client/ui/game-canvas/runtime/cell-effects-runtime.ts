@@ -150,7 +150,7 @@ export function drawCellEffects(rt: GameCanvasRuntime, effectCtx: CanvasRenderin
 
   effectCtx.save()
   for (const fx of rt.state.cellEffects) {
-    if (fx.kind === 'scroll-mine-ghost') continue
+    if (fx.kind === 'scroll-mine-ghost' || fx.kind === 'scroll-wrong-flag-ghost') continue
     const age = now - fx.startedAt
     const t = Math.max(0, Math.min(1, age / fx.durationMs))
     const { x, y } = cellPixelForFx(fx.row, fx.col, gridOriginX, gridOriginY, grid)

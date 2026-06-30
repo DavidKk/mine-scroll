@@ -1,5 +1,6 @@
 import {
   collectScrollLeavingMineCells,
+  collectScrollLeavingWrongFlagCells,
   endlessScrollTick,
   getEndlessPresetForSession,
   getEndlessScrollPressure,
@@ -19,13 +20,22 @@ export interface ScrollControllerDeps {
   stopAiAuto(): void
   onScrollTick?: () => void
   queueMineExplosions?: (cells: { row: number; col: number }[]) => void
+  queueWrongFlagBreaks?: (cells: { row: number; col: number }[]) => void
   onScrollMineDetonate?: () => void
+  onScrollWrongFlagBreak?: () => void
   onTerminalGameStatus?: (status: 'won' | 'lost') => void
 }
 
 const SCROLL_MINE_GHOST_MS = GAME_ASSET_TUNING.fx.mineExplosion.durationMs
-/** Scroll after mine is shown and blast starts — ghost keeps pinned while board moves. */
+const SCROLL_WRONG_FLAG_GHOST_MS = GAME_ASSET_TUNING.fx.break.durationMs
+/** Scroll after FX starts — ghosts stay pinned while board moves. */
 const SCROLL_COMMIT_AT = 0.55
+
+function scrollFxCommitDelayMs(hasMines: boolean, hasWrongFlags: boolean): number {
+  const mineMs = hasMines ? SCROLL_MINE_GHOST_MS * SCROLL_COMMIT_AT : 0
+  const wrongFlagMs = hasWrongFlags ? SCROLL_WRONG_FLAG_GHOST_MS * SCROLL_COMMIT_AT : 0
+  return Math.round(Math.max(mineMs, wrongFlagMs))
+}
 
 export interface ScrollController {
   getElapsedMs(): number
@@ -61,7 +71,19 @@ function clearScrollDetonation(runtime: GameSessionRuntime): void {
 }
 
 export function createScrollController(deps: ScrollControllerDeps): ScrollController {
-  const { runtime, gameLog, applySession, render, refreshAiHint, onScrollTick, queueMineExplosions, onScrollMineDetonate, onTerminalGameStatus } = deps
+  const {
+    runtime,
+    gameLog,
+    applySession,
+    render,
+    refreshAiHint,
+    onScrollTick,
+    queueMineExplosions,
+    queueWrongFlagBreaks,
+    onScrollMineDetonate,
+    onScrollWrongFlagBreak,
+    onTerminalGameStatus,
+  } = deps
 
   function getElapsedMs(): number {
     return getScrollElapsedMsFromRuntime(runtime)
@@ -93,6 +115,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     const profile = getEndlessScrollProfileForSession(runtime.session, getElapsedMs())
     runtime.scrollIntervalMs = profile.intervalMs
     runtime.scrollDeadlineAt = Date.now() + profile.intervalMs
+    runtime.session = { ...runtime.session, scrollBatchRows: profile.batchRows }
     render()
 
     runtime.scrollTimeoutId = window.setTimeout(() => {
@@ -146,10 +169,19 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     const profile = getEndlessScrollProfileForSession(runtime.session, getElapsedMs())
     const batchRows = profile.batchRows
     const leavingMines = collectScrollLeavingMineCells(runtime.session, batchRows)
+    const leavingWrongFlags = collectScrollLeavingWrongFlagCells(runtime.session, batchRows)
+    const hasMineFx = leavingMines.length > 0 && queueMineExplosions != null
+    const hasWrongFlagFx = leavingWrongFlags.length > 0 && queueWrongFlagBreaks != null
 
-    if (leavingMines.length > 0 && queueMineExplosions) {
-      queueMineExplosions(leavingMines.map((cell) => ({ row: cell.screenRow, col: cell.col })))
-      onScrollMineDetonate?.()
+    if (hasMineFx || hasWrongFlagFx) {
+      if (hasMineFx) {
+        queueMineExplosions!(leavingMines.map((cell) => ({ row: cell.screenRow, col: cell.col })))
+        onScrollMineDetonate?.()
+      }
+      if (hasWrongFlagFx) {
+        queueWrongFlagBreaks!(leavingWrongFlags.map((cell) => ({ row: cell.screenRow, col: cell.col })))
+        onScrollWrongFlagBreak?.()
+      }
       runtime.scrollPendingTick = { manual, aiReason, batchRows }
       render()
       runtime.scrollDetonateTimeoutId = window.setTimeout(
@@ -160,7 +192,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
           if (!pending || runtime.session.state.status !== 'playing') return
           commitScrollTick(pending.manual, pending.aiReason, pending.batchRows)
         },
-        Math.round(SCROLL_MINE_GHOST_MS * SCROLL_COMMIT_AT)
+        scrollFxCommitDelayMs(hasMineFx, hasWrongFlagFx)
       )
       return
     }

@@ -112,6 +112,8 @@ export interface ModeSession {
   pendingRevealKeys?: string[]
   defusedMineKeys?: string[]
   exemptScrollPenaltyKeys?: string[]
+  /** Current scroll batch tier — synced from client scroll timer for leaving-row scroll penalties. */
+  scrollBatchRows?: number
   hitMineKeys?: string[]
   aiOscillationBlocked?: string[]
   aiContradictedFlags?: string[]

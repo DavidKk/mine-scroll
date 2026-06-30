@@ -326,7 +326,9 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     stopAiAuto: () => ai.stopAiAuto(),
     onScrollTick: () => gameAudio.play('scrollUp'),
     queueMineExplosions: (cells) => runtime.view?.queueScrollMineGhosts(cells),
+    queueWrongFlagBreaks: (cells) => runtime.view?.queueScrollWrongFlagGhosts(cells),
     onScrollMineDetonate: () => gameAudio.play('mineHit'),
+    onScrollWrongFlagBreak: () => gameAudio.play('lifeWarning'),
     onTerminalGameStatus: handleTerminalGameStatus,
   })
 
@@ -413,7 +415,8 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
 
     if (runGeneration !== sessionGeneration) return
     const next = endlessBeginRun(runtime.session)
-    applySession(next, undefined, { trigger: 'Game run started' })
+    const beginProfile = getEndlessScrollProfileForSession(next, 0)
+    applySession({ ...next, scrollBatchRows: beginProfile.batchRows }, undefined, { trigger: 'Game run started' })
     scroll.markGameClockStarted()
     scroll.startScrollTimer()
     gameLog.clear()
@@ -556,9 +559,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
             playFlagToggleAudio(gameAudio, !wasFlagged)
           }
           applySession(next, beforeLives, { trigger: `Player flag ${formatCell(row, col)}` })
-          if (next.state.status === 'lost') {
-            handleTerminalGameStatus(next.state.status)
-          }
           render()
         },
         onChord(row, col) {

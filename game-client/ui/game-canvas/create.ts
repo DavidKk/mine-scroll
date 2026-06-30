@@ -10,7 +10,7 @@ import { collectCellEffects } from './runtime/cell-effects-runtime.ts'
 import type { GameCanvasRuntime } from './runtime/context.ts'
 import { paint } from './runtime/paint.ts'
 import { bindPaintScheduler, cancelScheduledPaint, requestRepaint, startAmbientLoop } from './runtime/paint-scheduler.ts'
-import { queueScrollMineGhosts } from './runtime/scroll-ghost-fx.ts'
+import { queueScrollMineGhosts, queueScrollWrongFlagGhosts } from './runtime/scroll-ghost-fx.ts'
 import { createInitialRuntimeState } from './runtime/state.ts'
 import type { GameCanvasCallbacks, GameCanvasController, GameCanvasOptions } from './types.ts'
 import { applyCanvasSize } from './types.ts'
@@ -164,6 +164,7 @@ export function createGameCanvas(
       rt.paint()
     },
     queueScrollMineGhosts: (cells) => queueScrollMineGhosts(rt, cells),
+    queueScrollWrongFlagGhosts: (cells) => queueScrollWrongFlagGhosts(rt, cells),
     getRankedLayoutSnapshot: () => layoutSnapshotFromRuntime(rt),
     destroy() {
       controller.stopTimer()

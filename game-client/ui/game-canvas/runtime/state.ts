@@ -7,7 +7,7 @@ import type { GameStageLayout } from '../../game-stage-layout.ts'
 import type { LayoutMetrics } from '../../renderer/index.ts'
 import type { GameCanvasHudStats } from '../types.ts'
 
-export type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode' | 'scroll-mine-ghost'
+export type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode' | 'scroll-mine-ghost' | 'scroll-wrong-flag-ghost'
 
 export interface CellFx {
   kind: CellFxKind

@@ -11,7 +11,7 @@ import { ensureBoardLayerCache } from './board-layer-cache.ts'
 import { drawCellEffects, pruneEffects } from './cell-effects-runtime.ts'
 import type { GameCanvasRuntime } from './context.ts'
 import { scheduleContinuousRepaint, syncPressureRepaint } from './paint-scheduler.ts'
-import { drawScrollMineGhostEffects } from './scroll-ghost-fx.ts'
+import { drawScrollGhostEffects } from './scroll-ghost-fx.ts'
 
 export function paint(rt: GameCanvasRuntime): void {
   syncFullscreenCanvasSize(rt)
@@ -97,7 +97,7 @@ export function paint(rt: GameCanvasRuntime): void {
   if (rt.fullscreen) {
     rt.ctx.restore()
     drawFullscreenOverlay(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height, intro)
-    drawScrollMineGhostEffects(rt, rt.ctx, now)
+    drawScrollGhostEffects(rt, rt.ctx, now)
     if (intro && !intro.complete) drawGameIntroChrome(rt, rt.ctx, rt.state.width, intro)
     drawFullscreenHud(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height, intro)
     if (rt.state.stageLayout) {

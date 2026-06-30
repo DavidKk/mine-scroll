@@ -23,6 +23,7 @@ import {
   applyMinesFromSeed,
   CHALLENGE_PRESET,
   collectScrollLeavingMineCells,
+  collectScrollLeavingWrongFlagCells,
   computeBatchScrollDamage,
   createEndlessSession,
   ENDLESS_COLS,
@@ -38,8 +39,10 @@ import {
   getEndlessMineRatio,
   getEndlessScrollProfile,
   isBatchScrollSafe,
+  isScrollLeavingScreenRow,
   SCROLL_BATCH_TIERS,
   SCROLL_INTERVAL_TIERS_MS,
+  sessionVisibleRows,
 } from '../shared/core/modes/endless/index.ts'
 import { toggleMarkAt } from '../shared/core/modes/engine.ts'
 import type { ModeSession } from '../shared/core/types.ts'
@@ -687,6 +690,33 @@ function testScrollLeavingMinesCollectedBeforeScroll(): void {
   }
 }
 
+function testScrollLeavingWrongFlagsExcludedFromMineFx(): void {
+  const base = createEndlessSession()
+  const board = cloneBoard(base.state.board)
+  board.minesPlaced = true
+  const visibleRows = sessionVisibleRows(base)
+  const viewStart = board.rows - visibleRows
+  const row = board.rows - 1
+  for (let col = 0; col < board.cols; col += 1) {
+    board.cells[row]![col] = {
+      isMine: false,
+      adjacentMines: 0,
+      revealed: col > 0,
+      mark: col === 0 ? 'flag' : 'none',
+    }
+  }
+  const session: ModeSession = {
+    ...base,
+    state: { ...base.state, status: 'playing', board },
+    endlessVisibleRows: visibleRows,
+    endlessViewStart: viewStart,
+    scrollBatchRows: 1,
+  }
+
+  assert.deepEqual(collectScrollLeavingMineCells(session, 1), [])
+  assert.deepEqual(collectScrollLeavingWrongFlagCells(session, 1), [{ screenRow: visibleRows - 1, col: 0 }])
+}
+
 function testScrollProceedsWhenBottomUnsafe(): void {
   const session = endlessSessionWithUnsafeBottom()
   assert.equal(isBatchScrollSafe(session, 1), false)
@@ -705,12 +735,61 @@ function testScrollDamageEqualsLeavingPenaltyCount(): void {
   assert.equal(beforeLives - (next.lives ?? 0), Math.min(beforeLives, expectedDamage))
 }
 
-function testWrongFlagPlacementCostsLife(): void {
+function testWrongFlagOnLeavingRowCostsLifeOnScrollOnly(): void {
   const base = createEndlessSession()
   const board = cloneBoard(base.state.board)
   board.minesPlaced = true
   const row = board.rows - 1
-  board.cells[row]![0] = {
+  for (let col = 0; col < board.cols; col += 1) {
+    board.cells[row]![col] = {
+      isMine: false,
+      adjacentMines: 0,
+      revealed: col > 0,
+      mark: 'none',
+    }
+  }
+  const session: ModeSession = {
+    ...base,
+    state: { ...base.state, status: 'playing', board },
+    lives: 5,
+    scrollBatchRows: 1,
+  }
+
+  const beforeLives = session.lives ?? 0
+  const flagged = toggleMarkAt(session, row, 0)
+  assert.equal(flagged.lives, beforeLives, 'wrong flag on leaving row should not cost life when placed')
+  assert.equal(flagged.lastLifeLoss, undefined)
+
+  const afterScroll = endlessScrollTick(flagged, 1)
+  assert.equal(afterScroll.lastLifeLoss?.cause, 'scroll-bottom')
+  assert.equal(
+    afterScroll.lastLifeLoss?.cells.some((cell) => cell.kind === 'wrong-flag'),
+    true
+  )
+  assert.equal(beforeLives - (afterScroll.lives ?? 0), 1)
+}
+
+function testWrongFlagOnSecondLeavingScreenRowCostsLifeOnScroll(): void {
+  const base = createEndlessSession()
+  const board = cloneBoard(base.state.board)
+  board.minesPlaced = true
+  const visibleRows = 18
+  const batchRows = 3
+  const viewStart = board.rows - visibleRows
+  const screenRow = visibleRows - 2
+  const localRow = viewStart + screenRow
+  for (let offset = 0; offset < batchRows; offset += 1) {
+    const row = board.rows - 1 - offset
+    for (let col = 0; col < board.cols; col += 1) {
+      board.cells[row]![col] = {
+        isMine: false,
+        adjacentMines: 0,
+        revealed: col > 0 || row !== localRow,
+        mark: 'none',
+      }
+    }
+  }
+  board.cells[localRow]![0] = {
     isMine: false,
     adjacentMines: 0,
     revealed: false,
@@ -720,17 +799,54 @@ function testWrongFlagPlacementCostsLife(): void {
     ...base,
     state: { ...base.state, status: 'playing', board },
     lives: 5,
+    endlessVisibleRows: visibleRows,
+    endlessViewStart: viewStart,
+    scrollBatchRows: batchRows,
   }
 
+  assert.equal(isScrollLeavingScreenRow(session, screenRow, batchRows), true)
   const beforeLives = session.lives ?? 0
-  const next = toggleMarkAt(session, row, 0)
-  assert.equal(next.lastLifeLoss?.cause, 'wrong-flag')
-  assert.equal(next.lastLifeLoss?.damage, 1)
-  assert.equal(next.lastLifeLoss?.cells[0]?.kind, 'wrong-flag')
-  assert.equal(beforeLives - (next.lives ?? 0), 1)
+  const flagged = toggleMarkAt(session, localRow, 0)
+  assert.equal(flagged.lives, beforeLives, 'wrong flag should not cost life when placed on leaving row')
+  assert.equal(flagged.lastLifeLoss, undefined)
+
+  const afterScroll = endlessScrollTick(flagged, batchRows)
+  assert.equal(
+    afterScroll.lastLifeLoss?.cells.some((cell) => cell.kind === 'wrong-flag'),
+    true
+  )
+  assert.equal(beforeLives - (afterScroll.lives ?? 0), 1)
+}
+function testWrongFlagAboveLeavingRowDoesNotCostLifeOnFlag(): void {
+  const base = createEndlessSession()
+  const board = cloneBoard(base.state.board)
+  board.minesPlaced = true
+  const visibleRows = 18
+  const viewStart = board.rows - visibleRows
+  const screenRow = visibleRows - 5
+  const localRow = viewStart + screenRow
+  board.cells[localRow]![0] = {
+    isMine: false,
+    adjacentMines: 0,
+    revealed: false,
+    mark: 'none',
+  }
+  const session: ModeSession = {
+    ...base,
+    state: { ...base.state, status: 'playing', board },
+    lives: 5,
+    endlessVisibleRows: visibleRows,
+    endlessViewStart: viewStart,
+    scrollBatchRows: 3,
+  }
+
+  assert.equal(isScrollLeavingScreenRow(session, screenRow, 3), false)
+  const next = toggleMarkAt(session, localRow, 0)
+  assert.equal(next.lives, 5)
+  assert.equal(next.lastLifeLoss, undefined)
 }
 
-function testFlaggingEntireBottomRowStillCostsLifeForWrongFlags(): void {
+function testFlaggingEntireBottomRowCostsLifeOnScrollForWrongFlags(): void {
   const base = createEndlessSession()
   const board = cloneBoard(base.state.board)
   board.minesPlaced = true
@@ -748,6 +864,7 @@ function testFlaggingEntireBottomRowStillCostsLifeForWrongFlags(): void {
     state: { ...base.state, status: 'playing', board },
     lives: 10,
     minesDefused: 0,
+    scrollBatchRows: 1,
   }
 
   const wrongFlagCols = board.cells[row]!.flatMap((cell, col) => (cell.isMine ? [] : [col]))
@@ -757,8 +874,7 @@ function testFlaggingEntireBottomRowStillCostsLifeForWrongFlags(): void {
   for (const col of wrongFlagCols) {
     session = toggleMarkAt(session, row, col)
   }
-  assert.equal(beforeLives - (session.lives ?? 0), wrongFlagCols.length)
-  assert.equal(session.lastLifeLoss?.cause, 'wrong-flag')
+  assert.equal(session.lives, beforeLives, 'wrong flags should not cost life when placed')
 
   for (let col = 0; col < board.cols; col += 1) {
     if (board.cells[row]![col]!.isMine) {
@@ -766,10 +882,13 @@ function testFlaggingEntireBottomRowStillCostsLifeForWrongFlags(): void {
     }
   }
 
-  assert.equal(isBatchScrollSafe(session, 1), true)
+  assert.equal(isBatchScrollSafe(session, 1), false, 'wrong flags on leaving row should still make scroll unsafe')
   const beforeDefused = session.minesDefused ?? 0
   session = endlessScrollTick(session, 1)
-  assert.ok((session.minesDefused ?? 0) > beforeDefused || (session.lastDefuseScore?.defusedAdded ?? 0) > 0, 'correct mine flags should bank after wrong-flag penalties')
+  assert.equal(beforeLives - (session.lives ?? 0), 1, 'multiple wrong flags on one leaving row should cost only 1 life')
+  assert.equal(session.lastLifeLoss?.cause, 'scroll-bottom')
+  assert.equal(session.minesDefused ?? 0, beforeDefused, 'wrong flags should block mine defuse banking on scroll')
+  assert.equal(session.lastDefuseScore?.defusedAdded ?? 0, 0)
 }
 
 function testBatchScrollAppliesCombinedMineDamage(): void {
@@ -976,10 +1095,13 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['scroll after start without reveal evaluates mines', testScrollAfterStartWithoutRevealEvaluatesMines],
   ['first reveal can hit mine and cost life', testFirstRevealCanHitMineAndCostLife],
   ['scroll leaving mines collected before scroll', testScrollLeavingMinesCollectedBeforeScroll],
+  ['scroll leaving wrong flags excluded from mine fx', testScrollLeavingWrongFlagsExcludedFromMineFx],
   ['scroll proceeds when bottom row is not safe', testScrollProceedsWhenBottomUnsafe],
   ['scroll damage equals leaving penalty count', testScrollDamageEqualsLeavingPenaltyCount],
-  ['wrong flag placement costs life', testWrongFlagPlacementCostsLife],
-  ['flagging entire bottom row still costs life for wrong flags', testFlaggingEntireBottomRowStillCostsLifeForWrongFlags],
+  ['wrong flag on leaving row costs life on scroll only', testWrongFlagOnLeavingRowCostsLifeOnScrollOnly],
+  ['wrong flag on second leaving screen row costs life on scroll', testWrongFlagOnSecondLeavingScreenRowCostsLifeOnScroll],
+  ['wrong flag above leaving row does not cost life on flag', testWrongFlagAboveLeavingRowDoesNotCostLifeOnFlag],
+  ['flagging entire bottom row costs life on scroll for wrong flags', testFlaggingEntireBottomRowCostsLifeOnScrollForWrongFlags],
   ['batch scroll applies combined mine damage', testBatchScrollAppliesCombinedMineDamage],
   ['mobile board row center nudge', testMobileBoardRowCenterNudge],
   ['mobile board fit reports trim nudge', testMobileBoardFitReportsTrimNudge],

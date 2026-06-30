@@ -132,6 +132,8 @@ export interface GameCanvasController {
   repaint(): void
   /** Pinned scroll-off mine ghosts (shell coords; pure FX, no board mutation). */
   queueScrollMineGhosts(cells: { row: number; col: number }[]): void
+  /** Pinned scroll-off wrong-flag break FX (not mine explosion). */
+  queueScrollWrongFlagGhosts(cells: { row: number; col: number }[]): void
   getRankedLayoutSnapshot?(): import('../../ranked/types.ts').LayoutSnapshot | null
   destroy(): void
 }
