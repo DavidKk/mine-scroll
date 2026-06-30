@@ -49,7 +49,7 @@ export type DerivedPlayerAction =
   | { t: number; kind: 'reveal'; screenRow: number; col: number }
   | { t: number; kind: 'flag'; screenRow: number; col: number }
   | { t: number; kind: 'chord'; screenRow: number; col: number }
-  | { t: number; kind: 'scroll'; manual: true }
+  | { t: number; kind: 'scroll'; manual?: boolean }
 
 export interface InputChainMetrics {
   moveSamplesBeforeDown: number
