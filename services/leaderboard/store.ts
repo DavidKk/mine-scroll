@@ -2,7 +2,8 @@ import { getJsonKv, isKvConfigured } from '../kv/client.ts'
 import { padLeaderboardDisplay } from './display.ts'
 import { LeaderboardServiceError } from './errors.ts'
 import { logger } from './logger.ts'
-import { normalizeLeaderboardEntries } from './merge.ts'
+import { entryPlayerId, normalizeLeaderboardEntries } from './merge.ts'
+import { getPlayerBestEntry } from './player-best.ts'
 import { LEADERBOARD_KV_KEY, type LeaderboardBoard } from './types.ts'
 
 export function isLeaderboardKvConfigured(): boolean {
@@ -31,10 +32,20 @@ export async function readLeaderboardRaw(): Promise<LeaderboardBoard> {
 }
 
 /** Public leaderboard view — pads sparse boards on the server. */
-export async function readLeaderboard(): Promise<LeaderboardBoard> {
+export async function readLeaderboard(playerId?: string): Promise<LeaderboardBoard> {
   const board = await readLeaderboardRaw()
-  const entries = padLeaderboardDisplay(board.entries)
-  logger.info('board read public', { entries: entries.length, updatedAt: board.updatedAt })
+  let pool = board.entries
+
+  const trimmedPlayerId = playerId?.trim().toLowerCase()
+  if (trimmedPlayerId) {
+    const personalBest = await getPlayerBestEntry(trimmedPlayerId)
+    if (personalBest && !pool.some((entry) => entryPlayerId(entry) === trimmedPlayerId)) {
+      pool = normalizeLeaderboardEntries([...pool, personalBest])
+    }
+  }
+
+  const entries = padLeaderboardDisplay(pool)
+  logger.info('board read public', { entries: entries.length, updatedAt: board.updatedAt, playerId: trimmedPlayerId ? trimmedPlayerId.slice(0, 8) : undefined })
   return { entries, updatedAt: board.updatedAt }
 }
 

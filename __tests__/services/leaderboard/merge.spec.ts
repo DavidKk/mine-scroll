@@ -1,4 +1,5 @@
 import {
+  computeLeaderboardRank,
   entryPlayerId,
   mergeLeaderboardEntry,
   normalizeLeaderboardEntries,
@@ -68,22 +69,24 @@ describe('services/leaderboard/merge', () => {
     expect(better.entries[0]?.score).toBe(200)
   })
 
-  it('does not save a new player who misses the top 100', () => {
+  it('does not save a new player who misses the top 100 but still reports global rank', () => {
     const fullBoard = Array.from({ length: LEADERBOARD_MAX_ENTRIES }, (_, index) => entry(LEADERBOARD_MAX_ENTRIES + 1 - index, index))
     const playerId = 'bbbbbbbb-cccc-4ddd-eeee-ffffffffffff'
-    const result = upsertPlayerBestEntry(fullBoard, {
+    const candidate = {
       id: playerId,
       playerId,
       name: 'Rookie',
       score: 1,
       depth: 1,
       submittedAt: 999,
-    })
+    }
+    const result = upsertPlayerBestEntry(fullBoard, candidate)
 
     expect(result.saved).toBe(false)
-    expect(result.rank).toBeNull()
+    expect(result.rank).toBe(LEADERBOARD_MAX_ENTRIES + 1)
     expect(result.entries).toHaveLength(LEADERBOARD_MAX_ENTRIES)
     expect(result.entries.some((item) => entryPlayerId(item) === playerId)).toBe(false)
+    expect(computeLeaderboardRank(fullBoard, candidate)).toBe(LEADERBOARD_MAX_ENTRIES + 1)
   })
 
   it('sanitizes name and score', () => {

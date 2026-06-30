@@ -63,13 +63,30 @@ export function upsertPlayerBestEntry(entries: LeaderboardEntry[], entry: Leader
   if (incumbent && !isBetterLeaderboardEntry(candidate, incumbent)) {
     const normalized = normalizeLeaderboardEntries([...withoutPlayer, incumbent])
     const rankIndex = normalized.findIndex((item) => entryPlayerId(item) === playerId)
-    return { entries: normalized, saved: false, rank: rankIndex >= 0 ? rankIndex + 1 : null }
+    return { entries: normalized, saved: false, rank: rankIndex >= 0 ? rankIndex + 1 : computeLeaderboardRank(entries, incumbent) }
   }
 
   const normalized = normalizeLeaderboardEntries([...withoutPlayer, candidate])
   const rankIndex = normalized.findIndex((item) => entryPlayerId(item) === playerId)
   const onBoard = rankIndex >= 0
-  return { entries: normalized, saved: onBoard, rank: onBoard ? rankIndex + 1 : null }
+  const rank = onBoard ? rankIndex + 1 : computeLeaderboardRank(entries, candidate)
+  return { entries: normalized, saved: onBoard, rank }
+}
+
+/** Global rank for a candidate among all known entries (not capped at top 100). */
+export function computeLeaderboardRank(entries: LeaderboardEntry[], candidate: LeaderboardEntry): number | null {
+  const playerId = entryPlayerId(candidate)
+  const normalizedCandidate = normalizeLeaderboardEntry({ ...candidate, id: playerId, playerId })
+  if (!normalizedCandidate) return null
+
+  const withoutPlayer = entries
+    .filter((item) => entryPlayerId(item) !== playerId)
+    .map((item) => normalizeLeaderboardEntry(item))
+    .filter((item): item is LeaderboardEntry => item !== null)
+
+  const sorted = sortLeaderboardEntries([...withoutPlayer, normalizedCandidate])
+  const rankIndex = sorted.findIndex((item) => entryPlayerId(item) === playerId)
+  return rankIndex >= 0 ? rankIndex + 1 : null
 }
 
 export function mergeLeaderboardEntry(entries: LeaderboardEntry[], entry: LeaderboardEntry): LeaderboardEntry[] {

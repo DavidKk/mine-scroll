@@ -65,6 +65,7 @@ import { testResolveKvDirectEnv, testResolveKvMissingReturnsNull, testResolveKvP
 import {
   testLeaderboardScoreBreakthroughWithEmptyHistory,
   testLeaderboardViewModelKeepsSelfInRankedList,
+  testLeaderboardViewModelUsesSnapshotRankWhenOffBoard,
   testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf,
 } from './leaderboard-panel-tests.ts'
 import { testLocalSettingsDefaultsWhenMissing, testLocalSettingsIgnoresInvalidPayload, testLocalSettingsPatchPersists, testLocalSettingsRoundTrip } from './local-settings-tests.ts'
@@ -1122,6 +1123,7 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['leaderboard view model keeps self in ranked list', testLeaderboardViewModelKeepsSelfInRankedList],
   ['leaderboard score breakthrough with empty history', testLeaderboardScoreBreakthroughWithEmptyHistory],
   ['leaderboard view model without self snapshot has no pinned self', testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf],
+  ['leaderboard view model uses snapshot rank when off board', testLeaderboardViewModelUsesSnapshotRankWhenOffBoard],
   ['local settings patch persists', testLocalSettingsPatchPersists],
   ['local settings ignores invalid payload', testLocalSettingsIgnoresInvalidPayload],
   ['touch gesture thresholds scale with cell size', testGestureThresholdsScaleWithCellSize],

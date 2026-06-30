@@ -20,6 +20,7 @@ export interface LeaderboardSelfSnapshot {
   name: string
   score: number
   depth?: number
+  rank?: number
   countryCode?: string
   submittedAt: number
 }
@@ -108,6 +109,7 @@ function normalizeSelfSnapshot(value: unknown): LeaderboardSelfSnapshot | null {
     name: parsed.name,
     score: parsed.score,
     depth: typeof parsed.depth === 'number' ? parsed.depth : undefined,
+    rank: typeof parsed.rank === 'number' && parsed.rank > 0 ? Math.floor(parsed.rank) : undefined,
     countryCode: typeof parsed.countryCode === 'string' && /^[A-Za-z]{2}$/.test(parsed.countryCode) ? parsed.countryCode.toUpperCase() : undefined,
     submittedAt: typeof parsed.submittedAt === 'number' ? parsed.submittedAt : 0,
   }
@@ -301,6 +303,7 @@ export async function syncLeaderboardSelfFromHistory(playerId: string, name: str
     name,
     score: best.score,
     depth: best.depth,
+    rank: best.rank,
     submittedAt: best.submittedAt,
   })
 }

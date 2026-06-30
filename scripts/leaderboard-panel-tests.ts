@@ -42,3 +42,24 @@ export function testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf(): vo
   assert.equal(view.pinned, null)
   assert.equal(view.ranked[0]?.rank, 1)
 }
+
+export function testLeaderboardViewModelUsesSnapshotRankWhenOffBoard(): void {
+  const self = {
+    id: playerId,
+    name: 'Pilot-d4mlnd',
+    score: 42,
+    depth: 3,
+    rank: 101,
+    submittedAt: 2,
+  }
+  const entries = [entry({ id: 'other-1', name: 'Kiro_404', score: 128, depth: 18 })]
+
+  const view = buildLeaderboardViewModel(entries, { selfSnapshot: self, playerId })
+
+  assert.equal(view.pinned?.rank, 101)
+  assert.equal(view.pinned?.entry.score, 42)
+  assert.equal(
+    view.ranked.some((row) => row.isSelf),
+    false
+  )
+}

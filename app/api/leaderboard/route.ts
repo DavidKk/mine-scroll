@@ -8,9 +8,10 @@ export const dynamic = 'force-dynamic'
 
 const logger = createLogger('api-leaderboard')
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const board = await readLeaderboard()
+    const playerId = new URL(request.url).searchParams.get('playerId') ?? undefined
+    const board = await readLeaderboard(playerId ?? undefined)
     return NextResponse.json({
       ok: true,
       configured: isLeaderboardKvConfigured(),

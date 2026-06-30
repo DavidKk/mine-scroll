@@ -1,6 +1,8 @@
 export const LEADERBOARD_MAX_ENTRIES = 100
 
 export const LEADERBOARD_KV_KEY = 'leaderboard:endless'
+export const LEADERBOARD_PLAYER_KEY_PREFIX = 'leaderboard:player:'
+export const LEADERBOARD_PLAYER_TTL_SECONDS = 60 * 60 * 24 * 365
 
 export interface LeaderboardEntry {
   id: string

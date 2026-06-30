@@ -77,6 +77,14 @@ function entryMatchesSelf(entry: LeaderboardEntryView, selfKey: string | null): 
 
 const LEADERBOARD_VISIBLE_ROWS = 10
 
+function resolveSelfRank(entries: LeaderboardEntryView[], selfKey: string | null, snapshot: LeaderboardSelfSnapshot): number {
+  if (selfKey) {
+    const serverIndex = entries.findIndex((entry) => entryMatchesSelf(entry, selfKey))
+    if (serverIndex >= 0) return serverIndex + 1
+  }
+  return snapshot.rank ?? 0
+}
+
 /** Pinned self row + full ranked list (never dedupe the player from the list below). */
 export function buildLeaderboardViewModel(
   entries: LeaderboardEntryView[],
@@ -97,7 +105,7 @@ export function buildLeaderboardViewModel(
   const pinned = snapshot
     ? {
         entry: serverSelf ? { ...serverSelf, name: snapshot.name } : snapshot,
-        rank: serverSelf ? entries.findIndex((entry) => entryMatchesSelf(entry, selfKey)) + 1 : 1,
+        rank: resolveSelfRank(entries, selfKey, snapshot),
         isSelf: true,
         pinned: true as const,
       }
@@ -120,6 +128,10 @@ function sanitizeDisplayName(name: string): string {
 
 function resolveSelfDisplayName(fallback: string): string {
   return getCachedDisplayName() || fallback
+}
+
+function formatRank(rank: number): string {
+  return rank > 0 ? String(rank).padStart(2, '0') : '—'
 }
 
 function formatScore(score: number): string {
@@ -384,7 +396,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     const card = document.createElement('div')
     card.className = 'leaderboard-modal__self-card'
 
-    const rank = createLeaderboardCell('leaderboard-modal__rank', String(row.rank).padStart(2, '0'), { rank: row.rank })
+    const rank = createLeaderboardCell('leaderboard-modal__rank', formatRank(row.rank), { rank: row.rank > 0 ? row.rank : undefined })
 
     const stats = document.createElement('div')
     stats.className = 'leaderboard-modal__self-stats'
@@ -417,7 +429,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
 
     item.append(
       createRankTrophyCell(row.rank),
-      createLeaderboardCell('leaderboard-modal__rank', String(row.rank).padStart(2, '0'), { rank: row.rank }),
+      createLeaderboardCell('leaderboard-modal__rank', formatRank(row.rank), { rank: row.rank > 0 ? row.rank : undefined }),
       createLeaderboardCell('leaderboard-modal__country', formatCountryCode(row.entry.countryCode), { hidden: !showCountry }),
       createLeaderboardCell('leaderboard-modal__name', displayName, {
         title: `${displayName} · ${formatSubmittedAt(row.entry.submittedAt)}`,
@@ -477,7 +489,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       createPinnedSelfCard(
         {
           entry: snapshot,
-          rank: 1,
+          rank: snapshot.rank ?? 0,
           isSelf: true,
           pinned: true,
         },
@@ -526,7 +538,9 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
 
     try {
       await ensureRankedLocalStore()
-      const response = await fetch('/api/leaderboard', { method: 'GET' })
+      const playerId = getCachedPlayerId().trim()
+      const query = playerId ? `?playerId=${encodeURIComponent(playerId)}` : ''
+      const response = await fetch(`/api/leaderboard${query}`, { method: 'GET' })
       const body = (await response.json().catch(() => null)) as {
         error?: string
         entries?: LeaderboardEntryView[]

@@ -2,6 +2,7 @@ import { sanitizeCountryCode } from '../geoip/request.ts'
 import { getJsonKv, isKvConfigured, setJsonKv, setJsonKvEx } from '../kv/client.ts'
 import { LeaderboardServiceError } from '../leaderboard/errors.ts'
 import { normalizeLeaderboardEntries, sanitizeLeaderboardName, sanitizePlayerId, upsertPlayerBestEntry } from '../leaderboard/merge.ts'
+import { savePlayerBestIfBetter } from '../leaderboard/player-best.ts'
 import { LEADERBOARD_KV_KEY, type LeaderboardBoard } from '../leaderboard/types.ts'
 import { RANKED_CORE_VERSION, RANKED_EVENTS_KEY_PREFIX, RANKED_RUN_KEY_PREFIX, RANKED_RUN_TTL_SECONDS, RANKED_UPLOAD_INTERVAL_MS } from './constants.ts'
 import { logger, shortPlayerId, shortRunId } from './logger.ts'
@@ -216,9 +217,9 @@ export async function finishRankedRun(
   let saved = false
   let rank: number | undefined
 
-  if (status === 'accepted' && verifiedScore > 0) {
-    const board = (await getJsonKv<LeaderboardBoard>(LEADERBOARD_KV_KEY)) ?? { entries: [], updatedAt: 0 }
-    const upsert = upsertPlayerBestEntry(normalizeLeaderboardEntries(board.entries), {
+  if (status === 'accepted') {
+    ranked = true
+    const candidate = {
       id: playerId,
       playerId,
       name: cleanName,
@@ -226,36 +227,42 @@ export async function finishRankedRun(
       depth: verifiedDepth,
       ...(countryCode ? { countryCode } : {}),
       submittedAt: finished.finishedAt!,
-    })
-    ranked = upsert.rank !== null
-    rank = upsert.rank ?? undefined
+    }
 
-    if (upsert.saved) {
-      const persisted = await setJsonKv(LEADERBOARD_KV_KEY, { entries: upsert.entries, updatedAt: Date.now() })
-      saved = persisted
-      if (persisted) {
-        logger.ok('leaderboard saved', {
-          runId: shortRunId(runId),
-          playerId: shortPlayerId(playerId),
-          rank,
-          score: verifiedScore,
-          depth: verifiedDepth,
-        })
+    if (verifiedScore > 0) {
+      await savePlayerBestIfBetter(candidate)
+      const board = (await getJsonKv<LeaderboardBoard>(LEADERBOARD_KV_KEY)) ?? { entries: [], updatedAt: 0 }
+      const upsert = upsertPlayerBestEntry(normalizeLeaderboardEntries(board.entries), candidate)
+      rank = upsert.rank ?? undefined
+
+      if (upsert.saved) {
+        const persisted = await setJsonKv(LEADERBOARD_KV_KEY, { entries: upsert.entries, updatedAt: Date.now() })
+        saved = persisted
+        if (persisted) {
+          logger.ok('leaderboard saved', {
+            runId: shortRunId(runId),
+            playerId: shortPlayerId(playerId),
+            rank,
+            score: verifiedScore,
+            depth: verifiedDepth,
+          })
+        } else {
+          logger.warn('leaderboard persist failed', {
+            runId: shortRunId(runId),
+            playerId: shortPlayerId(playerId),
+            score: verifiedScore,
+          })
+        }
       } else {
-        logger.warn('leaderboard persist failed', {
+        saved = false
+        logger.info('leaderboard not updated', {
           runId: shortRunId(runId),
           playerId: shortPlayerId(playerId),
           score: verifiedScore,
+          rank,
+          reason: rank != null && rank <= board.entries.length ? 'not_personal_best' : 'not_top_100',
         })
       }
-    } else {
-      saved = false
-      logger.info('leaderboard not updated', {
-        runId: shortRunId(runId),
-        playerId: shortPlayerId(playerId),
-        score: verifiedScore,
-        reason: ranked ? 'not_personal_best' : 'not_top_100',
-      })
     }
   } else if (status === 'rejected') {
     logger.warn('run rejected', {
