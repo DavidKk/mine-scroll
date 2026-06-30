@@ -112,7 +112,7 @@ export function derivePlayerActions(events: RunInputEvent[]): {
       }
 
       if (event.btn === 2) {
-        actions.push({ t: event.t, kind: 'flag', screenRow: cell.row, col: cell.col })
+        // Desktop right-click flag is applied on ctx; btn:2 down is metrics-only.
         continue
       }
 

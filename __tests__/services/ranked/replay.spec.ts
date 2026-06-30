@@ -38,6 +38,22 @@ describe('services/ranked/replay', () => {
     expect(derived.actions[0]).toMatchObject({ kind: 'reveal', screenRow: 6, col: 4 })
   })
 
+  it('derives one flag from desktop right click (ctx only, not btn:2 down)', () => {
+    const center = cellCenter(4, 6)
+    const events: RunInputEvent[] = [
+      { t: 0, e: 'begin' },
+      { t: 10, e: 'layout', layout },
+      { t: 20, e: 'move', x: center.x, y: center.y },
+      { t: 40, e: 'down', btn: 2, x: center.x, y: center.y, buttons: 2 },
+      { t: 41, e: 'ctx', x: center.x, y: center.y },
+    ]
+
+    const derived = derivePlayerActions(events)
+    const flags = derived.actions.filter((action) => action.kind === 'flag')
+    expect(flags).toHaveLength(1)
+    expect(flags[0]).toMatchObject({ kind: 'flag', screenRow: 6, col: 4 })
+  })
+
   it('replays a seeded run and rejects score mismatch', () => {
     const seed = 424242
     const center = cellCenter(3, 5)
