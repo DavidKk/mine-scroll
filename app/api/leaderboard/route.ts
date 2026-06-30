@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       configured: isLeaderboardKvConfigured(),
       storage: getKvStorageMode(),
       entries: board.entries,
+      self: board.self,
       updatedAt: board.updatedAt,
     })
   } catch (error) {

@@ -65,6 +65,7 @@ import { testResolveKvDirectEnv, testResolveKvMissingReturnsNull, testResolveKvP
 import {
   testLeaderboardScoreBreakthroughWithEmptyHistory,
   testLeaderboardViewModelKeepsSelfInRankedList,
+  testLeaderboardViewModelShowsSelfFromServerWithoutSnapshot,
   testLeaderboardViewModelUsesSnapshotRankWhenOffBoard,
   testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf,
 } from './leaderboard-panel-tests.ts'
@@ -1122,6 +1123,7 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['local settings round trip', testLocalSettingsRoundTrip],
   ['leaderboard view model keeps self in ranked list', testLeaderboardViewModelKeepsSelfInRankedList],
   ['leaderboard score breakthrough with empty history', testLeaderboardScoreBreakthroughWithEmptyHistory],
+  ['leaderboard view model shows self from server without snapshot', testLeaderboardViewModelShowsSelfFromServerWithoutSnapshot],
   ['leaderboard view model without self snapshot has no pinned self', testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf],
   ['leaderboard view model uses snapshot rank when off board', testLeaderboardViewModelUsesSnapshotRankWhenOffBoard],
   ['local settings patch persists', testLocalSettingsPatchPersists],

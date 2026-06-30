@@ -18,4 +18,10 @@ export interface LeaderboardEntry {
 export interface LeaderboardBoard {
   entries: LeaderboardEntry[]
   updatedAt: number
+  /** Requesting player's verified best (may be outside the public top list). */
+  self?: LeaderboardSelfView
+}
+
+export interface LeaderboardSelfView extends LeaderboardEntry {
+  rank: number | null
 }

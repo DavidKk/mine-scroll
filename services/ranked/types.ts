@@ -7,6 +7,8 @@ export type RunInputEvent =
   | { t: number; e: 'dbl'; x: number; y: number }
   | { t: number; e: 'ctx'; x: number; y: number }
   | { t: number; e: 'key'; code: 'Space' }
+  /** Fired when the board actually scrolls (after FX commit), not when the timer/key fires. */
+  | { t: number; e: 'scroll'; manual?: boolean }
   | { t: number; e: 'begin' }
   | { t: number; e: 'layout'; layout: LayoutSnapshot }
 

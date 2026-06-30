@@ -149,7 +149,8 @@ export async function finishRankedRun(
   }
 
   const eventsFromKv = (await getJsonKv<RunInputEvent[]>(eventsKey(runId))) ?? []
-  const events = eventsFromKv.length > 0 ? eventsFromKv : Array.isArray(eventsFallback) && eventsFallback.length > 0 ? eventsFallback : []
+  const fallbackEvents = Array.isArray(eventsFallback) ? eventsFallback : []
+  const events = eventsFromKv.length === 0 ? fallbackEvents : fallbackEvents.length > eventsFromKv.length ? fallbackEvents : eventsFromKv
 
   if (eventsFromKv.length === 0 && events.length > 0) {
     await setJsonKvEx(eventsKey(runId), events, RANKED_RUN_TTL_SECONDS)
@@ -187,6 +188,19 @@ export async function finishRankedRun(
     status = policy.decision === 'accepted' ? 'accepted' : policy.decision === 'review' ? 'pending' : 'rejected'
   } else if (replay.replayOk) {
     riskFlags = ['score_mismatch']
+    logger.warn('score mismatch', {
+      runId: shortRunId(runId),
+      claimedScore: score,
+      verifiedScore: replay.sessionScore,
+      claimedDepth: depth,
+      verifiedDepth: replay.sessionDepth,
+    })
+  } else {
+    logger.warn('replay failed', {
+      runId: shortRunId(runId),
+      replayError: replay.replayError,
+      eventCount: events.length,
+    })
   }
 
   logger.info('replay finished', {

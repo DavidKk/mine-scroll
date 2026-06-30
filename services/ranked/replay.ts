@@ -110,10 +110,13 @@ export function replayRankedRun(seed: number, events: RunInputEvent[]): ReplayRe
   session = endlessBeginRun(session)
 
   const shadowAi: ShadowAiMetrics = { comparedMoves: 0, aiMoveMatches: 0, aiMoveMatchRate: 0 }
+  const hasExplicitScrollEvents = events.some((event) => event.e === 'scroll')
   let lastT = beginT
 
   for (const action of actions) {
-    session = applyAutoScrolls(session, lastT, action.t)
+    if (!hasExplicitScrollEvents) {
+      session = applyAutoScrolls(session, lastT, action.t)
+    }
     if (session.state.status !== 'playing') break
 
     compareShadowAi(session, action, Math.max(0, action.t - beginT), shadowAi)

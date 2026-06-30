@@ -73,6 +73,11 @@ export function derivePlayerActions(events: RunInputEvent[]): {
     }
     if (!layout) continue
 
+    if (event.e === 'scroll') {
+      actions.push({ t: event.t, kind: 'scroll', manual: event.manual === true })
+      continue
+    }
+
     if (event.e === 'key' && event.code === 'Space') {
       actions.push({ t: event.t, kind: 'scroll', manual: true })
       continue

@@ -286,13 +286,17 @@ export async function appendLocalScoreRecord(record: LocalScoreRecord): Promise<
 
 async function pickBestLocalRecord(): Promise<LocalScoreRecord | null> {
   await ensureRankedLocalStore()
-  const accepted = historyCache.filter((item) => item.status === 'accepted')
-  if (accepted.length === 0) return null
-  return [...accepted].sort((a, b) => {
+  const verified = historyCache.filter((item) => item.status === 'accepted' || item.status === 'pending')
+  if (verified.length === 0) return null
+  return [...verified].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
     if (b.depth !== a.depth) return b.depth - a.depth
     return b.submittedAt - a.submittedAt
   })[0]!
+}
+
+export async function upsertLeaderboardSelfSnapshot(snapshot: LeaderboardSelfSnapshot): Promise<void> {
+  await saveLeaderboardSelfSnapshot(snapshot)
 }
 
 export async function syncLeaderboardSelfFromHistory(playerId: string, name: string): Promise<void> {

@@ -36,6 +36,16 @@ export function testLeaderboardScoreBreakthroughWithEmptyHistory(): void {
   assert.equal(isLeaderboardScoreBreakthrough(200, 6), true)
 }
 
+export function testLeaderboardViewModelShowsSelfFromServerWithoutSnapshot(): void {
+  const entries = [entry({ id: playerId, playerId, name: 'Pilot-d4mlnd', score: 6310, depth: 40 }), entry({ id: 'other-1', name: 'Pilot', score: 42, depth: 3 })]
+
+  const view = buildLeaderboardViewModel(entries, { selfSnapshot: null, playerId })
+
+  assert.equal(view.pinned?.rank, 1)
+  assert.equal(view.pinned?.entry.score, 6310)
+  assert.equal(view.ranked[0]?.isSelf, true)
+}
+
 export function testLeaderboardViewModelWithoutSelfSnapshotHasNoPinnedSelf(): void {
   const view = buildLeaderboardViewModel([entry({ id: 'other-1', name: 'Kiro_404', score: 128 })])
 

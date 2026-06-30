@@ -53,4 +53,22 @@ describe('services/ranked/replay', () => {
     expect(replay.sessionScore).toBeGreaterThanOrEqual(0)
     expect(replay.sessionScore).not.toBe(999_999)
   })
+
+  it('uses explicit scroll events instead of synthetic auto scroll timing', () => {
+    const seed = 909090
+    const center = cellCenter(4, 6)
+    const events: RunInputEvent[] = [
+      { t: 0, e: 'begin' },
+      { t: 5, e: 'layout', layout },
+      { t: 30, e: 'move', x: center.x, y: center.y },
+      { t: 50, e: 'down', btn: 0, x: center.x, y: center.y, buttons: 1 },
+      { t: 1200, e: 'scroll', manual: false },
+      { t: 1250, e: 'move', x: center.x, y: center.y },
+      { t: 1270, e: 'down', btn: 0, x: center.x, y: center.y, buttons: 1 },
+    ]
+
+    const replay = replayRankedRun(seed, events)
+    expect(replay.replayOk).toBe(true)
+    expect(replay.sessionDepth).toBeGreaterThan(0)
+  })
 })

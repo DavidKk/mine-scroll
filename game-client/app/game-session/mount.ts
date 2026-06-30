@@ -36,6 +36,7 @@ import {
   markLeaderboardUnseenUpdate,
   persistRunTraceEvents,
   saveDisplayName,
+  saveLeaderboardSelfSnapshot,
   syncLeaderboardSelfFromHistory,
 } from '../../storage/ranked-local-store.ts'
 import { createGameAudio, hadMineLifeLoss, playFlagToggleAudio, playHealRewardAudio, playLifeLossAudio, playRevealAudio } from '../../ui/game-audio.ts'
@@ -256,6 +257,16 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           ranked: result.ranked === true,
           rank: result.rank,
         })
+        if (result.status === 'accepted' || result.status === 'pending') {
+          await saveLeaderboardSelfSnapshot({
+            id: playerId,
+            name,
+            score: finalScore,
+            depth: finalDepth,
+            rank: result.rank,
+            submittedAt: Date.now(),
+          })
+        }
         await syncLeaderboardSelfFromHistory(playerId, name)
         if (scoreBreakthrough && !runtime.leaderboardOpen) {
           await markLeaderboardUnseenUpdate()
@@ -325,6 +336,9 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     refreshAiHint: () => ai.refreshAiHint(),
     stopAiAuto: () => ai.stopAiAuto(),
     onScrollTick: () => gameAudio.play('scrollUp'),
+    onScrollCommit: (manual) => {
+      if (rankedRecorder.isActive()) rankedRecorder.recordScroll(manual)
+    },
     queueMineExplosions: (cells) => runtime.view?.queueScrollMineGhosts(cells),
     queueWrongFlagBreaks: (cells) => runtime.view?.queueScrollWrongFlagGhosts(cells),
     onScrollMineDetonate: () => gameAudio.play('mineHit'),
@@ -471,7 +485,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       onManualScroll: () => {
         if (runtime.session.state.status !== 'playing') return
         gameAudio.unlock()
-        rankedRecorder.recordSpace()
         scroll.performScrollTick(true)
       },
       onDifficultyAlert: (kind: 'speed-up' | 'danger-rise') => {
@@ -630,7 +643,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       if (runtime.session.state.status !== 'playing') return
       event.preventDefault()
       gameAudio.unlock()
-      rankedRecorder.recordSpace()
       scroll.performScrollTick(true)
       return
     }

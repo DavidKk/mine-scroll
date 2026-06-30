@@ -19,6 +19,7 @@ export interface ScrollControllerDeps {
   refreshAiHint(): void
   stopAiAuto(): void
   onScrollTick?: () => void
+  onScrollCommit?: (manual: boolean) => void
   queueMineExplosions?: (cells: { row: number; col: number }[]) => void
   queueWrongFlagBreaks?: (cells: { row: number; col: number }[]) => void
   onScrollMineDetonate?: () => void
@@ -78,6 +79,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
     render,
     refreshAiHint,
     onScrollTick,
+    onScrollCommit,
     queueMineExplosions,
     queueWrongFlagBreaks,
     onScrollMineDetonate,
@@ -132,6 +134,7 @@ export function createScrollController(deps: ScrollControllerDeps): ScrollContro
       runtime.backdropScrollDepth += batchRows
     }
     onScrollTick?.()
+    onScrollCommit?.(manual)
     const depthAfter = next.scrollRowCount ?? 0
     const batchNote = batchRows > 1 ? ` · ×${batchRows} rows` : ''
     const trigger = manual

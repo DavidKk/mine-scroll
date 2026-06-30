@@ -2,9 +2,9 @@ import { getJsonKv, isKvConfigured } from '../kv/client.ts'
 import { padLeaderboardDisplay } from './display.ts'
 import { LeaderboardServiceError } from './errors.ts'
 import { logger } from './logger.ts'
-import { entryPlayerId, normalizeLeaderboardEntries } from './merge.ts'
+import { computeLeaderboardRank,entryPlayerId, normalizeLeaderboardEntries } from './merge.ts'
 import { getPlayerBestEntry } from './player-best.ts'
-import { LEADERBOARD_KV_KEY, type LeaderboardBoard } from './types.ts'
+import { LEADERBOARD_KV_KEY, type LeaderboardBoard, type LeaderboardSelfView } from './types.ts'
 
 export function isLeaderboardKvConfigured(): boolean {
   return isKvConfigured()
@@ -35,18 +35,30 @@ export async function readLeaderboardRaw(): Promise<LeaderboardBoard> {
 export async function readLeaderboard(playerId?: string): Promise<LeaderboardBoard> {
   const board = await readLeaderboardRaw()
   let pool = board.entries
+  let self: LeaderboardSelfView | undefined
 
   const trimmedPlayerId = playerId?.trim().toLowerCase()
   if (trimmedPlayerId) {
     const personalBest = await getPlayerBestEntry(trimmedPlayerId)
-    if (personalBest && !pool.some((entry) => entryPlayerId(entry) === trimmedPlayerId)) {
-      pool = normalizeLeaderboardEntries([...pool, personalBest])
+    if (personalBest) {
+      self = {
+        ...personalBest,
+        rank: computeLeaderboardRank(board.entries, personalBest),
+      }
+      if (!pool.some((entry) => entryPlayerId(entry) === trimmedPlayerId)) {
+        pool = normalizeLeaderboardEntries([...pool, personalBest])
+      }
     }
   }
 
   const entries = padLeaderboardDisplay(pool)
-  logger.info('board read public', { entries: entries.length, updatedAt: board.updatedAt, playerId: trimmedPlayerId ? trimmedPlayerId.slice(0, 8) : undefined })
-  return { entries, updatedAt: board.updatedAt }
+  logger.info('board read public', {
+    entries: entries.length,
+    updatedAt: board.updatedAt,
+    playerId: trimmedPlayerId ? trimmedPlayerId.slice(0, 8) : undefined,
+    hasSelf: Boolean(self),
+  })
+  return { entries, updatedAt: board.updatedAt, self }
 }
 
 export async function submitLeaderboardEntry(_name: string, _score: unknown): Promise<LeaderboardBoard> {

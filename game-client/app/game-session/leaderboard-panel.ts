@@ -63,10 +63,9 @@ function entryPlayerKey(entry: LeaderboardEntryView): string {
 }
 
 function resolveSelfPlayerKey(snapshot: LeaderboardSelfSnapshot | null, playerId = getCachedPlayerId().trim()): string | null {
+  const trimmedPlayerId = playerId.trim()
+  if (trimmedPlayerId) return trimmedPlayerId
   if (!snapshot) return null
-  if (playerId && (snapshot.id === playerId || entryPlayerKey(snapshot) === playerId)) {
-    return playerId
-  }
   return snapshot.id
 }
 
@@ -77,12 +76,12 @@ function entryMatchesSelf(entry: LeaderboardEntryView, selfKey: string | null): 
 
 const LEADERBOARD_VISIBLE_ROWS = 10
 
-function resolveSelfRank(entries: LeaderboardEntryView[], selfKey: string | null, snapshot: LeaderboardSelfSnapshot): number {
+function resolvePinnedRank(entries: LeaderboardEntryView[], selfKey: string | null, snapshot: LeaderboardSelfSnapshot | null): number {
   if (selfKey) {
     const serverIndex = entries.findIndex((entry) => entryMatchesSelf(entry, selfKey))
     if (serverIndex >= 0) return serverIndex + 1
   }
-  return snapshot.rank ?? 0
+  return snapshot?.rank ?? 0
 }
 
 /** Pinned self row + full ranked list (never dedupe the player from the list below). */
@@ -93,23 +92,25 @@ export function buildLeaderboardViewModel(
     playerId?: string
   } = {}
 ): LeaderboardViewModel {
+  const playerId = options.playerId?.trim() || getCachedPlayerId().trim()
   const snapshot = options.selfSnapshot ?? getCachedLeaderboardSelfSnapshot()
-  const selfKey = resolveSelfPlayerKey(snapshot, options.playerId)
-  const serverSelf = entries.find((entry) => entryMatchesSelf(entry, selfKey))
+  const selfKey = resolveSelfPlayerKey(snapshot, playerId)
+  const serverSelf = selfKey ? entries.find((entry) => entryMatchesSelf(entry, selfKey)) : undefined
   const ranked = entries.slice(0, LEADERBOARD_VISIBLE_ROWS).map((entry, index) => ({
     entry,
     rank: index + 1,
     isSelf: entryMatchesSelf(entry, selfKey),
   }))
 
-  const pinned = snapshot
-    ? {
-        entry: serverSelf ? { ...serverSelf, name: snapshot.name } : snapshot,
-        rank: resolveSelfRank(entries, selfKey, snapshot),
-        isSelf: true,
-        pinned: true as const,
-      }
-    : null
+  const pinned =
+    selfKey && (snapshot || serverSelf)
+      ? {
+          entry: serverSelf ? { ...serverSelf, name: snapshot?.name ?? serverSelf.name } : { ...snapshot!, id: selfKey },
+          rank: resolvePinnedRank(entries, selfKey, snapshot),
+          isSelf: true,
+          pinned: true as const,
+        }
+      : null
 
   return { pinned, ranked }
 }
@@ -442,9 +443,9 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     return item
   }
 
-  function renderEntries(entries: LeaderboardEntryView[]): void {
+  function renderEntries(entries: LeaderboardEntryView[], playerId = getCachedPlayerId().trim()): void {
     lastEntries = entries
-    const view = buildLeaderboardViewModel(entries)
+    const view = buildLeaderboardViewModel(entries, { playerId })
     pinnedEl.replaceChildren()
     listEl.replaceChildren()
 
@@ -532,6 +533,18 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     renderEntries(lastEntries)
   }
 
+  async function persistSelfFromApi(playerId: string, self: LeaderboardEntryView & { rank?: number | null }): Promise<void> {
+    await saveLeaderboardSelfSnapshot({
+      id: playerId,
+      name: resolveSelfDisplayName(self.name),
+      score: self.score,
+      depth: self.depth,
+      rank: typeof self.rank === 'number' ? self.rank : undefined,
+      countryCode: self.countryCode,
+      submittedAt: self.submittedAt,
+    })
+  }
+
   async function refresh(): Promise<void> {
     const generation = ++fetchGeneration
     setLoading(true)
@@ -544,6 +557,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       const body = (await response.json().catch(() => null)) as {
         error?: string
         entries?: LeaderboardEntryView[]
+        self?: LeaderboardEntryView & { rank?: number | null }
         configured?: boolean
         storage?: 'redis' | 'memory' | 'none'
       } | null
@@ -555,7 +569,10 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       }
 
       const rawEntries = body?.entries ?? []
-      renderEntries(rawEntries)
+      if (body?.self && playerId) {
+        await persistSelfFromApi(playerId, body.self)
+      }
+      renderEntries(rawEntries, playerId)
       subtitleEl.textContent = resolveSubtitle(body?.storage, options.isRankedMode?.() ?? true)
 
       if (body?.storage === 'none') {
