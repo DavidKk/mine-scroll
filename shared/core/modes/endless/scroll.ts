@@ -12,27 +12,25 @@ function isBottomCellScrollExempt(session: ModeSession, board: Board, localRow: 
   return false
 }
 
-function countRowLeavingMines(session: ModeSession, board: Board, localRow: number): number {
+function countRowLeavingPenalty(session: ModeSession, board: Board, localRow: number): number {
   let count = 0
   for (let col = 0; col < board.cols; col += 1) {
-    if (isBottomCellScrollExempt(session, board, localRow, col)) continue
-    const cell = board.cells[localRow]![col]!
-    if (cell.isMine && cell.mark !== 'flag') count += 1
+    if (penaltyCellKind(session, board, localRow, col)) count += 1
   }
   return count
 }
 
-/** Bottom-row scroll damage: one life per unflagged mine leaving the row. */
+/** Bottom-row scroll damage: one life per undisposed cell leaving the row (unflagged mine, wrong flag, unrevealed). */
 export function computeBottomRowScrollDamage(session: ModeSession, board: Board, localRow = board.rows - 1): number {
   if (localRow < 0 || localRow >= board.rows) return 0
   if (board.minesPlaced) {
-    return countRowLeavingMines(session, board, localRow)
+    return countRowLeavingPenalty(session, board, localRow)
   }
   if (isRowAllBlank(board, localRow)) return 0
-  return countRowLeavingMines(session, board, localRow)
+  return countRowLeavingPenalty(session, board, localRow)
 }
 
-/** One scroll event with N leaving rows: −1 life per unflagged mine across those rows. */
+/** One scroll event with N leaving rows: −1 life per undisposed cell across those rows. */
 export function computeBatchScrollDamage(session: ModeSession, board: Board, batchRows: number): number {
   const n = Math.max(1, Math.min(batchRows, board.rows))
   let total = 0
@@ -49,7 +47,7 @@ export function isBottomRowScrollSafe(session: ModeSession): boolean {
   return computeBottomRowScrollDamage(session, session.state.board) === 0
 }
 
-/** Screen cells with unflagged mines in rows about to scroll off. */
+/** Screen cells that would cost a life when rows scroll off. */
 export interface ScrollLeavingMineCell {
   screenRow: number
   col: number
@@ -67,7 +65,7 @@ export function collectScrollLeavingMineCells(session: ModeSession, batchRows: n
     const localRow = board.rows - 1 - i
     if (localRow < 0 || isRowAllBlank(board, localRow)) continue
     for (let col = 0; col < board.cols; col += 1) {
-      if (penaltyCellKind(session, board, localRow, col) !== 'mine-unflagged') continue
+      if (!penaltyCellKind(session, board, localRow, col)) continue
       out.push({ screenRow: toScreenRow(localRow, viewStart), col })
     }
   }
@@ -87,7 +85,7 @@ function penaltyCellKind(session: ModeSession, board: Board, localRow: number, c
   if (cell.isMine) {
     return cell.mark === 'flag' ? null : 'mine-unflagged'
   }
-  if (cell.mark === 'flag') return 'wrong-flag'
+  if (cell.mark === 'flag') return null
   return 'unrevealed'
 }
 
@@ -116,14 +114,14 @@ function buildScrollLifeLoss(session: ModeSession, board: Board, localRow: numbe
       kind,
     })
   }
-  const mineDamage = cells.filter((c) => c.kind === 'mine-unflagged').length
+  const damage = cells.length
   const cellDesc = cells.map((c) => `(${c.screenRow},${c.col})${cellKindLabel(c.kind)}`).join(' ')
   return {
     cause: 'scroll-bottom',
-    damage: mineDamage,
+    damage,
     cells,
     boardChange: 'Bottom row scrolled off · top row added',
-    reason: `Scroll bottom life loss (−${mineDamage} leaving mine${mineDamage === 1 ? '' : 's'}) · leaks: ${cellDesc}`,
+    reason: `Scroll bottom life loss (−${damage} undisposed cell${damage === 1 ? '' : 's'}) · leaks: ${cellDesc}`,
   }
 }
 
@@ -135,7 +133,7 @@ function mergeScrollLifeLossReports(reports: LifeLossReport[], totalDamage: numb
     damage: totalDamage,
     cells,
     boardChange: reports.length > 1 ? `${reports.length} bottom rows scrolled off · top rows added` : reports[0]!.boardChange,
-    reason: `Scroll bottom life loss (−${totalDamage} leaving mine${totalDamage === 1 ? '' : 's'}) · leaks: ${cellDesc}`,
+    reason: `Scroll bottom life loss (−${totalDamage} undisposed cell${totalDamage === 1 ? '' : 's'}) · leaks: ${cellDesc}`,
   }
 }
 
@@ -147,7 +145,7 @@ function scrollOffBottomRow(session: ModeSession, board: Board): { board: Board;
   }
   return {
     board: removeBottomRow(board),
-    damage: countRowLeavingMines(session, board, bottomRow),
+    damage: countRowLeavingPenalty(session, board, bottomRow),
   }
 }
 
@@ -188,7 +186,7 @@ function performSingleRowScroll(session: ModeSession): SingleRowScrollResult {
 }
 
 /**
- * Conveyor batch tick: each event scrolls batchRows; −1 life per unflagged mine leaving.
+ * Conveyor batch tick: each event scrolls batchRows; −1 life per undisposed cell leaving.
  */
 export function endlessScrollBatch(session: ModeSession, batchRows = 1): ModeSession {
   if (session.state.status !== 'playing') return session

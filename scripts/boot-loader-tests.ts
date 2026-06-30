@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 
+import { isRankedMode } from '../game-client/ranked/is-ranked-mode.ts'
 import { isRankedStorageUnavailableMessage } from '../game-client/ranked/ranked-storage.ts'
 import { collectBootAssets, dedupeBootAssets } from '../game-client/ui/boot/asset-registry.ts'
 import { buildMobileBlockingBootAssets, isAudioBootUrl } from '../game-client/ui/boot/boot-blocking.ts'
@@ -101,6 +102,10 @@ export function testMobileBlockingBootAssetsPromotesOptionalAndAudio(): void {
 export function testIsAudioBootUrlDetectsWav(): void {
   assert.equal(isAudioBootUrl('/assets/game/audio/bgm-idle.wav'), true)
   assert.equal(isAudioBootUrl('/assets/a.png'), false)
+}
+
+export function testIsRankedModeAlwaysTrue(): void {
+  assert.equal(isRankedMode(), true)
 }
 
 export function testRankedStorageUnavailableMessage(): void {

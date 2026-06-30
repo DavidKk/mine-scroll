@@ -1,7 +1,7 @@
 # 天梯榜与反作弊技术方案
 
-> 版本 v0.1 · 2026-06-28  
-> 状态：推荐方案（待评审）  
+> 版本 v0.2 · 2026-07-01  
+> 状态：部分落地（`/play` 默认排位 + API + 排行榜 UI）  
 > 关联：`docs/PROJECT.md` Phase 6「本地纪录」、`docs/ARCHITECTURE.md`、`docs/MODES.md` § endless
 
 ---
@@ -25,7 +25,7 @@ chill 当前为 **纯静态 SPA**（Vite + TS + Canvas），游戏逻辑在 `src
 
 1. **客户端**：排位模式下静默记录 pointer / keyboard / layout 事件，分批上传；**不包含**反作弊判定逻辑。
 2. **服务端**：hit-test 重放 → 共享 `core` 复算 → 行为分析 + Shadow AI → 综合决策是否收录；**规则与阈值不下发客户端**。
-3. **产品分层**：本地纪录（无上传）与公开天梯（须验证）并存；对外仅返回 `accepted | rejected | pending`。
+3. **产品分层**：`/play` 默认走公开天梯 pipeline（须验证）；IndexedDB 本地纪录并行保留；KV 未绑定时降级为本地 expert 局（不上传）。对外仅返回 `accepted | rejected | pending`。
 
 ### 1.3 目标
 
@@ -189,11 +189,13 @@ src/app/game-session/
 - 触控：统一 Pointer Events 后同一 recorder（见 `docs/MOBILE-TOUCH-INPUT-PLAN.md`）
 - `mount.ts`：Space `keydown`；排位模式不注册 DEV `A` 键
 
-### 4.5 排位模式开关
+### 4.5 排位模式（已实现）
 
-- 入口：mode-hub「天梯无尽」或 URL `?ranked=1`（实现时二选一）
-- 生产包：**不挂载** `createAiController`；`devAutoVisible` 恒 false
-- 普通无尽 / 本地练习：**不启用** recorder，零网络开销
+- **入口**：`/play` 即为排位无尽（`expert` 曲线 + `RankedInputRecorder` + 服务端 run/finish）；**无需** URL `?ranked=1` 或 mode-hub 二次入口。
+- **开局**：`POST /api/ranked/runs` 签发 `runId` + `seed`；对局中分批 `POST …/events`；终局 `POST …/finish`。
+- **KV 未绑定 / 503**：客户端 toast「Leaderboard storage unavailable — playing locally. Scores will not be submitted.」；日志「Local game started (scores not submitted)」；不创建 `runId`、不 upload/finish（仍用 expert 本地可玩）。
+- **生产 DEV 隔离**：`devAutoVisible` 恒 false；排位局不依赖 AI hint（`refreshAiHint` 仅在 dev AUTO 开启时有效）；`mount.ts` Space 仍录制 manual scroll。
+- **未来 opt-out**：教程局（`docs/TUTORIAL-PLAN.md`）实现时通过独立 mount 或 `isRankedMode()` 关闭 recorder，不计榜。
 
 ---
 
@@ -434,8 +436,9 @@ GET /v1/ranked/leaderboard?mode=endless&limit=50
 
 ### Phase D — 产品化
 
-- [ ] mode-hub 天梯入口
-- [ ] 排行榜 UI
+- [x] `/play` 默认排位入口（`game-client/app/game-session/mount.ts`）
+- [x] 排行榜 UI（Canvas HUD + `leaderboard-panel` + `GET /api/leaderboard`）
+- [ ] mode-hub 独立入口（可选；当前与 `/play` 合并）
 - [ ] 隐私文案、events TTL 清理 job
 - [ ] Top N 人工复核流程（可选）
 
@@ -443,13 +446,14 @@ GET /v1/ranked/leaderboard?mode=endless&limit=50
 
 ## 11. 与现有代码对照
 
-| 现有                             | 天梯方案                                      |
-| -------------------------------- | --------------------------------------------- |
-| `applyAiMove` / `ai-loop.ts`     | 排位模式不挂载；脚本仍可调 core，靠服务端检测 |
-| `logPlayerAction`                | 保留 UI 日志；排位以 recorder events 为准     |
-| `import.meta.env.DEV` AUTO       | 生产已隐藏；排位双重禁用                      |
-| `scripts/simulate-endless-ai.ts` | 作为 Phase C 拒榜回归测试                     |
-| Phase 6 本地纪录                 | 并行；recorder 可复用，上传可选               |
+| 现有                             | 天梯方案（当前实现）                                       |
+| -------------------------------- | ---------------------------------------------------------- |
+| `applyAiMove` / `ai-loop.ts`     | 仍挂载；生产 UI 隐藏 AUTO，靠服务端 Shadow AI / 输入链检测 |
+| `logPlayerAction`                | 保留 UI 日志；排位以 recorder events 为准                  |
+| `import.meta.env.DEV` AUTO       | 生产已隐藏；dev 包可开 AUTO，与排位 recorder 并行          |
+| `isRankedMode()`                 | 恒 `true`；教程 opt-out 待 `TUTORIAL-PLAN` 落地            |
+| `scripts/simulate-endless-ai.ts` | 作为 Phase C 拒榜回归测试                                  |
+| Phase 6 本地纪录                 | 并行；finish 后写 IndexedDB + 可选上榜                     |
 
 ---
 
@@ -476,9 +480,10 @@ GET /v1/ranked/leaderboard?mode=endless&limit=50
 
 ## 14. 文档变更
 
-| 日期       | 版本 | 变更                                           |
-| ---------- | ---- | ---------------------------------------------- |
-| 2026-06-28 | v0.1 | 初稿：客户端采集 + 服务端黑盒验证 + 分阶段落地 |
+| 日期       | 版本 | 变更                                                                  |
+| ---------- | ---- | --------------------------------------------------------------------- |
+| 2026-06-28 | v0.1 | 初稿：客户端采集 + 服务端黑盒验证 + 分阶段落地                        |
+| 2026-07-01 | v0.2 | `/play` 默认排位；移除 `?ranked=1`；KV 503 本地降级文案；Phase D 勾选 |
 
 实现启动时同步：
 

@@ -31,7 +31,7 @@ export interface GameState {
   modeId: GameModeId
 }
 
-export type LifeLossCause = 'mine-reveal' | 'chord-mine' | 'scroll-bottom'
+export type LifeLossCause = 'mine-reveal' | 'chord-mine' | 'scroll-bottom' | 'wrong-flag'
 
 export type LifeLossCellKind = 'mine-hit' | 'mine-unflagged' | 'wrong-flag' | 'unrevealed'
 

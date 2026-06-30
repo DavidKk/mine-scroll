@@ -23,6 +23,7 @@ import {
   applyMinesFromSeed,
   CHALLENGE_PRESET,
   collectScrollLeavingMineCells,
+  computeBatchScrollDamage,
   createEndlessSession,
   ENDLESS_COLS,
   ENDLESS_MAX_MINES_PER_ROW,
@@ -40,6 +41,7 @@ import {
   SCROLL_BATCH_TIERS,
   SCROLL_INTERVAL_TIERS_MS,
 } from '../shared/core/modes/endless/index.ts'
+import { toggleMarkAt } from '../shared/core/modes/engine.ts'
 import type { ModeSession } from '../shared/core/types.ts'
 import {
   testApplyBootWeightMapKeepsFallbackWhenMissing,
@@ -49,6 +51,7 @@ import {
   testComputeBootProgressClampsRatio,
   testDedupeBootAssetsMergesByUrl,
   testIsAudioBootUrlDetectsWav,
+  testIsRankedModeAlwaysTrue,
   testMobileBlockingBootAssetsPromotesOptionalAndAudio,
   testRankedStorageUnavailableMessage,
   testResolveRasterUrlKeepsPngWhenUnsupported,
@@ -692,14 +695,81 @@ function testScrollProceedsWhenBottomUnsafe(): void {
   assert.equal((next.scrollRowCount ?? 0) - beforeDepth, 1)
 }
 
-function testScrollDamageEqualsLeavingMineCount(): void {
+function testScrollDamageEqualsLeavingPenaltyCount(): void {
   const session = endlessSessionWithLeavingMines()
-  const expectedDamage = collectScrollLeavingMineCells(session, 1).length
-  assert.ok(expectedDamage >= 1, 'expected at least one leaving mine')
+  const expectedDamage = computeBatchScrollDamage(session, session.state.board, 1)
+  assert.ok(expectedDamage >= 1, 'expected at least one leaving penalty cell')
   const beforeLives = session.lives ?? 0
   const next = endlessScrollTick(session, 1)
   assert.equal(next.lastLifeLoss?.damage, expectedDamage)
-  assert.equal(beforeLives - (next.lives ?? 0), expectedDamage)
+  assert.equal(beforeLives - (next.lives ?? 0), Math.min(beforeLives, expectedDamage))
+}
+
+function testWrongFlagPlacementCostsLife(): void {
+  const base = createEndlessSession()
+  const board = cloneBoard(base.state.board)
+  board.minesPlaced = true
+  const row = board.rows - 1
+  board.cells[row]![0] = {
+    isMine: false,
+    adjacentMines: 0,
+    revealed: false,
+    mark: 'none',
+  }
+  const session: ModeSession = {
+    ...base,
+    state: { ...base.state, status: 'playing', board },
+    lives: 5,
+  }
+
+  const beforeLives = session.lives ?? 0
+  const next = toggleMarkAt(session, row, 0)
+  assert.equal(next.lastLifeLoss?.cause, 'wrong-flag')
+  assert.equal(next.lastLifeLoss?.damage, 1)
+  assert.equal(next.lastLifeLoss?.cells[0]?.kind, 'wrong-flag')
+  assert.equal(beforeLives - (next.lives ?? 0), 1)
+}
+
+function testFlaggingEntireBottomRowStillCostsLifeForWrongFlags(): void {
+  const base = createEndlessSession()
+  const board = cloneBoard(base.state.board)
+  board.minesPlaced = true
+  const row = board.rows - 1
+  for (let col = 0; col < board.cols; col += 1) {
+    board.cells[row]![col] = {
+      isMine: col % 3 === 0,
+      adjacentMines: 0,
+      revealed: false,
+      mark: 'none',
+    }
+  }
+  let session: ModeSession = {
+    ...base,
+    state: { ...base.state, status: 'playing', board },
+    lives: 10,
+    minesDefused: 0,
+  }
+
+  const wrongFlagCols = board.cells[row]!.flatMap((cell, col) => (cell.isMine ? [] : [col]))
+  assert.ok(wrongFlagCols.length >= 1, 'expected at least one safe cell in fixture')
+
+  const beforeLives = session.lives ?? 0
+  for (const col of wrongFlagCols) {
+    session = toggleMarkAt(session, row, col)
+  }
+  assert.equal(beforeLives - (session.lives ?? 0), wrongFlagCols.length)
+  assert.equal(session.lastLifeLoss?.cause, 'wrong-flag')
+
+  for (let col = 0; col < board.cols; col += 1) {
+    if (board.cells[row]![col]!.isMine) {
+      session = toggleMarkAt(session, row, col)
+    }
+  }
+
+  assert.equal(isBatchScrollSafe(session, 1), true)
+  const beforeDefused = session.minesDefused ?? 0
+  session = endlessScrollTick(session, 1)
+  assert.ok((session.minesDefused ?? 0) > beforeDefused || (session.lastDefuseScore?.defusedAdded ?? 0) > 0, 'correct mine flags should bank after wrong-flag penalties')
 }
 
 function testBatchScrollAppliesCombinedMineDamage(): void {
@@ -907,7 +977,9 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['first reveal can hit mine and cost life', testFirstRevealCanHitMineAndCostLife],
   ['scroll leaving mines collected before scroll', testScrollLeavingMinesCollectedBeforeScroll],
   ['scroll proceeds when bottom row is not safe', testScrollProceedsWhenBottomUnsafe],
-  ['scroll damage equals leaving mine count', testScrollDamageEqualsLeavingMineCount],
+  ['scroll damage equals leaving penalty count', testScrollDamageEqualsLeavingPenaltyCount],
+  ['wrong flag placement costs life', testWrongFlagPlacementCostsLife],
+  ['flagging entire bottom row still costs life for wrong flags', testFlaggingEntireBottomRowStillCostsLifeForWrongFlags],
   ['batch scroll applies combined mine damage', testBatchScrollAppliesCombinedMineDamage],
   ['mobile board row center nudge', testMobileBoardRowCenterNudge],
   ['mobile board fit reports trim nudge', testMobileBoardFitReportsTrimNudge],
@@ -951,6 +1023,7 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['boot image format keeps png when unsupported', testResolveRasterUrlKeepsPngWhenUnsupported],
   ['mobile boot promotes optional assets and audio', testMobileBlockingBootAssetsPromotesOptionalAndAudio],
   ['boot audio url detection', testIsAudioBootUrlDetectsWav],
+  ['is ranked mode always true', testIsRankedModeAlwaysTrue],
   ['ranked storage unavailable message', testRankedStorageUnavailableMessage],
   ['kv env direct credentials', testResolveKvDirectEnv],
   ['kv env prefixed vercel credentials', testResolveKvPrefixedVercelEnv],

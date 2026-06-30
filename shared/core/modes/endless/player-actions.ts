@@ -147,7 +147,27 @@ export function endlessToggleMarkAt(session: ModeSession, row: number, col: numb
 
   const board = cloneBoard(state.board)
   const current = board.cells[row]![col]!
-  current.mark = current.mark === 'flag' ? 'none' : 'flag'
+
+  if (current.mark === 'flag') {
+    current.mark = 'none'
+    return finalizeBoard(session, board).session
+  }
+
+  current.mark = 'flag'
+
+  if (state.status === 'playing' && board.minesPlaced && !current.isMine) {
+    const viewStart = viewStartForSession(session)
+    const screenRow = toScreenRow(row, viewStart)
+    const lifeLoss: LifeLossReport = {
+      cause: 'wrong-flag',
+      damage: 1,
+      cells: [{ localRow: row, col, screenRow, kind: 'wrong-flag' }],
+      boardChange: `(${screenRow},${col}) safe cell wrongly flagged`,
+      reason: 'Wrong flag on safe cell · −1 life',
+    }
+    const afterBreak = clearDefuseStreakOnMistake({ ...session, state: { ...state, board } })
+    return applyLifeLoss(afterBreak, board, 1, 'playing', lifeLoss)
+  }
 
   return finalizeBoard(session, board).session
 }

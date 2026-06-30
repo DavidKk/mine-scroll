@@ -34,7 +34,7 @@ export interface GameCanvasHudStats {
   lifeLossEvent?: {
     id: number
     damage: number
-    cause: 'mine-reveal' | 'chord-mine' | 'scroll-bottom'
+    cause: 'mine-reveal' | 'chord-mine' | 'scroll-bottom' | 'wrong-flag'
     comboCleared?: number
     minesCleared?: number
   }

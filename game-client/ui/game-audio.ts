@@ -106,6 +106,9 @@ export function playLifeLossAudio(audio: GameAudioController, beforeLives: numbe
     if (!hasMine) audio.play('lifeWarning')
     return
   }
+  if (cause === 'wrong-flag') {
+    audio.play('lifeWarning')
+  }
 }
 
 export function playHealRewardAudio(audio: GameAudioController, beforeLives: number | undefined, prev: ModeSession, next: ModeSession): void {

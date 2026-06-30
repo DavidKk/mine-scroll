@@ -338,7 +338,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
   }
 
   function resolveShowDepth(entries: LeaderboardEntryView[], rows: LeaderboardDisplayRow[]): boolean {
-    if (options.isRankedMode?.()) return true
+    if (options.isRankedMode?.() ?? true) return true
     return rows.some((row) => typeof row.entry.depth === 'number') || entries.some((entry) => typeof entry.depth === 'number')
   }
 
@@ -542,7 +542,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
 
       const rawEntries = body?.entries ?? []
       renderEntries(rawEntries)
-      subtitleEl.textContent = resolveSubtitle(body?.storage, options.isRankedMode?.() ?? false)
+      subtitleEl.textContent = resolveSubtitle(body?.storage, options.isRankedMode?.() ?? true)
 
       if (body?.storage === 'none') {
         applyStatus('Global leaderboard needs Vercel KV — you can still play locally.', 'idle')
@@ -591,8 +591,8 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       shell.hidden = !next
       host.classList.toggle('app--leaderboard-open', next)
       if (next) {
-        subtitleEl.textContent = resolveSubtitle(undefined, options.isRankedMode?.() ?? false)
-        applyTableDepthLayout(options.isRankedMode?.() ?? false)
+        subtitleEl.textContent = resolveSubtitle(undefined, options.isRankedMode?.() ?? true)
+        applyTableDepthLayout(options.isRankedMode?.() ?? true)
         primeSelfZoneFromCache()
         setLoading(true)
         panel.focus()

@@ -9,14 +9,13 @@ import {
   isEndlessInteractiveScreenRowForSession,
   sessionVisibleRows,
 } from '@shared/core/modes/endless/index.ts'
-import { chordAt, createSession, getFlagCount, revealAt, toCellViews, toggleMarkAt } from '@shared/core/modes/engine.ts'
+import { chordAt, getFlagCount, revealAt, toCellViews, toggleMarkAt } from '@shared/core/modes/engine.ts'
 import type { ModeSession } from '@shared/core/types.ts'
 
 import { loadLocalSettings, patchLocalSettings } from '../../config/local-settings.ts'
 import { isDev } from '../../env.ts'
 import { createRankedInputRecorder } from '../../ranked/input-recorder.ts'
 import { createRankedInputUploader } from '../../ranked/input-uploader.ts'
-import { isRankedMode } from '../../ranked/is-ranked-mode.ts'
 import { createRankedRunOnServer, createRankedSession, finishRankedRunOnServer } from '../../ranked/ranked-run-client.ts'
 import { isRankedStorageUnavailableMessage } from '../../ranked/ranked-storage.ts'
 import type { RunInputEvent } from '../../ranked/types.ts'
@@ -80,6 +79,11 @@ function applyViewportEndlessVisibleRows(session: ModeSession, options: { preser
   return next
 }
 
+function createIdleEndlessSession(): ModeSession {
+  const seed = (Math.random() * 0x1_0000_0000) >>> 0
+  return applyViewportEndlessVisibleRows(createRankedSession(seed))
+}
+
 function createInitialRuntime(session: ModeSession): GameSessionRuntime {
   return {
     session,
@@ -115,13 +119,12 @@ function createInitialRuntime(session: ModeSession): GameSessionRuntime {
 
 export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallbacks = { onBack: () => undefined }): () => void {
   const modeMeta = getModeEntry()
-  const rankedMode = isRankedMode()
   const rankedStoreReady = ensureRankedLocalStore().then(async () => {
     const name = await ensureDisplayName()
     await saveDisplayName(name)
     await ensurePlayerId()
   })
-  const runtime = createInitialRuntime(applyViewportEndlessVisibleRows(createSession()))
+  const runtime = createInitialRuntime(createIdleEndlessSession())
   const gameAudio = createGameAudio({ bgmMuted: loadLocalSettings().bgmMuted })
   let tracePersistTimer: number | null = null
 
@@ -147,7 +150,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     gameAudio.setIdleBgm(true)
   }
 
-  root.className = rankedMode ? 'app app--ranked' : 'app'
+  root.className = 'app app--ranked'
   root.replaceChildren()
 
   const notify = createGameNotificationStack(root)
@@ -185,7 +188,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
   }
 
   const leaderboardPanel = createLeaderboardPanel(root, {
-    isRankedMode: () => rankedMode,
     onClose: () => closeLeaderboard(),
     notify,
   })
@@ -206,7 +208,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
   }
 
   async function autoFinishRankedRun(): Promise<void> {
-    if (!rankedMode || !runtime.rankedRunId) return
+    if (!runtime.rankedRunId) return
 
     const finishGeneration = sessionGeneration
     const runId = runtime.rankedRunId
@@ -281,7 +283,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     ai.stopAiAuto()
     runtime.aiHint = null
     gameLog.append(status === 'won' ? 'Victory' : 'Defeat', 'system')
-    if (!rankedMode || !runtime.rankedRunId) return
+    if (!runtime.rankedRunId) return
     void autoFinishRankedRun()
   }
 
@@ -311,8 +313,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       scroll.stopScrollTimer()
       ai.stopAiAuto()
       runtime.aiHint = null
-    } else {
-      if (!rankedMode) ai.refreshAiHint()
     }
     render()
   }
@@ -382,33 +382,33 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     if (runtime.session.state.status !== 'idle') return
     const runGeneration = sessionGeneration
     runtime.startOverlayOpen = false
+    let rankedRunLinked = false
 
-    if (rankedMode) {
-      try {
-        const run = await createRankedRunOnServer()
-        if (runGeneration !== sessionGeneration) return
-        rankedUploader.dispose()
-        rankedUploader = createRankedInputUploader(run.uploadIntervalMs)
-        runtime.rankedRunId = run.runId
-        runtime.rankedFinishStatus = null
-        rankedUploader.bindRun(run.runId)
-        runtime.session = applyViewportEndlessVisibleRows(createRankedSession(run.seed))
-        rankedRecorder.start()
-        rankedRecorder.markBegin()
-        await createRunTrace(run.runId, run.seed)
-        devLog(`Ranked run ${run.runId.slice(0, 8)}…`)
-      } catch (error) {
-        if (runGeneration !== sessionGeneration) return
-        const message = error instanceof Error ? error.message : 'Failed to start ranked run'
-        devWarn(message)
-        if (!isRankedStorageUnavailableMessage(message)) {
-          runtime.startOverlayOpen = true
-          notify.error(message)
-          render()
-          return
-        }
-        notify.warning('Ranked storage offline — starting local endless run')
+    try {
+      const run = await createRankedRunOnServer()
+      if (runGeneration !== sessionGeneration) return
+      rankedUploader.dispose()
+      rankedUploader = createRankedInputUploader(run.uploadIntervalMs)
+      runtime.rankedRunId = run.runId
+      runtime.rankedFinishStatus = null
+      rankedUploader.bindRun(run.runId)
+      runtime.session = applyViewportEndlessVisibleRows(createRankedSession(run.seed))
+      rankedRecorder.start()
+      rankedRecorder.markBegin()
+      await createRunTrace(run.runId, run.seed)
+      rankedRunLinked = true
+      devLog(`Ranked run ${run.runId.slice(0, 8)}…`)
+    } catch (error) {
+      if (runGeneration !== sessionGeneration) return
+      const message = error instanceof Error ? error.message : 'Failed to start ranked run'
+      devWarn(message)
+      if (!isRankedStorageUnavailableMessage(message)) {
+        runtime.startOverlayOpen = true
+        notify.error(message)
+        render()
+        return
       }
+      notify.warning('Leaderboard storage unavailable — playing locally. Scores will not be submitted.')
     }
 
     if (runGeneration !== sessionGeneration) return
@@ -417,8 +417,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     scroll.markGameClockStarted()
     scroll.startScrollTimer()
     gameLog.clear()
-    gameLog.append(rankedMode ? 'Ranked game started' : 'Game started', 'system')
-    if (!rankedMode) ai.refreshAiHint()
+    gameLog.append(rankedRunLinked ? 'Ranked game started' : 'Local game started (scores not submitted)', 'system')
     render()
   }
 
@@ -430,7 +429,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     rankedUploader.dispose()
     rankedUploader = createRankedInputUploader()
     runtime.view?.destroy()
-    runtime.session = applyViewportEndlessVisibleRows(createSession())
+    runtime.session = createIdleEndlessSession()
     runtime.rankedRunId = null
     runtime.rankedFinishStatus = null
     runtime.scrollGameStartedAt = 0
@@ -445,7 +444,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     mountCanvas()
     runtime.view?.resetTimer()
     gameLog.clear()
-    if (!rankedMode) ai.refreshAiHint()
     syncIdleBgm()
     render()
   }
@@ -470,7 +468,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       onManualScroll: () => {
         if (runtime.session.state.status !== 'playing') return
         gameAudio.unlock()
-        if (rankedMode) rankedRecorder.recordSpace()
+        rankedRecorder.recordSpace()
         scroll.performScrollTick(true)
       },
       onDifficultyAlert: (kind: 'speed-up' | 'danger-rise') => {
@@ -498,30 +496,28 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         leaderboardPanel.setOpen(true)
         render()
       },
-      rankedInput: rankedMode
-        ? {
-            onLayout(): void {
-              if (!rankedRecorder.isActive()) return
-              const snapshot = runtime.view?.getRankedLayoutSnapshot?.()
-              if (snapshot) rankedRecorder.recordLayout(snapshot)
-            },
-            onMove(x: number, y: number): void {
-              rankedRecorder.recordMove(x, y)
-            },
-            onDown(btn: 0 | 2, x: number, y: number, buttons?: number): void {
-              rankedRecorder.recordDown(btn, x, y, buttons)
-            },
-            onUp(btn: 0 | 2, x: number, y: number): void {
-              rankedRecorder.recordUp(btn, x, y)
-            },
-            onDoubleClick(x: number, y: number): void {
-              rankedRecorder.recordDoubleClick(x, y)
-            },
-            onContextMenu(x: number, y: number): void {
-              rankedRecorder.recordContextMenu(x, y)
-            },
-          }
-        : undefined,
+      rankedInput: {
+        onLayout(): void {
+          if (!rankedRecorder.isActive()) return
+          const snapshot = runtime.view?.getRankedLayoutSnapshot?.()
+          if (snapshot) rankedRecorder.recordLayout(snapshot)
+        },
+        onMove(x: number, y: number): void {
+          rankedRecorder.recordMove(x, y)
+        },
+        onDown(btn: 0 | 2, x: number, y: number, buttons?: number): void {
+          rankedRecorder.recordDown(btn, x, y, buttons)
+        },
+        onUp(btn: 0 | 2, x: number, y: number): void {
+          rankedRecorder.recordUp(btn, x, y)
+        },
+        onDoubleClick(x: number, y: number): void {
+          rankedRecorder.recordDoubleClick(x, y)
+        },
+        onContextMenu(x: number, y: number): void {
+          rankedRecorder.recordContextMenu(x, y)
+        },
+      },
     }
     const controller = createGameCanvas(
       canvasContainer,
@@ -543,8 +539,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           applySession(next, beforeLives, { trigger: `Player reveal ${formatCell(row, col)}` })
           if (next.state.status === 'won' || next.state.status === 'lost') {
             handleTerminalGameStatus(next.state.status)
-          } else if (!rankedMode) {
-            ai.refreshAiHint()
           }
           render()
         },
@@ -555,13 +549,16 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           const cell = runtime.session.state.board.cells[localRow]?.[col]
           if (!cell || cell.revealed) return
           const wasFlagged = cell.mark === 'flag'
+          const beforeLives = runtime.session.lives
           logPlayerAction(gameLog, 'flag', row, col)
           const next = toggleMarkAt(runtime.session, localRow, col)
           if (next !== runtime.session) {
             playFlagToggleAudio(gameAudio, !wasFlagged)
           }
-          applySession(next)
-          if (!rankedMode) ai.refreshAiHint()
+          applySession(next, beforeLives, { trigger: `Player flag ${formatCell(row, col)}` })
+          if (next.state.status === 'lost') {
+            handleTerminalGameStatus(next.state.status)
+          }
           render()
         },
         onChord(row, col) {
@@ -576,8 +573,6 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           applySession(next, beforeLives, { trigger: `Player Chord ${formatCell(row, col)}` })
           if (next.state.status === 'won' || next.state.status === 'lost') {
             handleTerminalGameStatus(next.state.status)
-          } else if (!rankedMode) {
-            ai.refreshAiHint()
           }
           render()
         },
@@ -635,7 +630,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       if (runtime.session.state.status !== 'playing') return
       event.preventDefault()
       gameAudio.unlock()
-      if (rankedMode) rankedRecorder.recordSpace()
+      rankedRecorder.recordSpace()
       scroll.performScrollTick(true)
       return
     }
@@ -684,8 +679,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
   }
 
   mountCanvas()
-  if (!rankedMode) ai.refreshAiHint()
-  devLog(`${modeMeta.name}${rankedMode ? ' · ranked' : ''} · ready`)
+  devLog(`${modeMeta.name} · ranked · ready`)
   syncIdleBgm()
   render()
 
