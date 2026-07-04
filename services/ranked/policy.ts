@@ -1,7 +1,7 @@
 import type { PolicyDecision, ReplayResult } from './types.ts'
 
-const ACCEPT_THRESHOLD = 0.55
-const REVIEW_THRESHOLD = 0.35
+const ACCEPT_THRESHOLD = 0.42
+const REVIEW_THRESHOLD = 0.28
 
 export function evaluateRankedRun(replay: ReplayResult): PolicyDecision {
   const riskFlags: string[] = []
@@ -32,11 +32,17 @@ export function evaluateRankedRun(replay: ReplayResult): PolicyDecision {
 
   const shadowRate = replay.shadowAi.aiMoveMatchRate
   const shadowAiScore = clamp01(1 - shadowRate)
-  if (shadowRate > 0.92 && zeroMoveRatio > 0.5) {
+  if (shadowRate > 0.96 && zeroMoveRatio > 0.7) {
     riskFlags.push('shadow_ai_bot_pattern')
   }
 
-  const combined = inputChainScore * 0.55 + shadowAiScore * 0.45 - riskFlags.length * 0.08
+  const skippedActions = replay.skippedActions ?? 0
+  const skippedRatio = actionableMetrics.length > 0 ? skippedActions / actionableMetrics.length : 0
+  if (skippedRatio > 0.45 && skippedActions >= 12) {
+    riskFlags.push('high_replay_skips')
+  }
+
+  const combined = inputChainScore * 0.55 + shadowAiScore * 0.45 - riskFlags.length * 0.06
 
   let decision: PolicyDecision['decision'] = 'rejected'
   if (combined >= ACCEPT_THRESHOLD) decision = 'accepted'

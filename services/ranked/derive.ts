@@ -40,6 +40,41 @@ function metricsForDown(down: Extract<RunInputEvent, { e: 'down' }>, moves: Arra
   }
 }
 
+function deriveLegacyPointerAction(
+  event: Extract<RunInputEvent, { e: 'down' | 'ctx' | 'dbl' }>,
+  hitFrom: (x: number, y: number) => { row: number; col: number } | null,
+  metrics: InputChainMetrics[],
+  moves: Array<Extract<RunInputEvent, { e: 'move' }>>
+): DerivedPlayerAction | null {
+  if (event.e === 'dbl') {
+    const cell = hitFrom(event.x, event.y)
+    return cell ? { t: event.t, kind: 'chord', screenRow: cell.row, col: cell.col } : null
+  }
+
+  if (event.e === 'ctx') {
+    const cell = hitFrom(event.x, event.y)
+    return cell ? { t: event.t, kind: 'flag', screenRow: cell.row, col: cell.col } : null
+  }
+
+  const cell = hitFrom(event.x, event.y)
+  if (!cell) return null
+  metrics.push(metricsForDown(event, moves))
+
+  if (isBothButtons(event.buttons)) {
+    return { t: event.t, kind: 'chord', screenRow: cell.row, col: cell.col }
+  }
+
+  if (event.btn === 2) {
+    return null
+  }
+
+  if (event.btn === 0) {
+    return { t: event.t, kind: 'reveal', screenRow: cell.row, col: cell.col }
+  }
+
+  return null
+}
+
 export function derivePlayerActions(events: RunInputEvent[]): {
   actions: DerivedPlayerAction[]
   metrics: InputChainMetrics[]
@@ -51,6 +86,7 @@ export function derivePlayerActions(events: RunInputEvent[]): {
   const moves: Array<Extract<RunInputEvent, { e: 'move' }>> = []
   const actions: DerivedPlayerAction[] = []
   const metrics: InputChainMetrics[] = []
+  const hasActEvents = events.some((event) => event.e === 'act')
 
   for (const event of events) {
     if (event.e === 'layout') {
@@ -73,8 +109,18 @@ export function derivePlayerActions(events: RunInputEvent[]): {
     }
     if (!layout) continue
 
+    if (event.e === 'act') {
+      actions.push({ t: event.t, kind: event.kind, screenRow: event.row, col: event.col })
+      continue
+    }
+
     if (event.e === 'scroll') {
-      actions.push({ t: event.t, kind: 'scroll', manual: event.manual === true })
+      actions.push({
+        t: event.t,
+        kind: 'scroll',
+        manual: event.manual === true,
+        batchRows: event.batchRows,
+      })
       continue
     }
 
@@ -83,44 +129,21 @@ export function derivePlayerActions(events: RunInputEvent[]): {
       continue
     }
 
+    if (hasActEvents) {
+      if (event.e === 'down' && event.btn === 0) {
+        metrics.push(metricsForDown(event, moves))
+      }
+      continue
+    }
+
     const hitFrom = (x: number, y: number) => hitTestCellWithLayout(layout!, x, y)
-
-    if (event.e === 'dbl') {
-      const cell = hitFrom(event.x, event.y)
-      if (cell) {
-        actions.push({ t: event.t, kind: 'chord', screenRow: cell.row, col: cell.col })
-      }
-      continue
-    }
-
-    if (event.e === 'ctx') {
-      const cell = hitFrom(event.x, event.y)
-      if (cell) {
-        actions.push({ t: event.t, kind: 'flag', screenRow: cell.row, col: cell.col })
-      }
-      continue
-    }
-
-    if (event.e === 'down') {
-      const cell = hitFrom(event.x, event.y)
-      if (!cell) continue
-      metrics.push(metricsForDown(event, moves))
-
-      if (isBothButtons(event.buttons)) {
-        actions.push({ t: event.t, kind: 'chord', screenRow: cell.row, col: cell.col })
-        continue
-      }
-
-      if (event.btn === 2) {
-        // Desktop right-click flag is applied on ctx; btn:2 down is metrics-only.
-        continue
-      }
-
-      if (event.btn === 0) {
-        actions.push({ t: event.t, kind: 'reveal', screenRow: cell.row, col: cell.col })
-      }
+    if (event.e === 'dbl' || event.e === 'ctx' || event.e === 'down') {
+      const derived = deriveLegacyPointerAction(event, hitFrom, metrics, moves)
+      if (derived) actions.push(derived)
     }
   }
+
+  actions.sort((a, b) => a.t - b.t)
 
   return { actions, metrics, layout, beginT }
 }

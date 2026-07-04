@@ -8,7 +8,9 @@ export type RunInputEvent =
   | { t: number; e: 'ctx'; x: number; y: number }
   | { t: number; e: 'key'; code: 'Space' }
   /** Fired when the board actually scrolls (after FX commit), not when the timer/key fires. */
-  | { t: number; e: 'scroll'; manual?: boolean }
+  | { t: number; e: 'scroll'; manual?: boolean; batchRows?: number }
+  /** Authoritative player action — recorded when core callback fires (matches game log). */
+  | { t: number; e: 'act'; kind: 'reveal' | 'flag' | 'chord'; row: number; col: number }
   | { t: number; e: 'begin' }
   | { t: number; e: 'layout'; layout: LayoutSnapshot }
 
@@ -49,7 +51,7 @@ export type DerivedPlayerAction =
   | { t: number; kind: 'reveal'; screenRow: number; col: number }
   | { t: number; kind: 'flag'; screenRow: number; col: number }
   | { t: number; kind: 'chord'; screenRow: number; col: number }
-  | { t: number; kind: 'scroll'; manual?: boolean }
+  | { t: number; kind: 'scroll'; manual?: boolean; batchRows?: number }
 
 export interface InputChainMetrics {
   moveSamplesBeforeDown: number
@@ -70,6 +72,8 @@ export interface ReplayResult {
   sessionDepth: number
   inputMetrics: InputChainMetrics[]
   shadowAi: ShadowAiMetrics
+  /** Actions ignored during replay (no-op / non-interactive), matching client behavior. */
+  skippedActions?: number
 }
 
 export interface PolicyDecision {

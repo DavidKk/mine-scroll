@@ -1,5 +1,5 @@
-import { getJsonKv, isKvConfigured, setJsonKvEx } from '../kv/client.ts'
-import { entryPlayerId,isBetterLeaderboardEntry, normalizeLeaderboardEntry } from './merge.ts'
+import { deleteJsonKv, getJsonKv, isKvConfigured, setJsonKvEx } from '../kv/client.ts'
+import { entryPlayerId, isBetterLeaderboardEntry, normalizeLeaderboardEntry } from './merge.ts'
 import { LEADERBOARD_PLAYER_KEY_PREFIX, LEADERBOARD_PLAYER_TTL_SECONDS, type LeaderboardEntry } from './types.ts'
 
 function playerBestKey(playerId: string): string {
@@ -26,4 +26,9 @@ export async function savePlayerBestIfBetter(entry: LeaderboardEntry): Promise<L
 
   await setJsonKvEx(playerBestKey(playerId), normalized, LEADERBOARD_PLAYER_TTL_SECONDS)
   return normalized
+}
+
+export async function deletePlayerBestEntry(playerId: string): Promise<boolean> {
+  if (!isKvConfigured() || !playerId) return false
+  return deleteJsonKv(playerBestKey(playerId))
 }

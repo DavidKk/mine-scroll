@@ -182,19 +182,25 @@ export async function finishRankedRun(
     if (replay.replayOk && (replay.sessionScore !== score || replay.sessionDepth !== depth)) {
       riskFlags = ['dev_bypass_claimed_score']
     }
-  } else if (replay.replayOk && replay.sessionScore === score && replay.sessionDepth === depth) {
+  } else if (replay.replayOk) {
+    verifiedScore = replay.sessionScore
+    verifiedDepth = replay.sessionDepth
     const policy = evaluateRankedRun(replay)
     riskFlags = policy.riskFlags
+    if (replay.sessionScore !== score || replay.sessionDepth !== depth) {
+      riskFlags = [...riskFlags, 'score_mismatch']
+      logger.warn('score mismatch', {
+        runId: shortRunId(runId),
+        claimedScore: score,
+        verifiedScore: replay.sessionScore,
+        claimedDepth: depth,
+        verifiedDepth: replay.sessionDepth,
+      })
+    }
     status = policy.decision === 'accepted' ? 'accepted' : policy.decision === 'review' ? 'pending' : 'rejected'
-  } else if (replay.replayOk) {
-    riskFlags = ['score_mismatch']
-    logger.warn('score mismatch', {
-      runId: shortRunId(runId),
-      claimedScore: score,
-      verifiedScore: replay.sessionScore,
-      claimedDepth: depth,
-      verifiedDepth: replay.sessionDepth,
-    })
+    if (status === 'rejected' && isInflatedClaim(score, depth, replay.sessionScore, replay.sessionDepth)) {
+      riskFlags = [...riskFlags, 'score_inflation']
+    }
   } else {
     logger.warn('replay failed', {
       runId: shortRunId(runId),
@@ -283,7 +289,7 @@ export async function finishRankedRun(
       runId: shortRunId(runId),
       playerId: shortPlayerId(playerId),
       riskFlags,
-      cheating: true,
+      cheating: shouldMarkCheating(score, depth, verifiedScore, verifiedDepth, riskFlags),
     })
   } else if (status === 'pending') {
     logger.warn('run pending review', {
@@ -298,8 +304,23 @@ export async function finishRankedRun(
     ranked,
     saved,
     rank,
-    cheating: devBypass ? false : status === 'rejected',
+    cheating: devBypass ? false : shouldMarkCheating(score, depth, verifiedScore, verifiedDepth, riskFlags),
   }
+}
+
+function isInflatedClaim(claimedScore: number, claimedDepth: number, verifiedScore: number, verifiedDepth: number): boolean {
+  const scoreGap = claimedScore - verifiedScore
+  const depthGap = claimedDepth - verifiedDepth
+  const scoreTolerance = Math.max(30, verifiedScore * 0.12)
+  const depthTolerance = Math.max(2, verifiedDepth * 0.12)
+  return scoreGap > scoreTolerance || depthGap > depthTolerance
+}
+
+function shouldMarkCheating(claimedScore: number, claimedDepth: number, verifiedScore: number, verifiedDepth: number, riskFlags: string[]): boolean {
+  if (riskFlags.includes('score_inflation')) return true
+  if (riskFlags.includes('shadow_ai_bot_pattern')) return true
+  if (isInflatedClaim(claimedScore, claimedDepth, verifiedScore, verifiedDepth)) return true
+  return false
 }
 
 function sanitizeClaimedScore(value: unknown): number {

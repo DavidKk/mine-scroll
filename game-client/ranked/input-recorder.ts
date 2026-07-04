@@ -19,7 +19,8 @@ export interface RankedInputRecorder {
   recordDoubleClick(x: number, y: number): void
   recordContextMenu(x: number, y: number): void
   recordSpace(): void
-  recordScroll(manual?: boolean): void
+  recordScroll(manual?: boolean, batchRows?: number): void
+  recordAction(kind: 'reveal' | 'flag' | 'chord', screenRow: number, col: number): void
   drain(): RunInputEvent[]
   peek(): RunInputEvent[]
   elapsedMs(): number
@@ -92,8 +93,16 @@ export function createRankedInputRecorder(options: RankedInputRecorderOptions = 
     recordSpace() {
       push({ t: nowT(), e: 'key', code: 'Space' })
     },
-    recordScroll(manual = false) {
-      push({ t: nowT(), e: 'scroll', manual })
+    recordScroll(manual = false, batchRows?: number) {
+      push({
+        t: nowT(),
+        e: 'scroll',
+        manual,
+        ...(batchRows != null && batchRows > 0 ? { batchRows } : {}),
+      })
+    },
+    recordAction(kind, screenRow, col) {
+      push({ t: nowT(), e: 'act', kind, row: screenRow, col })
     },
     drain() {
       const batch = events.splice(0, events.length)

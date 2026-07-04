@@ -1,4 +1,5 @@
 import {
+  clearAllLocalScores,
   ensureRankedLocalStore,
   getCachedDisplayName,
   getCachedLeaderboardSelfSnapshot,
@@ -10,7 +11,7 @@ import {
 import { HUD_ICON_BASE } from '../../ui/boot/asset-registry.ts'
 import { resolveRasterUrl } from '../../ui/boot/image-format.ts'
 import { wrapWithCustomScrollbar } from '../../ui/custom-scrollbar.ts'
-import { createHeroicon } from '../../ui/heroicons.ts'
+import { createHeroicon, type HeroiconName } from '../../ui/heroicons.ts'
 import type { GameNotificationController } from '../../ui/notification.ts'
 
 export interface LeaderboardEntryView {
@@ -372,6 +373,16 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     )
   }
 
+  function createSelfActionButton(icon: HeroiconName, label: string, modifier?: 'danger'): HTMLButtonElement {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = `leaderboard-modal__self-action${modifier ? ` leaderboard-modal__self-action--${modifier}` : ''}`
+    btn.setAttribute('aria-label', label)
+    btn.title = label
+    btn.append(createHeroicon(icon, 'leaderboard-modal__self-action-icon'))
+    return btn
+  }
+
   function populateSelfZoneHead(displayName: string): void {
     selfHeadEl.replaceChildren()
 
@@ -379,16 +390,23 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     label.className = 'leaderboard-modal__self-label'
     label.textContent = 'You'
 
-    const renameBtn = document.createElement('button')
-    renameBtn.type = 'button'
-    renameBtn.className = 'leaderboard-modal__rename'
-    renameBtn.textContent = 'rename'
+    const actions = document.createElement('div')
+    actions.className = 'leaderboard-modal__self-actions'
+
+    const renameBtn = createSelfActionButton('pencil-square', 'Rename operator')
     renameBtn.addEventListener('click', (event) => {
       event.stopPropagation()
       openRenameDialog(displayName)
     })
 
-    selfHeadEl.append(label, renameBtn)
+    const clearBtn = createSelfActionButton('trash', 'Clear my scores', 'danger')
+    clearBtn.addEventListener('click', (event) => {
+      event.stopPropagation()
+      void submitClearScores()
+    })
+
+    actions.append(renameBtn, clearBtn)
+    selfHeadEl.append(label, actions)
   }
 
   function createPinnedSelfCard(row: LeaderboardDisplayRow, showDepth: boolean, showCountry: boolean): HTMLElement {
@@ -531,6 +549,45 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     closeRenameDialog()
     options.notify?.success('Operator name updated.')
     renderEntries(lastEntries)
+  }
+
+  async function submitClearScores(): Promise<void> {
+    const confirmed = window.confirm('Clear your local scores and remove your ranking from the leaderboard?')
+    if (!confirmed) return
+
+    await ensureRankedLocalStore()
+    const playerId = getCachedPlayerId().trim()
+    if (!playerId) {
+      applyStatus('Player id missing — reload and try again.', 'error')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/leaderboard', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId }),
+      })
+      const body = (await response.json().catch(() => null)) as { error?: string } | null
+      let serverCleared = false
+      if (response.ok) {
+        serverCleared = true
+      } else if (response.status === 503) {
+        serverCleared = false
+      } else {
+        throw new Error(body?.error ?? 'Failed to clear leaderboard entry')
+      }
+
+      await clearAllLocalScores()
+      lastEntries = []
+      renderEntries([])
+      options.notify?.success(serverCleared ? 'Scores cleared.' : 'Local scores cleared.')
+      applyStatus('')
+      void refresh()
+    } catch (error) {
+      applyStatus(error instanceof Error ? error.message : 'Failed to clear scores', 'error')
+      options.notify?.error(error instanceof Error ? error.message : 'Failed to clear scores')
+    }
   }
 
   async function persistSelfFromApi(playerId: string, self: LeaderboardEntryView & { rank?: number | null }): Promise<void> {

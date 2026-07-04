@@ -28,19 +28,20 @@ function applyAutoScrolls(session: ModeSession, fromT: number, toT: number): Mod
   return next
 }
 
-function applyPlayerAction(session: ModeSession, action: DerivedPlayerAction): { session: ModeSession; ok: boolean; error?: string } {
-  if (session.state.status !== 'playing' && action.kind !== 'reveal') {
-    return { session, ok: false, error: `Action ${action.kind} while not playing` }
+function applyPlayerAction(session: ModeSession, action: DerivedPlayerAction): { session: ModeSession; ok: boolean; skipped?: boolean; error?: string } {
+  if (session.state.status !== 'playing') {
+    // Match client: ignore input after game ends instead of failing replay.
+    return { session, ok: true, skipped: true }
   }
 
   if (action.kind === 'scroll') {
-    const profile = getEndlessScrollProfileForSession(session, action.t)
-    const next = endlessScrollTick(session, profile.batchRows)
+    const batchRows = action.batchRows ?? getEndlessScrollProfileForSession(session, action.t).batchRows
+    const next = endlessScrollTick(session, batchRows)
     return { session: next, ok: true }
   }
 
   if (!isEndlessInteractiveScreenRowForSession(session, action.screenRow)) {
-    return { session, ok: false, error: `Screen row ${action.screenRow} not interactive` }
+    return { session, ok: true, skipped: true }
   }
 
   const localRow = endlessScreenRowToLocal(session, action.screenRow)
@@ -56,7 +57,8 @@ function applyPlayerAction(session: ModeSession, action: DerivedPlayerAction): {
   }
 
   if (next === before) {
-    return { session, ok: false, error: `No-op ${action.kind} at (${action.screenRow},${action.col})` }
+    // Match client: revealed / flagged / out-of-bounds taps are silently ignored.
+    return { session, ok: true, skipped: true }
   }
 
   return { session: next, ok: true }
@@ -112,6 +114,7 @@ export function replayRankedRun(seed: number, events: RunInputEvent[]): ReplayRe
   const shadowAi: ShadowAiMetrics = { comparedMoves: 0, aiMoveMatches: 0, aiMoveMatchRate: 0 }
   const hasExplicitScrollEvents = events.some((event) => event.e === 'scroll')
   let lastT = beginT
+  let skippedActions = 0
 
   for (const action of actions) {
     if (!hasExplicitScrollEvents) {
@@ -130,8 +133,10 @@ export function replayRankedRun(seed: number, events: RunInputEvent[]): ReplayRe
         sessionDepth: session.scrollRowCount ?? 0,
         inputMetrics: metrics,
         shadowAi: finalizeShadow(shadowAi),
+        skippedActions,
       }
     }
+    if (result.skipped) skippedActions += 1
     session = result.session
     lastT = action.t
 
@@ -146,6 +151,7 @@ export function replayRankedRun(seed: number, events: RunInputEvent[]): ReplayRe
     sessionDepth: session.scrollRowCount ?? 0,
     inputMetrics: metrics,
     shadowAi: finalizeShadow(shadowAi),
+    skippedActions,
   }
 }
 

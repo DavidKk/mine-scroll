@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getKvStorageMode } from '@/services/kv/client'
-import { isLeaderboardKvConfigured, isLeaderboardServiceError, readLeaderboard, submitLeaderboardEntry } from '@/services/leaderboard'
+import { clearPlayerLeaderboard, isLeaderboardKvConfigured, isLeaderboardServiceError, readLeaderboard, submitLeaderboardEntry } from '@/services/leaderboard'
 import { createLogger } from '@/services/logger'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +48,27 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Failed to submit score'
     const status = isLeaderboardServiceError(error) ? error.statusCode : 500
     logger.fail('post failed', { message, status })
+    return NextResponse.json({ error: message }, { status })
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      logger.warn('delete invalid json')
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
+    const payload = body as { playerId?: unknown }
+    const result = await clearPlayerLeaderboard(String(payload.playerId ?? ''))
+    return NextResponse.json({ ok: true, ...result })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to clear leaderboard entry'
+    const status = isLeaderboardServiceError(error) ? error.statusCode : 500
+    logger.fail('delete failed', { message, status })
     return NextResponse.json({ error: message }, { status })
   }
 }

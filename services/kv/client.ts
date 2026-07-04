@@ -181,3 +181,23 @@ export async function setJsonKvEx<T>(key: string, value: T, ttlSeconds: number):
     // ignore
   }
 }
+
+export async function deleteJsonKv(key: string): Promise<boolean> {
+  if (useMemoryStore()) {
+    const store = getMemoryStore()
+    const existed = store.has(key)
+    store.delete(key)
+    if (existed) scheduleDevCachePersist()
+    return existed
+  }
+
+  const kv = getKvClient()
+  if (!kv) return false
+
+  try {
+    await kv.del(key)
+    return true
+  } catch {
+    return false
+  }
+}

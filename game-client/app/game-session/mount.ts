@@ -336,8 +336,8 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
     refreshAiHint: () => ai.refreshAiHint(),
     stopAiAuto: () => ai.stopAiAuto(),
     onScrollTick: () => gameAudio.play('scrollUp'),
-    onScrollCommit: (manual) => {
-      if (rankedRecorder.isActive()) rankedRecorder.recordScroll(manual)
+    onScrollCommit: (manual, batchRows) => {
+      if (rankedRecorder.isActive()) rankedRecorder.recordScroll(manual, batchRows)
     },
     queueMineExplosions: (cells) => runtime.view?.queueScrollMineGhosts(cells),
     queueWrongFlagBreaks: (cells) => runtime.view?.queueScrollWrongFlagGhosts(cells),
@@ -548,6 +548,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           const beforeLives = runtime.session.lives
           const beforeBoard = runtime.session.state.board
           logPlayerAction(gameLog, 'reveal', row, col)
+          if (rankedRecorder.isActive()) rankedRecorder.recordAction('reveal', row, col)
           const next = revealAt(runtime.session, toBoardRow(row), col)
           if (next !== runtime.session && !hadMineLifeLoss(beforeLives, next)) {
             playRevealAudio(gameAudio, beforeBoard, next.state.board)
@@ -567,6 +568,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           const wasFlagged = cell.mark === 'flag'
           const beforeLives = runtime.session.lives
           logPlayerAction(gameLog, 'flag', row, col)
+          if (rankedRecorder.isActive()) rankedRecorder.recordAction('flag', row, col)
           const next = toggleMarkAt(runtime.session, localRow, col)
           if (next !== runtime.session) {
             playFlagToggleAudio(gameAudio, !wasFlagged)
@@ -579,6 +581,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           if (!isEndlessInteractiveScreenRowForSession(runtime.session, row)) return
           const beforeLives = runtime.session.lives
           logPlayerAction(gameLog, 'Chord', row, col)
+          if (rankedRecorder.isActive()) rankedRecorder.recordAction('chord', row, col)
           const next = chordAt(runtime.session, toBoardRow(row), col)
           if (next !== runtime.session && !hadMineLifeLoss(beforeLives, next)) {
             gameAudio.play('chordAction')
