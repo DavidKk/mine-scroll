@@ -5,6 +5,7 @@ import { bindCanvasInputListeners } from './input/listener-bindings.ts'
 import { destroyTouchGesture, initTouchGesture } from './input/pointer-handlers.ts'
 import { initialSquareLayout, syncPreviewLayout, syncSquareLayout } from './layout/board-layout.ts'
 import { resolveInitialCellSize } from './layout/viewport-fit.ts'
+import { beginBoardAdvance } from './overlay/board-advance.ts'
 import { clearPendingPanelTransition } from './overlay/panel-transition.ts'
 import { collectCellEffects } from './runtime/cell-effects-runtime.ts'
 import type { GameCanvasRuntime } from './runtime/context.ts'
@@ -163,12 +164,22 @@ export function createGameCanvas(
     repaint() {
       rt.paint()
     },
+    beginBoardAdvance(outgoingViews, incomingViews, onComplete) {
+      beginBoardAdvance(rt, outgoingViews, incomingViews, onComplete)
+    },
+    isBoardAdvanceActive() {
+      return rt.state.boardAdvanceStartedAt > 0
+    },
     queueScrollMineGhosts: (cells) => queueScrollMineGhosts(rt, cells),
     queueScrollWrongFlagGhosts: (cells) => queueScrollWrongFlagGhosts(rt, cells),
     getRankedLayoutSnapshot: () => layoutSnapshotFromRuntime(rt),
     destroy() {
       controller.stopTimer()
       clearPendingPanelTransition(rt)
+      rt.state.boardAdvanceStartedAt = 0
+      rt.state.boardAdvanceOutgoingViews = null
+      rt.state.boardAdvanceIncomingViews = null
+      rt.state.boardAdvanceOnComplete = null
       cancelScheduledPaint(rt)
       destroyTouchGesture(rt)
       rt.inputBindings?.unbind()

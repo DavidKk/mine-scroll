@@ -16,6 +16,14 @@ export const MODE_ENTRIES: ModeEntry[] = [
   },
 ]
 
+/** Arcade puzzle-rush mode (separate route `/play/rush`). */
+export const PUZZLE_RUSH_MODE_ENTRY = {
+  id: 'puzzle-rush' as const,
+  name: 'Puzzle Rush',
+  tag: 'Streak',
+  description: 'Clear 7×7 boards back-to-back; stack combo multipliers without scroll pressure.',
+}
+
 export function getModeEntry(_id: GameModeId = 'endless'): ModeEntry {
   return MODE_ENTRIES[0]!
 }

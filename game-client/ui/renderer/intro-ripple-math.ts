@@ -16,11 +16,13 @@ export function getMaxCellIntroRippleDist(rows: number, cols: number): number {
   return maxDist
 }
 
-/** Intro reveal: linear alpha 0→1 as the front reaches each cell. */
-export function getCellIntroRippleAlpha(reveal: number, dist: number, maxDist: number): number {
-  if (reveal <= 0) return 0
-  if (maxDist <= 0) return clamp01(reveal)
+/** Intro reveal: linear alpha minAlpha→1 as the front reaches each cell. */
+export function getCellIntroRippleAlpha(reveal: number, dist: number, maxDist: number, minAlpha = 0): number {
+  const floor = clamp01(minAlpha)
+  if (reveal <= 0) return floor > 0 ? floor : 0
+  if (maxDist <= 0) return floor + (1 - floor) * clamp01(reveal)
   const rippleBand = Math.max(2, maxDist * 0.42)
   const rippleFront = reveal * (maxDist + rippleBand)
-  return clamp01((rippleFront - dist) / rippleBand)
+  const ripple = clamp01((rippleFront - dist) / rippleBand)
+  return floor + (1 - floor) * ripple
 }

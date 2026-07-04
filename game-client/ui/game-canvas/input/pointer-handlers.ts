@@ -1,4 +1,5 @@
 import { getCanvasPointerCoords, hitTestCellWithPreview } from '../../renderer/index.ts'
+import { isBoardAdvanceBlockingInput } from '../overlay/board-advance.ts'
 import { isGameIntroBlockingInput } from '../overlay/game-intro.ts'
 import { beginPanelTransition } from '../overlay/panel-transition.ts'
 import type { GameCanvasRuntime } from '../runtime/context.ts'
@@ -85,6 +86,7 @@ function handleUiPointerDown(rt: GameCanvasRuntime, x: number, y: number): boole
   if (rt.fullscreen?.isLeaderboardOpen?.()) return true
   if (rt.state.pendingPanelTransition) return true
   if (isGameIntroBlockingInput(rt, performance.now())) return true
+  if (isBoardAdvanceBlockingInput(rt, performance.now())) return true
 
   if (rt.fullscreen && rt.state.bgmMuteRect && insideRect(rt.state.bgmMuteRect, x, y)) {
     rt.fullscreen.onUiClick?.()
@@ -135,6 +137,7 @@ function handleUiPointerDown(rt: GameCanvasRuntime, x: number, y: number): boole
 
 function blocksBoardPointerInput(rt: GameCanvasRuntime): boolean {
   if (isGameIntroBlockingInput(rt, performance.now())) return true
+  if (isBoardAdvanceBlockingInput(rt, performance.now())) return true
   if (rt.fullscreen && rt.state.currentStatus === 'idle' && rt.state.startRect && (rt.fullscreen.showStartOverlay?.() ?? true)) {
     return true
   }

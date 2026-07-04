@@ -97,10 +97,12 @@ export function drawFullscreenOverlay(
   drawLevelUpFx(rt, shellCtx, shellW, shellH)
 
   drawDifficultyAlertFullscreenFlash(rt, shellCtx, shellW, shellH)
-  if (!intro || intro.complete) {
+  if ((!intro || intro.complete) && (stats?.spaceEnabled || scrollPressure)) {
     drawBottomEnergyRail(rt, shellCtx, scrollPressure, shellW, shellH)
   }
-  drawFullscreenScrollWarning(rt, shellCtx, scrollPressure, shellW, shellH)
+  if (scrollPressure) {
+    drawFullscreenScrollWarning(rt, shellCtx, scrollPressure, shellW, shellH)
+  }
 
   const scrollIntroReady = !intro || intro.complete
   if (stats?.spaceEnabled) {

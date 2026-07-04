@@ -14,6 +14,14 @@ export {
   sortLeaderboardEntries,
   upsertPlayerBestEntry,
 } from './merge.ts'
-export { deletePlayerBestEntry,getPlayerBestEntry, savePlayerBestIfBetter } from './player-best.ts'
-export { clearPlayerLeaderboard,isLeaderboardKvConfigured, readLeaderboard, readLeaderboardRaw, submitLeaderboardEntry } from './store.ts'
+export {
+  leaderboardBoardKey,
+  leaderboardModeLabel,
+  leaderboardPlayerBestKey,
+  parseRankedLeaderboardModeId,
+  RANKED_LEADERBOARD_MODES,
+  type RankedLeaderboardModeId,
+} from './mode.ts'
+export { deletePlayerBestEntry, getPlayerBestEntry, savePlayerBestIfBetter } from './player-best.ts'
+export { clearPlayerLeaderboard, isLeaderboardKvConfigured, readLeaderboard, readLeaderboardRaw, submitLeaderboardEntry } from './store.ts'
 export { LEADERBOARD_KV_KEY, LEADERBOARD_MAX_ENTRIES, type LeaderboardBoard, type LeaderboardEntry } from './types.ts'

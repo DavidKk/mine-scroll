@@ -16,7 +16,7 @@ type GameShellProps = {
 }
 
 function isGameRoute(route: ClientRoute): boolean {
-  return route.type === 'game'
+  return route.type === 'game' || route.type === 'puzzle-rush'
 }
 
 function isAdminRoute(route: ClientRoute): boolean {

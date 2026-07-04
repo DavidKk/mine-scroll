@@ -2,13 +2,15 @@ import { sanitizeCountryCode } from '../geoip/request.ts'
 import { getJsonKv, isKvConfigured, setJsonKv, setJsonKvEx } from '../kv/client.ts'
 import { LeaderboardServiceError } from '../leaderboard/errors.ts'
 import { normalizeLeaderboardEntries, sanitizeLeaderboardName, sanitizePlayerId, upsertPlayerBestEntry } from '../leaderboard/merge.ts'
+import { leaderboardBoardKey } from '../leaderboard/mode.ts'
 import { savePlayerBestIfBetter } from '../leaderboard/player-best.ts'
-import { LEADERBOARD_KV_KEY, type LeaderboardBoard } from '../leaderboard/types.ts'
+import type { LeaderboardBoard } from '../leaderboard/types.ts'
 import { RANKED_CORE_VERSION, RANKED_EVENTS_KEY_PREFIX, RANKED_RUN_KEY_PREFIX, RANKED_RUN_TTL_SECONDS, RANKED_UPLOAD_INTERVAL_MS } from './constants.ts'
 import { logger, shortPlayerId, shortRunId } from './logger.ts'
 import { evaluateRankedRun } from './policy.ts'
 import { replayRankedRun } from './replay.ts'
-import type { RankedFinishResponse, RankedRunRecord, RankedRunStatus, RunInputEvent } from './types.ts'
+import { replayPuzzleRushRun } from './replay-puzzle-rush.ts'
+import type { RankedFinishResponse, RankedModeId, RankedRunRecord, RankedRunStatus, ReplayResult, RunInputEvent } from './types.ts'
 
 export function isRankedKvConfigured(): boolean {
   return isKvConfigured()
@@ -22,7 +24,7 @@ function eventsKey(runId: string): string {
   return `${RANKED_EVENTS_KEY_PREFIX}${runId}`
 }
 
-export async function createRankedRun(modeId: 'endless' = 'endless'): Promise<{
+export async function createRankedRun(modeId: RankedModeId = 'endless'): Promise<{
   runId: string
   seed: number
   coreVersion: string
@@ -31,8 +33,8 @@ export async function createRankedRun(modeId: 'endless' = 'endless'): Promise<{
   if (!isRankedKvConfigured()) {
     throw new LeaderboardServiceError('Ranked storage is not configured. Link Vercel KV to this project.', 503)
   }
-  if (modeId !== 'endless') {
-    throw new LeaderboardServiceError('Only endless mode is supported.', 400)
+  if (modeId !== 'endless' && modeId !== 'puzzle-rush') {
+    throw new LeaderboardServiceError('Unsupported mode.', 400)
   }
 
   const runId = crypto.randomUUID()
@@ -166,7 +168,7 @@ export async function finishRankedRun(
     eventCount: events.length,
   })
 
-  const replay = replayRankedRun(record.seed, events)
+  const replay = replayRun(record.modeId, record.seed, events)
 
   let status: RankedRunStatus = 'rejected'
   let riskFlags: string[] = ['replay_failed']
@@ -250,13 +252,14 @@ export async function finishRankedRun(
     }
 
     if (verifiedScore > 0) {
-      await savePlayerBestIfBetter(candidate)
-      const board = (await getJsonKv<LeaderboardBoard>(LEADERBOARD_KV_KEY)) ?? { entries: [], updatedAt: 0 }
+      await savePlayerBestIfBetter(candidate, record.modeId)
+      const boardKey = leaderboardBoardKey(record.modeId)
+      const board = (await getJsonKv<LeaderboardBoard>(boardKey)) ?? { entries: [], updatedAt: 0 }
       const upsert = upsertPlayerBestEntry(normalizeLeaderboardEntries(board.entries), candidate)
       rank = upsert.rank ?? undefined
 
       if (upsert.saved) {
-        const persisted = await setJsonKv(LEADERBOARD_KV_KEY, { entries: upsert.entries, updatedAt: Date.now() })
+        const persisted = await setJsonKv(boardKey, { entries: upsert.entries, updatedAt: Date.now() })
         saved = persisted
         if (persisted) {
           logger.ok('leaderboard saved', {
@@ -306,6 +309,11 @@ export async function finishRankedRun(
     rank,
     cheating: devBypass ? false : shouldMarkCheating(score, depth, verifiedScore, verifiedDepth, riskFlags),
   }
+}
+
+function replayRun(modeId: RankedModeId, seed: number, events: RunInputEvent[]): ReplayResult {
+  if (modeId === 'puzzle-rush') return replayPuzzleRushRun(seed, events)
+  return replayRankedRun(seed, events)
 }
 
 function isInflatedClaim(claimedScore: number, claimedDepth: number, verifiedScore: number, verifiedDepth: number): boolean {

@@ -15,7 +15,7 @@ export interface Board {
   mineCount: number
   cells: Cell[][]
   minesPlaced: boolean
-  topology: 'endless'
+  topology: 'endless' | 'fixed'
   minRow: number
   maxRow: number
   worldSeed: number

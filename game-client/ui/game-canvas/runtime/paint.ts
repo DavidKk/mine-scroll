@@ -3,6 +3,7 @@ import { drawFullscreenHud } from '../hud/fullscreen-hud.ts'
 import { syncInputProfile } from '../input/pointer-handlers.ts'
 import { syncBoardSizeFromLayout } from '../layout/board-layout.ts'
 import { syncFullscreenCanvasSize } from '../layout/viewport-fit.ts'
+import { updateBoardAdvance } from '../overlay/board-advance.ts'
 import { drawFullscreenOverlay } from '../overlay/event-overlay.ts'
 import { drawGameIntroChrome, idleBoardDrawAlpha, updateGameIntro } from '../overlay/game-intro.ts'
 import { drawAmbientShellBackdrop } from '../shell/ambient-shell.ts'
@@ -20,7 +21,9 @@ export function paint(rt: GameCanvasRuntime): void {
   const now = performance.now()
   pruneEffects(rt, now)
   const intro = rt.fullscreen ? updateGameIntro(rt, now) : null
+  const boardAdvance = rt.fullscreen ? updateBoardAdvance(rt, now) : null
   const scrollPressure = rt.getScrollPressureFn?.()
+  const transparentBoardUnderlay = rt.canvasOptions.transparentBoardUnderlay === true
   const renderState = {
     views: rt.state.currentViews,
     status: rt.state.currentStatus,
@@ -30,6 +33,7 @@ export function paint(rt: GameCanvasRuntime): void {
     scrollPressure,
     aiHint: rt.state.currentAiHint,
     previewRows: rt.state.currentPreviewRows > 0 ? rt.state.currentPreviewRows : undefined,
+    transparentBoardUnderlay,
     nowMs: now,
     pointer: rt.state.boardPointer,
     flagSwipeActive: Boolean(rt.state.flagSwipePreview?.active),
@@ -61,14 +65,40 @@ export function paint(rt: GameCanvasRuntime): void {
   }
 
   if (rt.fullscreen) {
+    const advanceActive = boardAdvance?.animating === true
     if (!intro || intro.complete) {
-      ensureBoardLayerCache(rt, boardState)
+      if (!advanceActive) ensureBoardLayerCache(rt, boardState)
     }
     const introBoardActive = intro && !intro.complete
     const skipBoard = introBoardActive && intro.boardReveal <= 0
     const useIntroBoard = introBoardActive && intro.boardReveal > 0
     const boardAlpha = idleBoardDrawAlpha(rt.state.currentStatus, intro)
-    if (!skipBoard) {
+
+    if (advanceActive && rt.state.boardAdvanceOutgoingViews && rt.state.boardAdvanceIncomingViews) {
+      const layout = rt.state.squareLayout!
+      const outgoingState = {
+        ...boardState,
+        views: rt.state.boardAdvanceOutgoingViews,
+        status: 'playing' as const,
+      }
+      const incomingState = {
+        ...boardState,
+        views: rt.state.boardAdvanceIncomingViews,
+        status: 'idle' as const,
+      }
+
+      if (boardAdvance!.outgoingAlpha > 0.01) {
+        rt.ctx.save()
+        rt.ctx.globalAlpha = boardAdvance!.outgoingAlpha
+        renderBoardStaticFrame(rt.ctx, layout, outgoingState)
+        renderBoardDynamicFrame(rt.ctx, layout, outgoingState)
+        rt.ctx.restore()
+      }
+
+      if (boardAdvance!.incomingVisible) {
+        renderBoardIntroFrame(rt.ctx, layout, incomingState, boardAdvance!.incomingReveal, rt.state.currentRows, rt.state.currentCols, boardAdvance!.incomingMinAlpha)
+      }
+    } else if (!skipBoard) {
       rt.ctx.save()
       if (boardAlpha < 0.999) rt.ctx.globalAlpha = boardAlpha
       if (useIntroBoard) {

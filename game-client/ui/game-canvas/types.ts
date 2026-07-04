@@ -43,6 +43,8 @@ export interface GameCanvasHudStats {
   spaceEnabled?: boolean
   devAutoVisible?: boolean
   devAutoActive?: boolean
+  /** DEV scroll tier +1 (↑). Hidden in modes without manual scroll (e.g. puzzle rush). */
+  devSpeedVisible?: boolean
   /** Difficulty inputs for ambient backdrop (scroll tier / depth / lives). */
   backdrop?: {
     scrollElapsedMs: number
@@ -112,6 +114,8 @@ export interface GameCanvasOptions {
   fullscreen?: GameCanvasFullscreenOptions
   /** Endless: top preview band height (rows). */
   endlessPreviewRows?: number
+  /** No panel underlay or side rails — cells composite over the starfield (puzzle rush). */
+  transparentBoardUnderlay?: boolean
 }
 
 export interface GameCanvasRenderOptions {
@@ -130,6 +134,9 @@ export interface GameCanvasController {
   resetTimer(): void
   /** Repaint only (scroll countdown animation). */
   repaint(): void
+  /** Cleared board slides up; next board rises from below with intro ripple. */
+  beginBoardAdvance(outgoingViews: import('@shared/core/types.ts').CellView[], incomingViews: import('@shared/core/types.ts').CellView[], onComplete: () => void): void
+  isBoardAdvanceActive(): boolean
   /** Pinned scroll-off mine ghosts (shell coords; pure FX, no board mutation). */
   queueScrollMineGhosts(cells: { row: number; col: number }[]): void
   /** Pinned scroll-off wrong-flag break FX (not mine explosion). */

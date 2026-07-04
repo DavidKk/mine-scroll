@@ -25,7 +25,7 @@ function drawPlayableCells(ctx: CanvasRenderingContext2D, views: CellView[], lay
     if (state.status === 'idle') {
       drawIntroCellSurface(ctx, x, y, view, grid, state.status)
     } else {
-      drawCell(ctx, x, y, view, grid, state.status)
+      drawCell(ctx, x, y, view, grid, state.status, { skipHiddenUnderlay: state.transparentBoardUnderlay })
     }
   }
 }
@@ -108,20 +108,23 @@ function drawMaskedPreviewLayer(ctx: CanvasRenderingContext2D, layout: LayoutMet
 /** Board static layer: cells + flags + AI hint (cacheable; no scroll pressure or pointer FX). */
 export function renderBoardStaticFrame(ctx: CanvasRenderingContext2D, layout: LayoutMetrics, state: RenderState): void {
   const { gridOriginY, gridWidth, gridHeight } = layout
+  const transparentUnderlay = state.transparentBoardUnderlay === true
 
   ctx.clearRect(0, 0, layout.width, layout.height)
   const previewRows = state.previewRows ?? 0
 
-  const trackBg = ctx.createLinearGradient(0, 0, gridWidth, 0)
-  trackBg.addColorStop(0, 'rgba(24, 24, 27, 0.34)')
-  trackBg.addColorStop(0.08, THEME.panelBg)
-  trackBg.addColorStop(0.92, THEME.panelBg)
-  trackBg.addColorStop(1, 'rgba(24, 24, 27, 0.34)')
-  ctx.fillStyle = trackBg
-  const trackTop = previewRows > 0 ? gridOriginY : 0
-  ctx.fillRect(0, trackTop, gridWidth, gridHeight - trackTop)
+  if (!transparentUnderlay) {
+    const trackBg = ctx.createLinearGradient(0, 0, gridWidth, 0)
+    trackBg.addColorStop(0, 'rgba(24, 24, 27, 0.34)')
+    trackBg.addColorStop(0.08, THEME.panelBg)
+    trackBg.addColorStop(0.92, THEME.panelBg)
+    trackBg.addColorStop(1, 'rgba(24, 24, 27, 0.34)')
+    ctx.fillStyle = trackBg
+    const trackTop = previewRows > 0 ? gridOriginY : 0
+    ctx.fillRect(0, trackTop, gridWidth, gridHeight - trackTop)
 
-  drawBoardSideRails(ctx, layout, previewRows)
+    drawBoardSideRails(ctx, layout, previewRows)
+  }
 
   const previewViews = previewRows > 0 ? state.views.filter((view) => view.preview) : []
   const playableViews = previewRows > 0 ? state.views.filter((view) => !view.preview) : state.views
@@ -152,8 +155,8 @@ function drawIntroCellSurface(ctx: CanvasRenderingContext2D, x: number, y: numbe
   drawCell(ctx, x, y, view, grid, status)
 }
 
-/** Intro board: fixed grid slots; ripple fade 0→1 from center outward. */
-export function renderBoardIntroFrame(ctx: CanvasRenderingContext2D, layout: LayoutMetrics, state: RenderState, reveal: number, rows: number, cols: number): void {
+/** Intro board: fixed grid slots; ripple fade minAlpha→1 from center outward. */
+export function renderBoardIntroFrame(ctx: CanvasRenderingContext2D, layout: LayoutMetrics, state: RenderState, reveal: number, rows: number, cols: number, minAlpha = 0): void {
   const { gridOriginX, gridOriginY, grid } = layout
 
   // Do not clearRect — transparency would punch through the canvas to the DOM (black box).
@@ -166,7 +169,7 @@ export function renderBoardIntroFrame(ctx: CanvasRenderingContext2D, layout: Lay
 
   const drawIntroCell = (targetCtx: CanvasRenderingContext2D, view: CellView) => {
     const dist = getCellIntroRippleDist(view.row, view.col, rows, cols)
-    const alpha = getCellIntroRippleAlpha(reveal, dist, maxDist)
+    const alpha = getCellIntroRippleAlpha(reveal, dist, maxDist, minAlpha)
     if (alpha <= 0) return
 
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid)
@@ -179,7 +182,7 @@ export function renderBoardIntroFrame(ctx: CanvasRenderingContext2D, layout: Lay
 
   const drawIntroMark = (targetCtx: CanvasRenderingContext2D, view: CellView) => {
     const dist = getCellIntroRippleDist(view.row, view.col, rows, cols)
-    const alpha = getCellIntroRippleAlpha(reveal, dist, maxDist)
+    const alpha = getCellIntroRippleAlpha(reveal, dist, maxDist, minAlpha)
     if (alpha <= 0) return
     const { x, y } = cellPixelOrigin(view.row, view.col, gridOriginX, gridOriginY, grid)
 

@@ -5,6 +5,7 @@ import { assetLabSectionPath } from './routes.ts'
 
 export type ClientRoute =
   | { type: 'game' }
+  | { type: 'puzzle-rush' }
   | { type: 'assets'; section: AssetLabSection; panelId: string | null }
   | { type: 'lab'; panelId: string | null }
   | { type: 'responsive'; panelId: string | null }
@@ -46,6 +47,16 @@ export function mountClientRoute(root: HTMLElement, route: ClientRoute): () => v
   root.replaceChildren()
 
   switch (route.type) {
+    case 'puzzle-rush':
+      return mountLazyRoute(root, 'Loading Puzzle Rush…', async (mountRoot) => {
+        const { mountPuzzleRushSession } = await import('./puzzle-rush-session/index.ts')
+        mountRoot.replaceChildren()
+        const sessionCleanup = mountPuzzleRushSession(mountRoot)
+        return () => {
+          sessionCleanup()
+          mountRoot.replaceChildren()
+        }
+      })
     case 'assets':
       return mountLazyRoute(root, 'Loading Asset Lab…', async (mountRoot) => {
         const { mountAssetGallery } = await import('./asset-gallery.ts')

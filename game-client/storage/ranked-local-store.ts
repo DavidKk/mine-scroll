@@ -1,6 +1,8 @@
 import type { RunInputEvent } from '../ranked/types.ts'
 import { IDB_STORES, idbClear, idbDelete, idbGet, idbGetAll, idbPut } from './idb.ts'
 
+export type RankedLeaderboardModeId = 'endless' | 'puzzle-rush'
+
 const META_KEYS = {
   playerId: 'playerId',
   displayName: 'displayName',
@@ -9,6 +11,14 @@ const META_KEYS = {
   leaderboardUnseenUpdate: 'leaderboardUnseenUpdate',
   migratedFromLocalStorage: 'migratedFromLocalStorage',
 } as const
+
+function selfSnapshotMetaKey(modeId: RankedLeaderboardModeId): string {
+  return modeId === 'endless' ? META_KEYS.selfSnapshot : `${META_KEYS.selfSnapshot}:${modeId}`
+}
+
+function leaderboardUnseenMetaKey(modeId: RankedLeaderboardModeId): string {
+  return modeId === 'endless' ? META_KEYS.leaderboardUnseenUpdate : `${META_KEYS.leaderboardUnseenUpdate}:${modeId}`
+}
 
 const LEGACY_LOCAL_STORAGE_KEYS = ['chill-player-id', 'chill-score-history', 'chill-leaderboard-name', 'chill-leaderboard-anon-id', 'chill-leaderboard-self'] as const
 
@@ -33,6 +43,7 @@ export interface LocalScoreRecord {
   status: 'accepted' | 'pending' | 'rejected'
   ranked: boolean
   rank?: number
+  modeId?: RankedLeaderboardModeId
 }
 
 export interface RunTraceRecord {
@@ -58,8 +69,8 @@ const profileCache = {
   playerId: '',
   displayName: '',
   anonName: '',
-  selfSnapshot: null as LeaderboardSelfSnapshot | null,
-  leaderboardUnseenUpdate: false,
+  selfSnapshots: {} as Partial<Record<RankedLeaderboardModeId, LeaderboardSelfSnapshot | null>>,
+  leaderboardUnseenUpdates: {} as Partial<Record<RankedLeaderboardModeId, boolean>>,
 }
 
 let historyCache: LocalScoreRecord[] = []
@@ -98,6 +109,7 @@ function normalizeScoreRecord(item: Partial<LocalScoreRecord>): LocalScoreRecord
     status: item.status,
     ranked: item.ranked === true,
     rank: typeof item.rank === 'number' ? item.rank : undefined,
+    modeId: item.modeId === 'puzzle-rush' ? 'puzzle-rush' : 'endless',
   }
 }
 
@@ -119,8 +131,10 @@ async function reloadCache(): Promise<void> {
   profileCache.playerId = (await getMeta<string>(META_KEYS.playerId))?.trim() ?? ''
   profileCache.displayName = (await getMeta<string>(META_KEYS.displayName))?.trim() ?? ''
   profileCache.anonName = (await getMeta<string>(META_KEYS.anonName))?.trim() ?? ''
-  profileCache.selfSnapshot = normalizeSelfSnapshot(await getMeta<LeaderboardSelfSnapshot>(META_KEYS.selfSnapshot))
-  profileCache.leaderboardUnseenUpdate = (await getMeta<boolean>(META_KEYS.leaderboardUnseenUpdate)) === true
+  profileCache.selfSnapshots.endless = normalizeSelfSnapshot(await getMeta<LeaderboardSelfSnapshot>(selfSnapshotMetaKey('endless')))
+  profileCache.selfSnapshots['puzzle-rush'] = normalizeSelfSnapshot(await getMeta<LeaderboardSelfSnapshot>(selfSnapshotMetaKey('puzzle-rush')))
+  profileCache.leaderboardUnseenUpdates.endless = (await getMeta<boolean>(leaderboardUnseenMetaKey('endless'))) === true
+  profileCache.leaderboardUnseenUpdates['puzzle-rush'] = (await getMeta<boolean>(leaderboardUnseenMetaKey('puzzle-rush'))) === true
 
   const rows = await idbGetAll<LocalScoreRecord>(IDB_STORES.scoreHistory)
   historyCache = rows
@@ -192,8 +206,8 @@ export function getCachedDisplayName(): string {
   return profileCache.displayName
 }
 
-export function getCachedLeaderboardSelfSnapshot(): LeaderboardSelfSnapshot | null {
-  return profileCache.selfSnapshot
+export function getCachedLeaderboardSelfSnapshot(modeId: RankedLeaderboardModeId = 'endless'): LeaderboardSelfSnapshot | null {
+  return profileCache.selfSnapshots[modeId] ?? null
 }
 
 export function getCachedScoreHistory(): LocalScoreRecord[] {
@@ -228,54 +242,62 @@ export async function saveDisplayName(name: string): Promise<void> {
   await setMeta(META_KEYS.displayName, trimmed)
 }
 
-export function getCachedLeaderboardUnseenUpdate(): boolean {
-  return profileCache.leaderboardUnseenUpdate
+export function getCachedLeaderboardUnseenUpdate(modeId: RankedLeaderboardModeId = 'endless'): boolean {
+  return profileCache.leaderboardUnseenUpdates[modeId] === true
 }
 
-export function getCachedBestScore(): number {
-  if (profileCache.selfSnapshot) return profileCache.selfSnapshot.score
-  if (historyCache.length === 0) return 0
-  return [...historyCache].sort((a, b) => {
+function historyForMode(modeId: RankedLeaderboardModeId): LocalScoreRecord[] {
+  return historyCache.filter((item) => (item.modeId ?? 'endless') === modeId)
+}
+
+export function getCachedBestScore(modeId: RankedLeaderboardModeId = 'endless'): number {
+  const snapshot = getCachedLeaderboardSelfSnapshot(modeId)
+  if (snapshot) return snapshot.score
+  const modeHistory = historyForMode(modeId)
+  if (modeHistory.length === 0) return 0
+  return [...modeHistory].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
     if (b.depth !== a.depth) return b.depth - a.depth
     return b.submittedAt - a.submittedAt
   })[0]!.score
 }
 
-export function getCachedBestDepth(): number {
-  if (profileCache.selfSnapshot?.depth !== undefined) return profileCache.selfSnapshot.depth
-  if (historyCache.length === 0) return 0
-  return [...historyCache].sort((a, b) => {
+export function getCachedBestDepth(modeId: RankedLeaderboardModeId = 'endless'): number {
+  const snapshot = getCachedLeaderboardSelfSnapshot(modeId)
+  if (snapshot?.depth !== undefined) return snapshot.depth
+  const modeHistory = historyForMode(modeId)
+  if (modeHistory.length === 0) return 0
+  return [...modeHistory].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
     if (b.depth !== a.depth) return b.depth - a.depth
     return b.submittedAt - a.submittedAt
   })[0]!.depth
 }
 
-export function isLeaderboardScoreBreakthrough(score: number, depth: number): boolean {
-  const bestScore = getCachedBestScore()
-  const bestDepth = getCachedBestDepth()
+export function isLeaderboardScoreBreakthrough(score: number, depth: number, modeId: RankedLeaderboardModeId = 'endless'): boolean {
+  const bestScore = getCachedBestScore(modeId)
+  const bestDepth = getCachedBestDepth(modeId)
   if (score > bestScore) return true
   return score === bestScore && depth > bestDepth
 }
 
-export async function markLeaderboardUnseenUpdate(): Promise<void> {
+export async function markLeaderboardUnseenUpdate(modeId: RankedLeaderboardModeId = 'endless'): Promise<void> {
   await ensureRankedLocalStore()
-  profileCache.leaderboardUnseenUpdate = true
-  await setMeta(META_KEYS.leaderboardUnseenUpdate, true)
+  profileCache.leaderboardUnseenUpdates[modeId] = true
+  await setMeta(leaderboardUnseenMetaKey(modeId), true)
 }
 
-export async function clearLeaderboardUnseenUpdate(): Promise<void> {
+export async function clearLeaderboardUnseenUpdate(modeId: RankedLeaderboardModeId = 'endless'): Promise<void> {
   await ensureRankedLocalStore()
-  if (!profileCache.leaderboardUnseenUpdate) return
-  profileCache.leaderboardUnseenUpdate = false
-  await deleteMeta(META_KEYS.leaderboardUnseenUpdate)
+  if (!profileCache.leaderboardUnseenUpdates[modeId]) return
+  profileCache.leaderboardUnseenUpdates[modeId] = false
+  await deleteMeta(leaderboardUnseenMetaKey(modeId))
 }
 
-export async function saveLeaderboardSelfSnapshot(snapshot: LeaderboardSelfSnapshot): Promise<void> {
+export async function saveLeaderboardSelfSnapshot(snapshot: LeaderboardSelfSnapshot, modeId: RankedLeaderboardModeId = 'endless'): Promise<void> {
   await ensureRankedLocalStore()
-  profileCache.selfSnapshot = snapshot
-  await setMeta(META_KEYS.selfSnapshot, snapshot)
+  profileCache.selfSnapshots[modeId] = snapshot
+  await setMeta(selfSnapshotMetaKey(modeId), snapshot)
 }
 
 export async function appendLocalScoreRecord(record: LocalScoreRecord): Promise<void> {
@@ -284,9 +306,9 @@ export async function appendLocalScoreRecord(record: LocalScoreRecord): Promise<
   await idbPut(IDB_STORES.scoreHistory, record)
 }
 
-async function pickBestLocalRecord(): Promise<LocalScoreRecord | null> {
+async function pickBestLocalRecord(modeId: RankedLeaderboardModeId = 'endless'): Promise<LocalScoreRecord | null> {
   await ensureRankedLocalStore()
-  const verified = historyCache.filter((item) => item.status === 'accepted' || item.status === 'pending')
+  const verified = historyForMode(modeId).filter((item) => item.status === 'accepted' || item.status === 'pending')
   if (verified.length === 0) return null
   return [...verified].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
@@ -295,31 +317,46 @@ async function pickBestLocalRecord(): Promise<LocalScoreRecord | null> {
   })[0]!
 }
 
-export async function upsertLeaderboardSelfSnapshot(snapshot: LeaderboardSelfSnapshot): Promise<void> {
-  await saveLeaderboardSelfSnapshot(snapshot)
+export async function upsertLeaderboardSelfSnapshot(snapshot: LeaderboardSelfSnapshot, modeId: RankedLeaderboardModeId = 'endless'): Promise<void> {
+  await saveLeaderboardSelfSnapshot(snapshot, modeId)
 }
 
-export async function syncLeaderboardSelfFromHistory(playerId: string, name: string): Promise<void> {
-  const best = await pickBestLocalRecord()
+export async function syncLeaderboardSelfFromHistory(playerId: string, name: string, modeId: RankedLeaderboardModeId = 'endless'): Promise<void> {
+  const best = await pickBestLocalRecord(modeId)
   if (!best) return
-  await saveLeaderboardSelfSnapshot({
-    id: playerId,
-    name,
-    score: best.score,
-    depth: best.depth,
-    rank: best.rank,
-    submittedAt: best.submittedAt,
-  })
+  await saveLeaderboardSelfSnapshot(
+    {
+      id: playerId,
+      name,
+      score: best.score,
+      depth: best.depth,
+      rank: best.rank,
+      submittedAt: best.submittedAt,
+    },
+    modeId
+  )
+}
+
+export async function clearLocalScoresForMode(modeId: RankedLeaderboardModeId): Promise<void> {
+  await ensureRankedLocalStore()
+  historyCache = historyCache.filter((item) => (item.modeId ?? 'endless') !== modeId)
+  profileCache.selfSnapshots[modeId] = null
+  profileCache.leaderboardUnseenUpdates[modeId] = false
+
+  const remaining = await idbGetAll<LocalScoreRecord>(IDB_STORES.scoreHistory)
+  await idbClear(IDB_STORES.scoreHistory)
+  for (const item of remaining) {
+    if ((item.modeId ?? 'endless') !== modeId) {
+      await idbPut(IDB_STORES.scoreHistory, item)
+    }
+  }
+  await deleteMeta(selfSnapshotMetaKey(modeId))
+  await deleteMeta(leaderboardUnseenMetaKey(modeId))
 }
 
 export async function clearAllLocalScores(): Promise<void> {
-  await ensureRankedLocalStore()
-  historyCache = []
-  profileCache.selfSnapshot = null
-  profileCache.leaderboardUnseenUpdate = false
-  await idbClear(IDB_STORES.scoreHistory)
-  await deleteMeta(META_KEYS.selfSnapshot)
-  await deleteMeta(META_KEYS.leaderboardUnseenUpdate)
+  await clearLocalScoresForMode('endless')
+  await clearLocalScoresForMode('puzzle-rush')
 }
 
 export async function clearAllRankedAntiCheatData(): Promise<void> {

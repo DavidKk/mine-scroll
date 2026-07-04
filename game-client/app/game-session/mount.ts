@@ -189,6 +189,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
   }
 
   const leaderboardPanel = createLeaderboardPanel(root, {
+    modeId: 'endless',
     onClose: () => closeLeaderboard(),
     notify,
   })
@@ -246,7 +247,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       } else {
         const finalScore = result.score ?? claimedScore
         const finalDepth = result.depth ?? claimedDepth
-        const scoreBreakthrough = result.status === 'accepted' && isLeaderboardScoreBreakthrough(finalScore, finalDepth)
+        const scoreBreakthrough = result.status === 'accepted' && isLeaderboardScoreBreakthrough(finalScore, finalDepth, 'endless')
 
         await appendLocalScoreRecord({
           runId,
@@ -256,20 +257,24 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
           status: result.status === 'accepted' || result.status === 'pending' || result.status === 'rejected' ? result.status : 'rejected',
           ranked: result.ranked === true,
           rank: result.rank,
+          modeId: 'endless',
         })
         if (result.status === 'accepted' || result.status === 'pending') {
-          await saveLeaderboardSelfSnapshot({
-            id: playerId,
-            name,
-            score: finalScore,
-            depth: finalDepth,
-            rank: result.rank,
-            submittedAt: Date.now(),
-          })
+          await saveLeaderboardSelfSnapshot(
+            {
+              id: playerId,
+              name,
+              score: finalScore,
+              depth: finalDepth,
+              rank: result.rank,
+              submittedAt: Date.now(),
+            },
+            'endless'
+          )
         }
-        await syncLeaderboardSelfFromHistory(playerId, name)
+        await syncLeaderboardSelfFromHistory(playerId, name, 'endless')
         if (scoreBreakthrough && !runtime.leaderboardOpen) {
-          await markLeaderboardUnseenUpdate()
+          await markLeaderboardUnseenUpdate('endless')
         }
       }
 
@@ -473,7 +478,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       getStats: () => getCanvasHudStats(),
       isLogOpen: () => isDev && runtime.logOpen,
       isLeaderboardOpen: () => runtime.leaderboardOpen,
-      hasLeaderboardUnseenUpdate: () => getCachedLeaderboardUnseenUpdate(),
+      hasLeaderboardUnseenUpdate: () => getCachedLeaderboardUnseenUpdate('endless'),
       showStartOverlay: () => runtime.startOverlayOpen && runtime.session.state.status === 'idle',
       onStart: () => startArcadeRun(),
       onRestart: () => restartGame(),
@@ -507,7 +512,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
       },
       onOpenLeaderboard: () => {
         if (runtime.leaderboardOpen) return
-        void clearLeaderboardUnseenUpdate().then(() => render())
+        void clearLeaderboardUnseenUpdate('endless').then(() => render())
         runtime.leaderboardOpen = true
         leaderboardPanel.setOpen(true)
         render()

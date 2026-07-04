@@ -28,6 +28,7 @@ export function computeBoardLayerCacheKey(
     flagCount: number
     rows: number
     previewRows?: number
+    transparentBoardUnderlay?: boolean
     aiHint?: AiHintDisplay | null
   }
 ): string {
@@ -37,6 +38,7 @@ export function computeBoardLayerCacheKey(
   hash = mixHash(hash, state.flagCount)
   hash = mixHash(hash, state.rows)
   hash = mixHash(hash, state.previewRows ?? 0)
+  hash = mixHash(hash, state.transparentBoardUnderlay ? 1 : 0)
   hash = mixHash(hash, layout?.width ?? 0)
   hash = mixHash(hash, layout?.height ?? 0)
   hash = mixHash(hash, Math.round((layout?.grid.cellSize ?? 0) * 1000))

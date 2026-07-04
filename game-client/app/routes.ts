@@ -2,6 +2,7 @@ import { navigateApp, replaceAppPath } from '../navigation.ts'
 
 export const ROUTES = {
   game: '/play',
+  puzzleRush: '/play/rush',
   assets: '/admin/assets',
   lab: '/admin/lab',
   responsive: '/admin/responsive',

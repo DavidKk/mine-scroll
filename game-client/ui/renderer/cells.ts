@@ -158,11 +158,23 @@ export function drawCellMarksOverlay(ctx: CanvasRenderingContext2D, x: number, y
   }
 }
 
-export function drawCell(ctx: CanvasRenderingContext2D, x: number, y: number, view: CellView, g: GridMetrics, status: GameStatus = 'playing'): void {
+export function drawCell(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  view: CellView,
+  g: GridMetrics,
+  status: GameStatus = 'playing',
+  options?: { skipHiddenUnderlay?: boolean }
+): void {
   const sprites = getTileSprites()
   if (sprites) {
     if (!view.revealed) {
-      drawHiddenCellSprite(ctx, sprites, x, y, g.cellSize)
+      if (options?.skipHiddenUnderlay) {
+        drawSpriteInCell(ctx, sprites.hidden, x, y, g.cellSize)
+      } else {
+        drawHiddenCellSprite(ctx, sprites, x, y, g.cellSize)
+      }
       return
     }
 

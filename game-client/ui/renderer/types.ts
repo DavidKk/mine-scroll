@@ -29,6 +29,8 @@ export interface RenderState {
   scrollPressure?: ScrollPressureState
   /** Endless: top preview band height (rows) */
   previewRows?: number
+  /** Skip panel fill + side rails (puzzle rush fullscreen). */
+  transparentBoardUnderlay?: boolean
   /** AI hint highlight (screen row coords) */
   aiHint?: AiHintDisplay | null
   /** Pointer hover cell (hover / breath FX) */

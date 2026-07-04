@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
 
 import { getKvStorageMode } from '@/services/kv/client'
-import { clearPlayerLeaderboard, isLeaderboardKvConfigured, isLeaderboardServiceError, readLeaderboard, submitLeaderboardEntry } from '@/services/leaderboard'
+import {
+  clearPlayerLeaderboard,
+  isLeaderboardKvConfigured,
+  isLeaderboardServiceError,
+  parseRankedLeaderboardModeId,
+  readLeaderboard,
+  submitLeaderboardEntry,
+} from '@/services/leaderboard'
 import { createLogger } from '@/services/logger'
 
 export const dynamic = 'force-dynamic'
@@ -10,10 +17,13 @@ const logger = createLogger('api-leaderboard')
 
 export async function GET(request: Request) {
   try {
-    const playerId = new URL(request.url).searchParams.get('playerId') ?? undefined
-    const board = await readLeaderboard(playerId ?? undefined)
+    const url = new URL(request.url)
+    const playerId = url.searchParams.get('playerId') ?? undefined
+    const modeId = parseRankedLeaderboardModeId(url.searchParams.get('mode'))
+    const board = await readLeaderboard(playerId ?? undefined, modeId)
     return NextResponse.json({
       ok: true,
+      modeId,
       configured: isLeaderboardKvConfigured(),
       storage: getKvStorageMode(),
       entries: board.entries,
@@ -62,9 +72,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const payload = body as { playerId?: unknown }
-    const result = await clearPlayerLeaderboard(String(payload.playerId ?? ''))
-    return NextResponse.json({ ok: true, ...result })
+    const payload = body as { playerId?: unknown; mode?: unknown }
+    const modeId = parseRankedLeaderboardModeId(payload.mode)
+    const result = await clearPlayerLeaderboard(String(payload.playerId ?? ''), modeId)
+    return NextResponse.json({ ok: true, modeId, ...result })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to clear leaderboard entry'
     const status = isLeaderboardServiceError(error) ? error.statusCode : 500

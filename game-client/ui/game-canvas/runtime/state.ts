@@ -75,6 +75,11 @@ export interface CanvasRuntimeState {
   /** Game intro: 0 = pending, >0 = startedAt, -1 = done/skipped. */
   gameIntroStartedAt: number
   gameIntroComplete: boolean
+  /** Puzzle rush board handoff: cleared board slides up, next board rises from below. */
+  boardAdvanceStartedAt: number
+  boardAdvanceOutgoingViews: CellView[] | null
+  boardAdvanceIncomingViews: CellView[] | null
+  boardAdvanceOnComplete: (() => void) | null
   bgmMuteRect: HitRect | null
   leaderboardRect: HitRect | null
   uiHoverTarget: string | null
@@ -181,6 +186,10 @@ export function createInitialRuntimeState(
     scrollButtonRevealStartedAt: 0,
     gameIntroStartedAt: 0,
     gameIntroComplete: false,
+    boardAdvanceStartedAt: 0,
+    boardAdvanceOutgoingViews: null,
+    boardAdvanceIncomingViews: null,
+    boardAdvanceOnComplete: null,
     bgmMuteRect: null,
     leaderboardRect: null,
     uiHoverTarget: null,

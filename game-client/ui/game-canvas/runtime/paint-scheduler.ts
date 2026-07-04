@@ -1,5 +1,6 @@
 import { GAME_ASSET_TUNING } from '../../game-assets.ts'
 import { LIFE_LOSS_POPUP_V3_MS } from '../assets/hud-feedback-assets.ts'
+import { isBoardAdvanceActive } from '../overlay/board-advance.ts'
 import type { GameCanvasRuntime } from './context.ts'
 import { ambientFrameMs, shouldForceFullscreenAmbient } from './mobile-perf.ts'
 import { RUNTIME_CONSTANTS } from './state.ts'
@@ -32,6 +33,7 @@ export function needsContinuousRepaint(rt: GameCanvasRuntime, now: number): 'ful
     return 'full'
   }
   if (rt.state.pendingPanelTransition) return 'full'
+  if (isBoardAdvanceActive(rt)) return 'full'
   if (rt.state.activeDifficultyAlert && now - rt.state.activeDifficultyAlert.startedAt < RUNTIME_CONSTANTS.DIFFICULTY_ALERT_MS) {
     return 'full'
   }

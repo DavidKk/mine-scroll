@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { isLeaderboardServiceError } from '@/services/leaderboard'
+import { isLeaderboardServiceError, parseRankedLeaderboardModeId } from '@/services/leaderboard'
 import { createLogger } from '@/services/logger'
 import { createRankedRun } from '@/services/ranked'
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const modeId = (body as { modeId?: string }).modeId === 'endless' ? 'endless' : 'endless'
+    const modeId = parseRankedLeaderboardModeId((body as { modeId?: string }).modeId)
     const run = await createRankedRun(modeId)
     logger.ok('create run', { runId: run.runId.slice(0, 8), modeId })
     return NextResponse.json({ ok: true, ...run })

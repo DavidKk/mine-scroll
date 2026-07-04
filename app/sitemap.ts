@@ -15,5 +15,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 1,
     },
+    {
+      url: `${origin}/play/rush`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
   ]
 }

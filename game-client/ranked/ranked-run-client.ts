@@ -1,6 +1,9 @@
 import { createSessionWithSeed } from '@shared/core/modes/engine.ts'
+import { createPuzzleRushSession } from '@shared/core/modes/puzzle-rush/index.ts'
 
 import type { RankedFinishResponse, RunInputEvent } from './types.ts'
+
+export type RankedModeId = 'endless' | 'puzzle-rush'
 
 export interface RankedRunStart {
   runId: string
@@ -9,11 +12,11 @@ export interface RankedRunStart {
   uploadIntervalMs: number
 }
 
-export async function createRankedRunOnServer(): Promise<RankedRunStart> {
+export async function createRankedRunOnServer(modeId: RankedModeId = 'endless'): Promise<RankedRunStart> {
   const response = await fetch('/api/ranked/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ modeId: 'endless' }),
+    body: JSON.stringify({ modeId }),
   })
   const body = (await response.json().catch(() => null)) as RankedRunStart & { error?: string }
   if (!response.ok) {
@@ -24,6 +27,10 @@ export async function createRankedRunOnServer(): Promise<RankedRunStart> {
 
 export function createRankedSession(seed: number) {
   return createSessionWithSeed(seed, 'expert')
+}
+
+export function createPuzzleRushRankedSession(seed: number) {
+  return createPuzzleRushSession(seed)
 }
 
 export async function finishRankedRunOnServer(

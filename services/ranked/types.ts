@@ -29,10 +29,12 @@ export interface LayoutSnapshot {
   cellGap: number
 }
 
+export type RankedModeId = 'endless' | 'puzzle-rush'
+
 export interface RankedRunRecord {
   runId: string
   seed: number
-  modeId: 'endless'
+  modeId: RankedModeId
   coreVersion: string
   status: RankedRunStatus
   createdAt: number

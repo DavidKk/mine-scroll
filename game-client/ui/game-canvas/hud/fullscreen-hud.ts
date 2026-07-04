@@ -82,9 +82,13 @@ export function drawFullscreenHud(
     rt.state.devAutoRect = { x: autoX, y: autoY, w: autoW, h: autoH }
     const active = Boolean(stats.devAutoActive)
     drawDevAutoButton(rt, shellCtx, rt.state.devAutoRect, active, scale)
-    const speed = stage.devSpeedRect
-    rt.state.devSpeedRect = { x: speed.x, y: speed.y, w: speed.w, h: speed.h }
-    drawDevSpeedUpButton(rt, shellCtx, rt.state.devSpeedRect, rt.state.currentStatus === 'playing', scale)
+    if (stats.devSpeedVisible !== false) {
+      const speed = stage.devSpeedRect
+      rt.state.devSpeedRect = { x: speed.x, y: speed.y, w: speed.w, h: speed.h }
+      drawDevSpeedUpButton(rt, shellCtx, rt.state.devSpeedRect, rt.state.currentStatus === 'playing', scale)
+    } else {
+      rt.state.devSpeedRect = null
+    }
   }
 
   shellCtx.restore()

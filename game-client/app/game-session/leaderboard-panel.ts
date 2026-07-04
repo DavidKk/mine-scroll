@@ -1,10 +1,11 @@
 import {
-  clearAllLocalScores,
+  clearLocalScoresForMode,
   ensureRankedLocalStore,
   getCachedDisplayName,
   getCachedLeaderboardSelfSnapshot,
   getCachedPlayerId,
   type LeaderboardSelfSnapshot,
+  type RankedLeaderboardModeId,
   saveDisplayName,
   saveLeaderboardSelfSnapshot,
 } from '../../storage/ranked-local-store.ts'
@@ -34,6 +35,8 @@ export interface LeaderboardPanel {
 }
 
 export interface LeaderboardPanelOptions {
+  modeId?: RankedLeaderboardModeId
+  depthColumnLabel?: string
   isRankedMode?: () => boolean
   onClose: () => void
   notify?: Pick<GameNotificationController, 'success' | 'error'>
@@ -91,10 +94,12 @@ export function buildLeaderboardViewModel(
   options: {
     selfSnapshot?: LeaderboardSelfSnapshot | null
     playerId?: string
+    modeId?: RankedLeaderboardModeId
   } = {}
 ): LeaderboardViewModel {
   const playerId = options.playerId?.trim() || getCachedPlayerId().trim()
-  const snapshot = options.selfSnapshot ?? getCachedLeaderboardSelfSnapshot()
+  const modeId = options.modeId ?? 'endless'
+  const snapshot = options.selfSnapshot ?? getCachedLeaderboardSelfSnapshot(modeId)
   const selfKey = resolveSelfPlayerKey(snapshot, playerId)
   const serverSelf = selfKey ? entries.find((entry) => entryMatchesSelf(entry, selfKey)) : undefined
   const ranked = entries.slice(0, LEADERBOARD_VISIBLE_ROWS).map((entry, index) => ({
@@ -233,13 +238,16 @@ function formatSubmittedAt(timestamp: number): string {
   })
 }
 
-function resolveSubtitle(storage: 'redis' | 'memory' | 'none' | undefined, ranked: boolean): string {
-  const base = ranked ? 'Ranked endless · verified top 100' : 'Endless · top 100'
+function resolveSubtitle(storage: 'redis' | 'memory' | 'none' | undefined, ranked: boolean, modeId: RankedLeaderboardModeId): string {
+  const label = modeId === 'puzzle-rush' ? 'Puzzle Rush' : 'Endless'
+  const base = ranked ? `Ranked ${label.toLowerCase()} · verified top 100` : `${label} · top 100`
   if (storage === 'memory') return `${base} · local memory`
   return base
 }
 
 export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPanelOptions): LeaderboardPanel {
+  const modeId = options.modeId ?? 'endless'
+  const depthColumnLabel = options.depthColumnLabel ?? (modeId === 'puzzle-rush' ? 'Boards' : 'Depth')
   const shell = document.createElement('div')
   shell.className = 'leaderboard-modal'
   shell.hidden = true
@@ -319,6 +327,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
   const emptyEl = shell.querySelector<HTMLElement>('.leaderboard-modal__empty')!
   const subtitleEl = shell.querySelector<HTMLElement>('[data-subtitle]')!
   const depthHeadEl = shell.querySelector<HTMLElement>('[data-depth-head]')!
+  depthHeadEl.querySelector('.leaderboard-modal__cell-inner')!.textContent = depthColumnLabel
   const countryHeadEl = shell.querySelector<HTMLElement>('[data-country-head]')!
   const renameShell = shell.querySelector<HTMLElement>('.leaderboard-rename')!
   const renamePanel = shell.querySelector<HTMLElement>('.leaderboard-rename__panel')!
@@ -463,7 +472,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
 
   function renderEntries(entries: LeaderboardEntryView[], playerId = getCachedPlayerId().trim()): void {
     lastEntries = entries
-    const view = buildLeaderboardViewModel(entries, { playerId })
+    const view = buildLeaderboardViewModel(entries, { playerId, modeId })
     pinnedEl.replaceChildren()
     listEl.replaceChildren()
 
@@ -490,7 +499,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
   }
 
   function primeSelfZoneFromCache(): void {
-    const snapshot = getCachedLeaderboardSelfSnapshot()
+    const snapshot = getCachedLeaderboardSelfSnapshot(modeId)
     if (!snapshot) {
       syncBodyLayout(false)
       selfZoneEl.hidden = true
@@ -542,9 +551,9 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     }
 
     await saveDisplayName(nextName)
-    const snapshot = getCachedLeaderboardSelfSnapshot()
+    const snapshot = getCachedLeaderboardSelfSnapshot(modeId)
     if (snapshot) {
-      await saveLeaderboardSelfSnapshot({ ...snapshot, name: nextName })
+      await saveLeaderboardSelfSnapshot({ ...snapshot, name: nextName }, modeId)
     }
     closeRenameDialog()
     options.notify?.success('Operator name updated.')
@@ -566,7 +575,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       const response = await fetch('/api/leaderboard', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerId, mode: modeId }),
       })
       const body = (await response.json().catch(() => null)) as { error?: string } | null
       let serverCleared = false
@@ -578,7 +587,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
         throw new Error(body?.error ?? 'Failed to clear leaderboard entry')
       }
 
-      await clearAllLocalScores()
+      await clearLocalScoresForMode(modeId)
       lastEntries = []
       renderEntries([])
       options.notify?.success(serverCleared ? 'Scores cleared.' : 'Local scores cleared.')
@@ -591,15 +600,18 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
   }
 
   async function persistSelfFromApi(playerId: string, self: LeaderboardEntryView & { rank?: number | null }): Promise<void> {
-    await saveLeaderboardSelfSnapshot({
-      id: playerId,
-      name: resolveSelfDisplayName(self.name),
-      score: self.score,
-      depth: self.depth,
-      rank: typeof self.rank === 'number' ? self.rank : undefined,
-      countryCode: self.countryCode,
-      submittedAt: self.submittedAt,
-    })
+    await saveLeaderboardSelfSnapshot(
+      {
+        id: playerId,
+        name: resolveSelfDisplayName(self.name),
+        score: self.score,
+        depth: self.depth,
+        rank: typeof self.rank === 'number' ? self.rank : undefined,
+        countryCode: self.countryCode,
+        submittedAt: self.submittedAt,
+      },
+      modeId
+    )
   }
 
   async function refresh(): Promise<void> {
@@ -609,7 +621,9 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     try {
       await ensureRankedLocalStore()
       const playerId = getCachedPlayerId().trim()
-      const query = playerId ? `?playerId=${encodeURIComponent(playerId)}` : ''
+      const queryParts = [`mode=${encodeURIComponent(modeId)}`]
+      if (playerId) queryParts.unshift(`playerId=${encodeURIComponent(playerId)}`)
+      const query = `?${queryParts.join('&')}`
       const response = await fetch(`/api/leaderboard${query}`, { method: 'GET' })
       const body = (await response.json().catch(() => null)) as {
         error?: string
@@ -630,7 +644,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
         await persistSelfFromApi(playerId, body.self)
       }
       renderEntries(rawEntries, playerId)
-      subtitleEl.textContent = resolveSubtitle(body?.storage, options.isRankedMode?.() ?? true)
+      subtitleEl.textContent = resolveSubtitle(body?.storage, options.isRankedMode?.() ?? true, modeId)
 
       if (body?.storage === 'none') {
         applyStatus('Global leaderboard needs Vercel KV — you can still play locally.', 'idle')
@@ -679,7 +693,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
       shell.hidden = !next
       host.classList.toggle('app--leaderboard-open', next)
       if (next) {
-        subtitleEl.textContent = resolveSubtitle(undefined, options.isRankedMode?.() ?? true)
+        subtitleEl.textContent = resolveSubtitle(undefined, options.isRankedMode?.() ?? true, modeId)
         applyTableDepthLayout(options.isRankedMode?.() ?? true)
         primeSelfZoneFromCache()
         setLoading(true)
