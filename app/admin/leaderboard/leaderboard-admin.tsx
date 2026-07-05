@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
+import { AdminBackdrop } from '@/app/components/admin-backdrop'
+import { cn } from '@/lib/cn'
+import { LOGIN_PAGE_SHELL } from '@/lib/login-shell'
+
 interface LeaderboardEntryRow {
   id: string
   playerId?: string
@@ -155,8 +159,9 @@ export function LeaderboardAdminClient() {
   }
 
   return (
-    <main className="min-h-dvh overflow-auto bg-admin-bg font-sans text-admin-text">
-      <div className="mx-auto w-full max-w-[1120px] px-5 py-6 pb-10">
+    <main className={cn(LOGIN_PAGE_SHELL, 'block overflow-auto')}>
+      <AdminBackdrop />
+      <div className="relative z-[1] mx-auto w-full max-w-[1120px] px-5 py-6 pb-10">
         <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="mb-1 font-mono text-[11px] uppercase tracking-[0.12em] text-admin-muted">Admin</p>

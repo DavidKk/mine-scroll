@@ -1,5 +1,5 @@
-import { createAdminBackdropElement } from '../../lib/admin-backdrop.ts'
 import { BRAND_MARK_PATH, BRAND_NAME } from '../../lib/brand.ts'
+import { createNeonBackdropElement } from '../../lib/neon-backdrop.ts'
 import { wrapWithCustomScrollbar } from '../ui/custom-scrollbar.ts'
 import { createAdminUserMenu } from './admin-chrome.ts'
 import { bindAdminNavIndicator, playAdminNavIndicatorEntrance } from './admin-nav-indicator.ts'
@@ -162,7 +162,7 @@ export function createAdminShell(options: AdminShellOptions): AdminShellLayout {
   const root = document.createElement('div')
   root.className = `admin-shell${activeModule === 'assets' ? '' : ' admin-shell--no-rail'}`
 
-  root.append(createAdminBackdropElement(), createAdminHeader(onNavigate, activeModule))
+  root.append(createNeonBackdropElement(), createAdminHeader(onNavigate, activeModule))
 
   const frame = document.createElement('div')
   frame.className = 'admin-shell__frame'

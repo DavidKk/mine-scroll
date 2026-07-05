@@ -7,6 +7,7 @@
  */
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 
 import { Redis } from '@upstash/redis'
@@ -14,7 +15,7 @@ import { Redis } from '@upstash/redis'
 import { hasKvRestCredentials, resolveKvRestCredentials } from './resolve-credentials.ts'
 
 const GLOBAL_MEMORY_KEY = '__chill_kv_memory_store__'
-const DEV_CACHE_FILE = path.join(process.cwd(), '.next/cache/chill-kv-memory.json')
+const DEV_CACHE_FILE = path.join(os.tmpdir(), 'mine-scroll-chill-kv-memory.json')
 
 let client: Redis | null = null
 let devCacheLoaded = false

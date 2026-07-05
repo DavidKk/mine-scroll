@@ -8,7 +8,7 @@
   min-height: 0;
   overflow: hidden;
   color: var(--admin-text);
-  background: var(--admin-bg);
+  background: linear-gradient(180deg, #06070d 0%, var(--admin-bg) 40%, #020205 100%);
   user-select: text;
   -webkit-user-select: text;
 }

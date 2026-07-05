@@ -2,24 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@import '../game-client/styles/admin-tokens.css';
+@import '../game-client/styles/neon-backdrop.css';
+
 @layer base {
   :root {
-    --admin-bg: #07080f;
-    --admin-cyan: #2decff;
-    --admin-cyan-soft: rgba(45, 236, 255, 0.35);
-    --admin-cyan-glow: rgba(45, 236, 255, 0.14);
-    --admin-cyan-border: rgba(45, 236, 255, 0.22);
-    --admin-gold: #fde047;
-    --admin-gold-glow: rgba(253, 224, 71, 0.55);
-    --admin-panel: rgba(10, 14, 24, 0.96);
-    --admin-surface: #0b0c10;
-    --admin-surface-raised: #12151e;
-    --admin-surface-card: #171a24;
-    --admin-text: #eef0f5;
-    --admin-muted: #8b92a3;
-    --admin-border: rgba(255, 255, 255, 0.08);
-    --admin-border-strong: rgba(255, 255, 255, 0.12);
-    --admin-danger: rgba(255, 76, 86, 0.82);
+    --landing-panel: rgba(22, 22, 31, 0.92);
+    --landing-border: rgba(255, 255, 255, 0.08);
   }
 }
 

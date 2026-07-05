@@ -17,16 +17,12 @@ function Block({ className = '' }: { className?: string }) {
 export function AdminShellSkeleton({ withSubnav = true, withRail = true }: AdminShellSkeletonProps) {
   return (
     <div
-      className="app app--admin pointer-events-none fixed inset-0 z-[100] flex flex-col overflow-hidden bg-admin-bg text-admin-text"
+      className="app app--admin pointer-events-none fixed inset-0 z-[100] flex flex-col overflow-hidden bg-landing-scroll-host text-admin-text"
       role="status"
       aria-live="polite"
       aria-busy="true"
       aria-label="Loading admin"
     >
-      <div
-        className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(45,236,255,0.08),transparent_55%),linear-gradient(180deg,#07080f_0%,#05060c_100%)] opacity-90"
-        aria-hidden="true"
-      />
       <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
         <header className="flex min-h-[52px] shrink-0 items-center gap-3 border-b border-white/[0.08] bg-[rgba(8,10,18,0.92)] px-3.5 py-2.5">
           <div className="flex items-center gap-2">

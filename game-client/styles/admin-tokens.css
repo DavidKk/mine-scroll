@@ -1,8 +1,11 @@
-/* Shared admin design tokens — keep in sync with app/globals.css @layer base */
+/* Shared design tokens — keep in sync with app/globals.css */
 
 :root {
-  --admin-bg: #07080f;
-  --admin-cyan: #2decff;
+  --landing-cyan: #2decff;
+  --landing-indigo: #818cf8;
+  --landing-bg: #030408;
+  --admin-bg: #030408;
+  --admin-cyan: var(--landing-cyan);
   --admin-cyan-soft: rgba(45, 236, 255, 0.35);
   --admin-cyan-glow: rgba(45, 236, 255, 0.14);
   --admin-cyan-border: rgba(45, 236, 255, 0.22);

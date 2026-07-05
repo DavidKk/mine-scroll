@@ -1,6 +1,6 @@
 import { cn } from '@/lib/cn'
 
-export const LOGIN_PAGE_SHELL = 'relative grid min-h-dvh place-items-center overflow-hidden p-6 font-sans text-zinc-50 bg-gradient-to-b from-[#06070d] to-game-bg'
+export const LOGIN_PAGE_SHELL = 'relative grid min-h-dvh place-items-center overflow-hidden p-6 font-sans text-slate-200 bg-landing-scroll-host'
 
 export const LOGIN_PANEL_SHELL = cn(
   'relative z-[1] grid w-full max-w-[420px] gap-3.5 rounded-2xl bg-admin-panel px-6 pb-[22px] pt-7',
