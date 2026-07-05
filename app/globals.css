@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --admin-bg: #07080f;
+    --admin-cyan: #2decff;
+    --admin-cyan-soft: rgba(45, 236, 255, 0.35);
+    --admin-cyan-glow: rgba(45, 236, 255, 0.14);
+    --admin-cyan-border: rgba(45, 236, 255, 0.22);
+    --admin-gold: #fde047;
+    --admin-gold-glow: rgba(253, 224, 71, 0.55);
+    --admin-panel: rgba(10, 14, 24, 0.96);
+    --admin-surface: #0b0c10;
+    --admin-surface-raised: #12151e;
+    --admin-surface-card: #171a24;
+    --admin-text: #eef0f5;
+    --admin-muted: #8b92a3;
+    --admin-border: rgba(255, 255, 255, 0.08);
+    --admin-border-strong: rgba(255, 255, 255, 0.12);
+    --admin-danger: rgba(255, 76, 86, 0.82);
+  }
+}
+
 *,
 *::before,
 *::after {
@@ -44,4 +65,151 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+}
+
+/*
+ * Unlayered so these beat game-client/styles/main.css `.scroll-host { position: relative }`
+ * (unlayered CSS wins over @layer components/utilities).
+ */
+.scroll-host.scroll-host--landing {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.scroll-host.scroll-host--landing > .scroll-view {
+  height: 100%;
+  max-height: 100%;
+}
+
+@layer components {
+  /* Landing scroll host — extends shared .scroll-host from game-client/styles/main.css */
+  .scroll-host--landing {
+    @apply bg-landing-scroll-host;
+  }
+
+  .scroll-host--landing .scroll-indicator {
+    @apply top-2.5 right-1.5 bottom-2.5 w-[3px] rounded-sm bg-landing-cyan/[0.07] opacity-100 overflow-hidden;
+    transition:
+      opacity 0.35s ease,
+      background-color 0.52s ease;
+  }
+
+  .scroll-host--landing .scroll-indicator--scrolling {
+    @apply bg-landing-cyan/[0.11];
+  }
+
+  .scroll-host--landing .scroll-indicator::before {
+    content: '';
+    @apply absolute inset-0 rounded-[inherit] bg-landing-scroll-track opacity-0 pointer-events-none;
+    transform: translateY(-120%);
+    transition: opacity 0.52s ease;
+    animation: none;
+  }
+
+  .scroll-host--landing .scroll-indicator--scrolling::before {
+    @apply opacity-[0.85];
+    animation: landing-scroll-shimmer 1.15s ease-in-out infinite;
+  }
+
+  .scroll-host--landing .scroll-indicator--hidden {
+    @apply opacity-0;
+  }
+
+  .scroll-host--landing .scroll-indicator__thumb {
+    @apply w-[3px] rounded-sm bg-landing-scroll-thumb opacity-[0.74];
+    filter: brightness(0.92) saturate(0.96);
+    box-shadow:
+      0 0 8px rgba(45, 236, 255, 0.32),
+      0 0 14px rgba(129, 140, 248, 0.16);
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.22s ease,
+      opacity 0.52s ease,
+      filter 0.52s ease,
+      box-shadow 0.52s ease;
+  }
+
+  .scroll-host--landing .scroll-indicator--scrolling .scroll-indicator__thumb {
+    @apply opacity-100;
+    filter: brightness(1.14) saturate(1.1);
+    box-shadow:
+      0 0 14px rgba(45, 236, 255, 0.72),
+      0 0 26px rgba(129, 140, 248, 0.38);
+    will-change: transform, opacity;
+  }
+
+  /* Preview canvas host overrides (game DOM mounted inside landing) */
+  .landing-preview-host .leaderboard-modal {
+    --lb-visible-rows: 5;
+    @apply absolute inset-0 z-30 px-1.5 py-2 pointer-events-none;
+  }
+
+  .landing-preview-host .leaderboard-modal__panel {
+    @apply w-full max-w-none max-h-full rounded-xl;
+  }
+
+  .landing-preview-host .leaderboard-modal__head {
+    @apply pt-2.5 pb-2;
+  }
+
+  .landing-preview-host .leaderboard-modal__title {
+    @apply text-base;
+  }
+
+  .landing-preview-host .leaderboard-modal__subtitle {
+    @apply text-[0.62rem];
+  }
+
+  .landing-preview-host .leaderboard-modal__body,
+  .landing-preview-host .leaderboard-modal__ranks-board {
+    @apply min-h-0;
+  }
+
+  .landing-preview-host .leaderboard-modal__list {
+    max-height: calc(var(--lb-table-head-height) + var(--lb-entry-height) * var(--lb-visible-rows));
+  }
+
+  .landing-preview-canvas-host .game-canvas-wrap--fullscreen,
+  .landing-preview-canvas-host .game-canvas--fullscreen {
+    position: relative !important;
+    inset: auto !important;
+    width: var(--landing-preview-w, 390px) !important;
+    height: var(--landing-preview-h, 844px) !important;
+  }
+
+  .landing-preview-canvas-host .game-canvas--fullscreen {
+    @apply rounded-[14px];
+  }
+}
+
+@media (max-width: 768px) {
+  .scroll-host--landing .scroll-indicator {
+    @apply right-1 w-0.5;
+  }
+
+  .scroll-host--landing .scroll-indicator__thumb {
+    @apply w-0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-host--landing .scroll-indicator,
+  .scroll-host--landing .scroll-indicator::before,
+  .scroll-host--landing .scroll-indicator__thumb {
+    transition-duration: 0.08s;
+  }
+
+  .scroll-host--landing .scroll-indicator--scrolling::before {
+    animation: none;
+  }
+
+  .scroll-host--landing .scroll-indicator__thumb {
+    transition:
+      transform 0.08s linear,
+      height 0.08s linear,
+      opacity 0.08s linear,
+      filter 0.08s linear,
+      box-shadow 0.08s linear;
+  }
 }

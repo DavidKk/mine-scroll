@@ -1,6 +1,8 @@
 'use client'
 
-import { type RefObject,useEffect, useRef } from 'react'
+import { type RefObject, useEffect, useRef } from 'react'
+
+import { cn } from '@/lib/cn'
 
 type LandingBackdropProps = {
   scrollRootRef: RefObject<HTMLElement | null>
@@ -79,7 +81,7 @@ export function LandingBackdrop({ scrollRootRef }: LandingBackdropProps) {
   const gridRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timerRef = useRef<number | null>(null)
   const sizeRef = useRef({ width: 0, height: 0 })
   const lastDrawRef = useRef(0)
 
@@ -201,19 +203,37 @@ export function LandingBackdrop({ scrollRootRef }: LandingBackdropProps) {
   }, [])
 
   return (
-    <div className="landing__backdrop" aria-hidden="true">
-      <div ref={auroraRef} className="landing__aurora" />
-      <canvas ref={canvasRef} className="landing__particles" />
-      <div className="landing__orbs">
-        <span className="landing__orb landing__orb--cyan" />
-        <span className="landing__orb landing__orb--indigo" />
-        <span className="landing__orb landing__orb--violet" />
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden [contain:layout_style_paint]" aria-hidden="true">
+      <div ref={auroraRef} className="absolute -inset-[25%] animate-landing-aurora bg-landing-aurora will-change-transform motion-reduce:animate-none" />
+      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-85 mix-blend-screen motion-reduce:hidden" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <span
+          className={cn(
+            'absolute top-[12%] left-[8%] h-[min(42vw,320px)] w-[min(42vw,320px)] rounded-full opacity-55 blur-[56px] will-change-transform motion-reduce:animate-none',
+            'animate-landing-orb-a bg-[radial-gradient(circle,rgba(45,236,255,0.35),transparent_68%)]'
+          )}
+        />
+        <span
+          className={cn(
+            'absolute top-[58%] right-[6%] h-[min(36vw,280px)] w-[min(36vw,280px)] rounded-full opacity-55 blur-[56px] will-change-transform motion-reduce:animate-none',
+            'animate-landing-orb-b bg-[radial-gradient(circle,rgba(99,102,241,0.32),transparent_70%)]'
+          )}
+        />
+        <span
+          className={cn(
+            'absolute bottom-[8%] left-[38%] h-[min(28vw,220px)] w-[min(28vw,220px)] rounded-full opacity-55 blur-[56px] will-change-transform motion-reduce:animate-none',
+            'animate-landing-orb-c bg-[radial-gradient(circle,rgba(129,140,248,0.28),transparent_72%)]'
+          )}
+        />
       </div>
-      <div className="landing__stars landing__stars--far" />
-      <div className="landing__stars landing__stars--near" />
-      <div ref={gridRef} className="landing__grid-lines" />
-      <div className="landing__scan" />
-      <div className="landing__vignette" />
+      <div className="absolute inset-0 animate-landing-twinkle bg-landing-stars-far opacity-55 motion-reduce:animate-none" />
+      <div className="absolute inset-0 animate-landing-twinkle-fast bg-landing-stars-near opacity-75 motion-reduce:animate-none" />
+      <div
+        ref={gridRef}
+        className="absolute inset-0 bg-landing-grid bg-[length:48px_48px] opacity-[0.12] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_40%,black,transparent)]"
+      />
+      <div className="pointer-events-none absolute -inset-y-[40%] inset-x-0 animate-landing-scan bg-[linear-gradient(180deg,transparent_0%,rgba(45,236,255,0.025)_44%,rgba(45,236,255,0.09)_50%,rgba(45,236,255,0.025)_56%,transparent_100%)] opacity-55 motion-reduce:animate-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_50%_45%,transparent_30%,rgba(3,4,8,0.85)_100%)]" />
     </div>
   )
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { LOGIN_OAUTH_BUTTON_CLASS } from '@/lib/login-shell'
+
 type OAuthLoginButtonProps = {
   onClick: () => void
   disabled?: boolean
@@ -8,11 +10,11 @@ type OAuthLoginButtonProps = {
 
 export function OAuthLoginButton({ onClick, disabled = false, loading = false }: OAuthLoginButtonProps) {
   return (
-    <button type="button" onClick={onClick} className="login-page__oauth-btn" disabled={disabled || loading} aria-busy={loading}>
-      <span className="login-page__oauth-icon" aria-hidden="true">
+    <button type="button" onClick={onClick} className={LOGIN_OAUTH_BUTTON_CLASS} disabled={disabled || loading} aria-busy={loading}>
+      <span className="text-base text-admin-gold" aria-hidden="true">
         ⬡
       </span>
-      <span className="login-page__oauth-text">{loading ? 'Redirecting…' : 'Sign in with Vercel 2FA'}</span>
+      <span>{loading ? 'Redirecting…' : 'Sign in with Vercel 2FA'}</span>
     </button>
   )
 }

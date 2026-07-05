@@ -18,6 +18,15 @@ describe('services/leaderboard/display', () => {
     expect(padded.every((row) => !row.id.startsWith('placeholder'))).toBe(true)
   })
 
+  it('uses distinct filler players for puzzle rush', () => {
+    const padded = padLeaderboardDisplay([], 'puzzle-rush')
+
+    expect(padded).toHaveLength(LEADERBOARD_DISPLAY_ROWS)
+    expect(padded[0]?.name).toBe('StreakAce')
+    expect(padded[9]?.name).toBe('QuickChord')
+    expect(padded.some((row) => row.name === 'Kiro_404')).toBe(false)
+  })
+
   it('merges fillers with real players and sorts by score', () => {
     const top = entry({
       id: 'aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee',

@@ -24,7 +24,7 @@ function noop(): void {
 
 export function mountLandingPreview(container: HTMLElement): () => void {
   container.replaceChildren()
-  container.className = 'landing-preview-host'
+  container.classList.add('landing-preview-host')
 
   preloadLandingAudio()
 

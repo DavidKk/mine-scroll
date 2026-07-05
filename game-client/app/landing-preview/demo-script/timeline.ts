@@ -1,4 +1,4 @@
-import { isBatchScrollSafe,resolveScrollBatchRowsForSession } from '@shared/core/modes/endless/index.ts'
+import { isBatchScrollSafe, resolveScrollBatchRowsForSession } from '@shared/core/modes/endless/index.ts'
 import { revealAt, toggleMarkAt } from '@shared/core/modes/engine.ts'
 
 import {
@@ -25,6 +25,10 @@ import {
   type DemoScriptController,
   type DemoTimelineStage,
 } from './config.ts'
+
+function sessionStatus(ctx: DemoScriptContext) {
+  return ctx.runtime.session.state.status
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -274,12 +278,12 @@ export function createDemoScript(callbacks: DemoScriptCallbacks, ctx: DemoScript
       await demoEndgamePressure(runToken, plan.mine)
       drainPasses += 1
       if (stopped || runToken !== runId) return
+      if (sessionStatus(ctx) === 'lost') {
+        markStage('fatal-guess')
+        return
+      }
     }
 
-    if (ctx.runtime.session.state.status === 'lost') {
-      markStage('fatal-guess')
-      return
-    }
     if (ctx.runtime.session.state.status !== 'playing') return
     if ((ctx.runtime.session.lives ?? 0) > 1) return
 

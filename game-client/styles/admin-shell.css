@@ -22,10 +22,6 @@
   min-height: 0;
 }
 
-.admin-shell .game-admin-backdrop {
-  opacity: 0.55;
-}
-
 .admin-shell__header {
   position: relative;
   z-index: 2;

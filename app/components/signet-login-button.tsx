@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { loadSignetSdk } from '@/lib/load-signet-sdk'
+import { LOGIN_SIGNET_BUTTON_CLASS } from '@/lib/login-shell'
 import { VF2FA_NEXT_COOKIE, VF2FA_OAUTH_STATE_COOKIE, VF2FA_REMEMBER_ME_COOKIE } from '@/services/auth/constants'
 
 export type SignetLoginButtonProps = {
@@ -59,14 +60,14 @@ export function SignetLoginButton({
   }
 
   return (
-    <div className="login-page__signet">
-      <button type="button" onClick={handleClick} className="login-page__signet-btn">
-        <span className="login-page__signet-icon" aria-hidden="true">
+    <div className="grid gap-2">
+      <button type="button" onClick={handleClick} className={LOGIN_SIGNET_BUTTON_CLASS}>
+        <span className="text-lg text-admin-cyan" aria-hidden="true">
           ◈
         </span>
-        <span className="login-page__signet-text">Continue with Signet</span>
+        <span>Continue with Signet</span>
       </button>
-      {sdkError ? <p className="login-page__signet-error">Could not load Signet SDK: {sdkError}</p> : null}
+      {sdkError ? <p className="m-0 text-center text-[0.78rem] leading-snug text-red-200">Could not load Signet SDK: {sdkError}</p> : null}
     </div>
   )
 }

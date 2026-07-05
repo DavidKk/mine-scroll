@@ -52,7 +52,7 @@ export async function readLeaderboard(playerId?: string, modeId: RankedLeaderboa
     }
   }
 
-  const entries = padLeaderboardDisplay(pool)
+  const entries = padLeaderboardDisplay(pool, modeId)
   logger.info('board read public', {
     entries: entries.length,
     updatedAt: board.updatedAt,

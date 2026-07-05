@@ -1,3 +1,4 @@
+import { createAdminBackdropElement } from '../../lib/admin-backdrop.ts'
 import { BRAND_MARK_PATH, BRAND_NAME } from '../../lib/brand.ts'
 import { wrapWithCustomScrollbar } from '../ui/custom-scrollbar.ts'
 import { createAdminUserMenu } from './admin-chrome.ts'
@@ -58,20 +59,6 @@ export interface AdminShellLayout {
   panelHost: HTMLElement
   disposeScroll: () => void
   setPageHeader: (eyebrow: string, title: string, description?: string) => void
-}
-
-function createAdminBackdrop(): HTMLElement {
-  const backdrop = document.createElement('div')
-  backdrop.className = 'game-admin-backdrop'
-  backdrop.setAttribute('aria-hidden', 'true')
-  backdrop.innerHTML = `
-    <div class="game-admin-backdrop__aurora"></div>
-    <div class="game-admin-backdrop__stars game-admin-backdrop__stars--far"></div>
-    <div class="game-admin-backdrop__stars game-admin-backdrop__stars--near"></div>
-    <div class="game-admin-backdrop__grid"></div>
-    <div class="game-admin-backdrop__vignette"></div>
-  `
-  return backdrop
 }
 
 function createAdminHeader(onNavigate: (path: string) => void, activeModule: AdminTopModule): HTMLElement {
@@ -175,7 +162,7 @@ export function createAdminShell(options: AdminShellOptions): AdminShellLayout {
   const root = document.createElement('div')
   root.className = `admin-shell${activeModule === 'assets' ? '' : ' admin-shell--no-rail'}`
 
-  root.append(createAdminBackdrop(), createAdminHeader(onNavigate, activeModule))
+  root.append(createAdminBackdropElement(), createAdminHeader(onNavigate, activeModule))
 
   const frame = document.createElement('div')
   frame.className = 'admin-shell__frame'
