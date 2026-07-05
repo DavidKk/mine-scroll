@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import type { Metadata, Viewport } from 'next'
 
+import { SiteJsonLd } from '@/app/components/site-json-ld'
 import { VideoGameJsonLd } from '@/app/components/video-game-json-ld'
 import { BRAND_DESCRIPTION, BRAND_KEYWORDS, BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_NAME, BRAND_OG_IMAGE_PATH } from '@/lib/brand'
 import { getRequestMetadataBase } from '@/lib/request-origin'
@@ -30,6 +31,14 @@ export async function generateMetadata(): Promise<Metadata> {
     creator: BRAND_NAME,
     publisher: BRAND_NAME,
     category: 'game',
+    formatDetection: {
+      telephone: false,
+    },
+    appleWebApp: {
+      capable: true,
+      title: BRAND_NAME,
+      statusBarStyle: 'black-translucent',
+    },
     robots: PUBLIC_INDEX_ROBOTS,
     alternates: {
       canonical: '/',
@@ -65,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
       </head>
       <body>
+        <SiteJsonLd />
         <VideoGameJsonLd />
         {children}
       </body>

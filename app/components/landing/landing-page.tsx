@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react'
 
 import { BRAND_DESCRIPTION, BRAND_NAME } from '@/lib/brand'
 import { cn } from '@/lib/cn'
+import { LANDING_HOW_TO } from '@/lib/landing-content'
 
 import { LandingBackdrop } from './landing-backdrop'
 import { LandingBoardPreview } from './landing-board-preview'
@@ -48,12 +49,6 @@ const FEATURES = [
     title: 'Touch Ready',
     description: 'Tap to reveal, vertical swipe to flag, double-tap chord on small screens.',
   },
-] as const
-
-const HOW_TO = [
-  { key: 'Reveal', text: 'Left-click or tap a covered cell to open it. Numbers show adjacent mines.' },
-  { key: 'Flag', text: 'Right-click or swipe vertically to mark suspected mines.' },
-  { key: 'Chord', text: 'Double-click or double-tap a revealed number when flags match the count.' },
 ] as const
 
 /** Matches scroll-indicator fade-out duration in globals.css. */
@@ -229,10 +224,10 @@ export function LandingPage() {
               <p className="m-0 text-[0.95rem] text-slate-400">Classic minesweeper rules, neon presentation.</p>
             </div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
-              {HOW_TO.map((item) => (
+              {LANDING_HOW_TO.map((item) => (
                 <div key={item.key} className="rounded-xl border-l-[3px] border-l-landing-cyan/45 bg-zinc-900/55 p-4">
                   <span className="mb-1.5 block font-mono text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-landing-cyan">{item.key}</span>
-                  <p className="m-0 text-[0.88rem] leading-normal text-slate-300">{item.text}</p>
+                  <p className="m-0 text-[0.88rem] leading-normal text-slate-300">{item.answer}</p>
                 </div>
               ))}
             </div>
