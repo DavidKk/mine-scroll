@@ -4,21 +4,25 @@ import { getEndlessLayoutProfile } from '../../game-stage-layout.ts'
 
 export const MOBILE_MAX_CANVAS_DPR = 2
 export const DESKTOP_MAX_CANVAS_DPR = 2
+/** Embedded landing attract preview — save GPU fill on a small canvas. */
+export const ATTRACT_PREVIEW_MAX_DPR = 1.5
 
 const MOBILE_AMBIENT_FPS = 20
 const DESKTOP_AMBIENT_FPS = 40
+const ATTRACT_AMBIENT_FPS = 12
 
 export function isMobileViewport(viewportW: number): boolean {
   return getEndlessLayoutProfile(viewportW) === 'mobile'
 }
 
-export function resolveCanvasDpr(viewportW: number): number {
+export function resolveCanvasDpr(viewportW: number, maxDpr?: number): number {
   const raw = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-  const cap = isMobileViewport(viewportW) ? MOBILE_MAX_CANVAS_DPR : DESKTOP_MAX_CANVAS_DPR
+  const cap = maxDpr ?? (isMobileViewport(viewportW) ? MOBILE_MAX_CANVAS_DPR : DESKTOP_MAX_CANVAS_DPR)
   return Math.min(raw, cap)
 }
 
-export function ambientFrameMs(viewportW: number): number {
+export function ambientFrameMs(viewportW: number, lowPower = false): number {
+  if (lowPower) return 1000 / ATTRACT_AMBIENT_FPS
   const fps = isMobileViewport(viewportW) ? MOBILE_AMBIENT_FPS : DESKTOP_AMBIENT_FPS
   return 1000 / fps
 }

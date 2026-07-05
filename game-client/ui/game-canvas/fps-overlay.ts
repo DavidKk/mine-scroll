@@ -28,7 +28,7 @@ export function isFpsOverlayEnabled(): boolean {
   return value === null || value === '' || value === '1' || value === 'true'
 }
 
-function createNoopFpsOverlay(): FpsOverlay {
+export function createNoopFpsOverlay(): FpsOverlay {
   return {
     recordGameFrame() {},
     setAnchor() {},

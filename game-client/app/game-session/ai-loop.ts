@@ -1,5 +1,6 @@
 import { aiPersistCellKey, isAiPersistBlocked } from '@shared/core/ai/ai-blocked.ts'
 import { getEndlessAiStepMs } from '@shared/core/ai/solver.ts'
+import type { AiMove } from '@shared/core/ai/types.ts'
 import { applyAiMove, getAiAnalysis, MINES_PER_LIFE, toAiHintDisplay } from '@shared/core/modes/engine.ts'
 import type { ModeSession } from '@shared/core/types.ts'
 
@@ -17,6 +18,11 @@ export interface AiControllerDeps {
   applySession(next: ModeSession, beforeLives?: number, context?: SessionApplyContext): void
   afterSessionChange(wasIdle?: boolean): void
   render(): void
+  /** Override AI step delay — e.g. slower attract-mode pacing. */
+  resolveStepDelayMs?: (session: ModeSession, elapsedMs: number, urgent: boolean) => number
+  /** Attract demo — inject a scripted move (e.g. fatal guess). */
+  resolveDemoMove?: () => AiMove | null
+  consumeDemoMove?: () => void
 }
 
 export interface AiController {
@@ -44,14 +50,26 @@ export function createAiController(deps: AiControllerDeps): AiController {
       runtime.aiHint = null
       return
     }
+    const override = deps.resolveDemoMove?.()
+    if (override && override.kind !== 'heal' && override.kind !== 'scroll') {
+      const viewStart = runtime.session.endlessViewStart ?? 0
+      runtime.aiHint = {
+        row: override.row - viewStart,
+        col: override.col,
+        kind: override.kind,
+        confidence: override.confidence,
+      }
+      return
+    }
     const analysis = getAiAnalysis(runtime.session, scroll.getElapsedMs())
     runtime.aiHint = toAiHintDisplay(runtime.session, analysis)
   }
 
   function scheduleAiStep(): void {
     if (!runtime.aiAutoActive) return
-    let delay = getEndlessAiStepMs(runtime.session, scroll.getElapsedMs())
-    if (scroll.getScrollPressureState()?.urgent) delay = 0
+    const urgent = Boolean(scroll.getScrollPressureState()?.urgent)
+    let delay = deps.resolveStepDelayMs?.(runtime.session, scroll.getElapsedMs(), urgent) ?? getEndlessAiStepMs(runtime.session, scroll.getElapsedMs())
+    if (urgent && !deps.resolveStepDelayMs) delay = 0
     runtime.aiAutoId = window.setTimeout(() => {
       runtime.aiAutoId = null
       if (!runtime.aiAutoActive) return
@@ -68,8 +86,9 @@ export function createAiController(deps: AiControllerDeps): AiController {
     const beforeLives = runtime.session.lives
 
     for (let attempt = 0; attempt < 8; attempt += 1) {
+      const override = deps.resolveDemoMove?.()
       const analysis = getAiAnalysis(runtime.session, scroll.getElapsedMs())
-      if (!analysis.move) {
+      if (!override && !analysis.move) {
         if (!runtime.aiWaitLogged && attempt === 0) {
           devLog('AI waiting: no move available')
           runtime.aiWaitLogged = true
@@ -79,7 +98,8 @@ export function createAiController(deps: AiControllerDeps): AiController {
         return true
       }
 
-      const move = analysis.move
+      const move = override ?? analysis.move!
+      const usedDemoMove = Boolean(override)
 
       if (move.kind === 'heal') {
         runtime.aiWaitLogged = false
@@ -163,6 +183,7 @@ export function createAiController(deps: AiControllerDeps): AiController {
         }
       }
       applySession(next, beforeLives, { trigger })
+      if (usedDemoMove) deps.consumeDemoMove?.()
       afterSessionChange(wasIdle)
       return runtime.session.state.status === 'playing' || runtime.session.state.status === 'idle'
     }

@@ -3,6 +3,7 @@ import { drawFullscreenHud } from '../hud/fullscreen-hud.ts'
 import { syncInputProfile } from '../input/pointer-handlers.ts'
 import { syncBoardSizeFromLayout } from '../layout/board-layout.ts'
 import { syncFullscreenCanvasSize } from '../layout/viewport-fit.ts'
+import { drawAttractFlagSwipeHint } from '../overlay/attract-flag-swipe-hint.ts'
 import { updateBoardAdvance } from '../overlay/board-advance.ts'
 import { drawFullscreenOverlay } from '../overlay/event-overlay.ts'
 import { drawGameIntroChrome, idleBoardDrawAlpha, updateGameIntro } from '../overlay/game-intro.ts'
@@ -126,6 +127,9 @@ export function paint(rt: GameCanvasRuntime): void {
 
   if (rt.fullscreen) {
     rt.ctx.restore()
+    if (rt.state.attractFlagSwipeHint) {
+      drawAttractFlagSwipeHint(rt, rt.ctx, now)
+    }
     drawFullscreenOverlay(rt, rt.ctx, rt.fullscreen, rt.state.width, rt.state.height, intro)
     drawScrollGhostEffects(rt, rt.ctx, now)
     if (intro && !intro.complete) drawGameIntroChrome(rt, rt.ctx, rt.state.width, intro)

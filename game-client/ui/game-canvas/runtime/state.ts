@@ -45,6 +45,13 @@ export interface FlagSwipePreviewState {
   active: boolean
 }
 
+/** Landing attract — shell swipe arrow + label. */
+export interface AttractFlagSwipeHintState {
+  row: number
+  col: number
+  startedAt: number
+}
+
 export interface PendingPanelTransition {
   kind: 'start' | 'retry'
   startedAt: number
@@ -123,6 +130,7 @@ export interface CanvasRuntimeState {
   shellBgCacheKey: string
   boardPointer: BoardPointerState | null
   flagSwipePreview: FlagSwipePreviewState | null
+  attractFlagSwipeHint: AttractFlagSwipeHintState | null
   lastLivesCurrent: number
   heartRefillFxStartedAt: number
   heartRefillTargetIndex: number
@@ -234,6 +242,7 @@ export function createInitialRuntimeState(
     shellBgCacheKey: '',
     boardPointer: null,
     flagSwipePreview: null,
+    attractFlagSwipeHint: null,
     lastLivesCurrent: -1,
     heartRefillFxStartedAt: 0,
     heartRefillTargetIndex: 0,

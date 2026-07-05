@@ -35,6 +35,14 @@ export function preloadGameAudio(): void {
   }
 }
 
+/** Landing attract — always warm clips (including mobile) so BGM/SFX start quickly after unlock. */
+export function preloadLandingAudio(): void {
+  if (typeof window === 'undefined') return
+  for (const asset of buildAudioBootAssets()) {
+    warmAudioClip(asset.url)
+  }
+}
+
 /** Await every audio clip — mobile boot already does this; exposed for tests. */
 export async function preloadGameAudioBlocking(): Promise<void> {
   await Promise.all(buildAudioBootAssets().map((asset) => warmAudioClipAsync(asset.url)))

@@ -32,14 +32,14 @@ export async function generateMetadata(): Promise<Metadata> {
     category: 'game',
     robots: PUBLIC_INDEX_ROBOTS,
     alternates: {
-      canonical: '/play',
+      canonical: '/',
     },
     icons: {
       icon: [{ url: brandMark, type: brandMark.endsWith('.webp') ? 'image/webp' : 'image/png' }],
       apple: [{ url: brandLogo, type: brandLogo.endsWith('.webp') ? 'image/webp' : 'image/png' }],
     },
     manifest: '/manifest.webmanifest',
-    openGraph: buildOpenGraph(metadataBase, BRAND_NAME, BRAND_DESCRIPTION, '/play', brandOg),
+    openGraph: buildOpenGraph(metadataBase, BRAND_NAME, BRAND_DESCRIPTION, '/', brandOg),
     twitter: buildTwitterCard(BRAND_NAME, BRAND_DESCRIPTION, brandOg),
   }
 }

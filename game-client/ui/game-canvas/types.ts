@@ -123,6 +123,10 @@ export interface GameCanvasOptions {
   endlessPreviewRows?: number
   /** No panel underlay or side rails — cells composite over the starfield (puzzle rush). */
   transparentBoardUnderlay?: boolean
+  /** Fixed shell size for embedded previews (landing page, asset lab). */
+  viewportSize?: { width: number; height: number }
+  /** Read-only demo shell — skip intro, no ranked/input side effects. */
+  previewMode?: { skipIntro?: boolean; /** Landing attract: paint on demand, lower DPR / FPS. */ lowPower?: boolean; maxDpr?: number }
 }
 
 export interface GameCanvasRenderOptions {
@@ -149,12 +153,18 @@ export interface GameCanvasController {
   queueScrollMineGhosts(cells: { row: number; col: number }[]): void
   /** Pinned scroll-off wrong-flag break FX (not mine explosion). */
   queueScrollWrongFlagGhosts(cells: { row: number; col: number }[]): void
+  /** Attract / tutorial — mobile swipe-up flag preview. */
+  playFlagSwipePreview(row: number, col: number, options?: import('./runtime/flag-swipe-preview.ts').FlagSwipePreviewOptions): Promise<void>
+  cancelFlagSwipePreview(): void
   getRankedLayoutSnapshot?(): import('../../ranked/types.ts').LayoutSnapshot | null
+  /** Stop RAF loop (landing preview off-screen / tab hidden). */
+  suspendRendering(): void
+  resumeRendering(): void
   destroy(): void
 }
 
-export function applyCanvasSize(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, width: number, height: number): void {
-  const dpr = resolveCanvasDpr(width)
+export function applyCanvasSize(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, width: number, height: number, maxDpr?: number): void {
+  const dpr = resolveCanvasDpr(width, maxDpr)
   canvas.width = width * dpr
   canvas.height = height * dpr
   canvas.style.width = `${width}px`

@@ -1,9 +1,30 @@
 /** 2px indicator scrollbar: not draggable, position only. */
-export function attachCustomScrollbar(view: HTMLElement, indicator: HTMLElement, thumb: HTMLElement): () => void {
+export interface CustomScrollbarOptions {
+  /** Class toggled on the indicator while the view is scrolling. */
+  scrollingClass?: string
+  /** How long to keep {@link CustomScrollbarOptions.scrollingClass} after scroll stops. */
+  scrollingHoldMs?: number
+}
+
+export function attachCustomScrollbar(view: HTMLElement, indicator: HTMLElement, thumb: HTMLElement, options: CustomScrollbarOptions = {}): () => void {
+  const scrollingClass = options.scrollingClass ?? 'scroll-indicator--scrolling'
+  const scrollingHoldMs = options.scrollingHoldMs ?? 420
+  let scrollIdleTimer = 0
+
+  function setScrolling(active: boolean): void {
+    window.clearTimeout(scrollIdleTimer)
+    indicator.classList.toggle(scrollingClass, active)
+    if (!active) return
+    scrollIdleTimer = window.setTimeout(() => {
+      indicator.classList.remove(scrollingClass)
+    }, scrollingHoldMs)
+  }
+
   function update(): void {
     const { scrollTop, scrollHeight, clientHeight } = view
     if (scrollHeight <= clientHeight + 1) {
       indicator.classList.add('scroll-indicator--hidden')
+      setScrolling(false)
       return
     }
     indicator.classList.remove('scroll-indicator--hidden')
@@ -15,24 +36,31 @@ export function attachCustomScrollbar(view: HTMLElement, indicator: HTMLElement,
     thumb.style.transform = `translateY(${top}px)`
   }
 
-  view.addEventListener('scroll', update, { passive: true })
+  function onScroll(): void {
+    setScrolling(true)
+    update()
+  }
+
+  view.addEventListener('scroll', onScroll, { passive: true })
   const ro = new ResizeObserver(update)
   ro.observe(view)
   update()
 
   return () => {
-    view.removeEventListener('scroll', update)
+    window.clearTimeout(scrollIdleTimer)
+    view.removeEventListener('scroll', onScroll)
     ro.disconnect()
+    indicator.classList.remove(scrollingClass)
   }
 }
 
 /** Wrap a scrollable region and mount the custom scrollbar. */
-export function wrapWithCustomScrollbar(el: HTMLElement, hostClass = ''): () => void {
+export function wrapWithCustomScrollbar(el: HTMLElement, hostClass = '', options: CustomScrollbarOptions = {}): () => void {
   if (el.parentElement?.classList.contains('scroll-host')) {
     const indicator = el.parentElement.querySelector('.scroll-indicator')
     const thumb = el.parentElement.querySelector('.scroll-indicator__thumb')
     if (indicator instanceof HTMLElement && thumb instanceof HTMLElement) {
-      return attachCustomScrollbar(el, indicator, thumb)
+      return attachCustomScrollbar(el, indicator, thumb, options)
     }
   }
 
@@ -48,10 +76,19 @@ export function wrapWithCustomScrollbar(el: HTMLElement, hostClass = ''): () => 
   indicator.append(thumb)
 
   el.classList.add('scroll-view')
-  el.parentNode?.insertBefore(host, el)
+  const parent = el.parentNode
+  parent?.insertBefore(host, el)
   host.append(el, indicator)
 
-  return attachCustomScrollbar(el, indicator, thumb)
+  const detachScrollbar = attachCustomScrollbar(el, indicator, thumb, options)
+
+  return () => {
+    detachScrollbar()
+    if (el.parentElement === host && parent) {
+      parent.insertBefore(el, host)
+    }
+    host.remove()
+  }
 }
 
 /** Page-level scroll indicator (html/body). */

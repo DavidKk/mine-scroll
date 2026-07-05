@@ -64,6 +64,7 @@ export const GAME_AUDIO_BGM_IDLE_VOLUME = BGM_IDLE_VOLUME
 
 export interface GameAudioOptions {
   bgmMuted?: boolean
+  sfxMuted?: boolean
 }
 
 export interface GameAudioController {
@@ -71,7 +72,11 @@ export interface GameAudioController {
   unlock(): void
   setIdleBgm(active: boolean): void
   isIdleBgmMuted(): boolean
+  setIdleBgmMuted(muted: boolean): void
   toggleIdleBgmMuted(): boolean
+  isSfxMuted(): boolean
+  setSfxMuted(muted: boolean): void
+  toggleSfxMuted(): boolean
   destroy(): void
 }
 
@@ -133,12 +138,14 @@ export function createGameAudio(options: GameAudioOptions = {}): GameAudioContro
   let unlocked = false
   let idleBgmSceneActive = false
   let idleBgmMuted = options.bgmMuted ?? false
+  let sfxMuted = options.sfxMuted ?? false
   let idleBgmPlayPending = false
 
   const idleBgm = cloneAudioTemplate(BGM_IDLE_SRC)
   idleBgm.loop = true
   idleBgm.preload = 'auto'
   idleBgm.volume = BGM_IDLE_VOLUME
+  idleBgm.load()
 
   for (const [id, src] of Object.entries(GAME_AUDIO_ASSETS) as [GameAudioId, string][]) {
     const audio = cloneAudioTemplate(src)
@@ -167,6 +174,11 @@ export function createGameAudio(options: GameAudioOptions = {}): GameAudioContro
   idleBgm.addEventListener('canplaythrough', () => {
     if (!idleBgmPlayPending) return
     idleBgmPlayPending = false
+    tryPlayIdleBgm()
+  })
+
+  idleBgm.addEventListener('loadeddata', () => {
+    if (!idleBgmPlayPending) return
     tryPlayIdleBgm()
   })
 
@@ -210,6 +222,11 @@ export function createGameAudio(options: GameAudioOptions = {}): GameAudioContro
     return idleBgmMuted
   }
 
+  function setIdleBgmMuted(muted: boolean): void {
+    idleBgmMuted = muted
+    syncIdleBgmPlayback()
+  }
+
   function toggleIdleBgmMuted(): boolean {
     unlock()
     idleBgmMuted = !idleBgmMuted
@@ -217,7 +234,22 @@ export function createGameAudio(options: GameAudioOptions = {}): GameAudioContro
     return idleBgmMuted
   }
 
+  function isSfxMuted(): boolean {
+    return sfxMuted
+  }
+
+  function setSfxMuted(muted: boolean): void {
+    sfxMuted = muted
+  }
+
+  function toggleSfxMuted(): boolean {
+    if (sfxMuted) unlock()
+    sfxMuted = !sfxMuted
+    return sfxMuted
+  }
+
   function play(id: GameAudioId): void {
+    if (sfxMuted) return
     if (!unlocked) unlock()
     const template = clips.get(id)
     if (!template) return
@@ -239,5 +271,16 @@ export function createGameAudio(options: GameAudioOptions = {}): GameAudioContro
     idleBgmMuted = true
   }
 
-  return { play, unlock, setIdleBgm, isIdleBgmMuted, toggleIdleBgmMuted, destroy }
+  return {
+    play,
+    unlock,
+    setIdleBgm,
+    isIdleBgmMuted,
+    setIdleBgmMuted,
+    toggleIdleBgmMuted,
+    isSfxMuted,
+    setSfxMuted,
+    toggleSfxMuted,
+    destroy,
+  }
 }

@@ -20,6 +20,7 @@ export default (): Config.InitialOptions => ({
     ],
   },
   moduleNameMapper: {
+    '^@game-client/(.*)$': '<rootDir>/game-client/$1',
     '^@shared/core/(.*)$': '<rootDir>/shared/core/$1',
     '^@/(.*)$': '<rootDir>/$1',
   },

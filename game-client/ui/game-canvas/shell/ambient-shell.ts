@@ -11,7 +11,8 @@ export function drawModernBackground(_rt: GameCanvasRuntime, shellCtx: CanvasRen
 }
 
 function backdropCacheKey(rt: GameCanvasRuntime, now: number): string {
-  const bucket = Math.floor(now / ambientFrameMs(rt.state.width))
+  const lowPower = rt.canvasOptions.previewMode?.lowPower === true
+  const bucket = Math.floor(now / ambientFrameMs(rt.state.width, lowPower))
   const mood = rt.state.backdropMood
   return `${rt.state.width}x${rt.state.height}|${bucket}|${Math.round(mood.heat * 100)}|${Math.round(mood.energy * 100)}|${Math.round(mood.intensity * 100)}|${rt.state.currentStatus}`
 }
@@ -30,7 +31,7 @@ export function drawAmbientShellBackdrop(rt: GameCanvasRuntime, shellCtx: Canvas
     },
     stats?.combo ?? 0
   )
-  const dtMs = rt.state.lastBackdropSampleAt > 0 ? now - rt.state.lastBackdropSampleAt : ambientFrameMs(rt.state.width)
+  const dtMs = rt.state.lastBackdropSampleAt > 0 ? now - rt.state.lastBackdropSampleAt : ambientFrameMs(rt.state.width, rt.canvasOptions.previewMode?.lowPower === true)
   rt.state.lastBackdropSampleAt = now
   rt.state.backdropMood = smoothBackdropMood(rt.state.backdropMood, target, dtMs)
 

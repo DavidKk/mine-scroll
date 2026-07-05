@@ -10,10 +10,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     {
-      url: `${origin}/play`,
+      url: `${origin}/`,
       lastModified,
       changeFrequency: 'weekly',
       priority: 1,
+    },
+    {
+      url: `${origin}/play`,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.95,
     },
     {
       url: `${origin}/play/rush`,

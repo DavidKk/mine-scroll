@@ -36,11 +36,12 @@ export function testLocalSettingsDefaultsWhenMissing(): void {
 
 export function testLocalSettingsRoundTrip(): void {
   withMockStorage(() => {
-    saveLocalSettings({ bgmMuted: true })
-    assert.deepEqual(loadLocalSettings(), { bgmMuted: true })
+    saveLocalSettings({ bgmMuted: true, soundMuted: true })
+    assert.deepEqual(loadLocalSettings(), { bgmMuted: true, soundMuted: true })
     const raw = localStorage.getItem(LOCAL_SETTINGS_STORAGE_KEY)
     assert.ok(raw)
     assert.equal(JSON.parse(raw!).bgmMuted, true)
+    assert.equal(JSON.parse(raw!).soundMuted, true)
   })
 }
 
@@ -56,7 +57,7 @@ export function testLocalSettingsPatchPersists(): void {
 
 export function testLocalSettingsIgnoresInvalidPayload(): void {
   withMockStorage(() => {
-    localStorage.setItem(LOCAL_SETTINGS_STORAGE_KEY, '{"bgmMuted":"yes"}')
+    localStorage.setItem(LOCAL_SETTINGS_STORAGE_KEY, '{"bgmMuted":"yes","soundMuted":"no"}')
     assert.deepEqual(loadLocalSettings(), { ...DEFAULT_LOCAL_SETTINGS })
     localStorage.setItem(LOCAL_SETTINGS_STORAGE_KEY, 'not-json')
     assert.deepEqual(loadLocalSettings(), { ...DEFAULT_LOCAL_SETTINGS })

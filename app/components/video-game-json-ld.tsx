@@ -4,5 +4,5 @@ import { getVideoGameJsonLd } from '@/lib/seo'
 
 export async function VideoGameJsonLd() {
   const metadataBase = await getRequestMetadataBase()
-  return <JsonLd data={getVideoGameJsonLd(metadataBase, '/play')} />
+  return <JsonLd data={getVideoGameJsonLd(metadataBase, '/')} />
 }

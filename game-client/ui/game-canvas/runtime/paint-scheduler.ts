@@ -5,6 +5,10 @@ import type { GameCanvasRuntime } from './context.ts'
 import { ambientFrameMs, shouldForceFullscreenAmbient } from './mobile-perf.ts'
 import { RUNTIME_CONSTANTS } from './state.ts'
 
+function isLowPowerPreview(rt: GameCanvasRuntime): boolean {
+  return rt.canvasOptions.previewMode?.lowPower === true
+}
+
 export function stopPressureRepaint(rt: GameCanvasRuntime): void {
   if (rt.state.pressureRepaintId !== null) {
     window.clearInterval(rt.state.pressureRepaintId)
@@ -51,13 +55,20 @@ export function needsContinuousRepaint(rt: GameCanvasRuntime, now: number): 'ful
     const comboAge = now - rt.state.comboFxStartedAt
     if (comboAge < GAME_ASSET_TUNING.fx.comboBurst.durationMs) return 'full'
   }
-  if (rt.state.lastCombo > 1 && rt.state.currentStatus === 'playing') return 'ambient'
-  if (rt.fullscreen && shouldForceFullscreenAmbient(rt.state.width, rt.state.currentStatus)) return 'ambient'
-  if (rt.state.currentStatus === 'idle') return 'ambient'
+  if (rt.state.lastCombo > 1 && rt.state.currentStatus === 'playing' && !isLowPowerPreview(rt)) return 'ambient'
+  if (rt.fullscreen && shouldForceFullscreenAmbient(rt.state.width, rt.state.currentStatus) && !isLowPowerPreview(rt)) return 'ambient'
+  if (rt.state.currentStatus === 'idle' && !isLowPowerPreview(rt)) return 'ambient'
+  if (rt.state.currentStatus === 'lost' && rt.fullscreen && !isLowPowerPreview(rt)) return 'ambient'
   if (rt.state.currentStatus !== 'playing') return false
   if (rt.state.boardPointer !== null) return 'ambient'
   if (rt.state.flagSwipePreview?.active) return 'ambient'
-  if (rt.getScrollPressureFn?.()) return 'ambient'
+  if (rt.state.attractFlagSwipeHint) return 'ambient'
+  if (rt.getScrollPressureFn?.()) {
+    if (isLowPowerPreview(rt)) {
+      return rt.getScrollPressureFn()?.urgent ? 'ambient' : false
+    }
+    return 'ambient'
+  }
   return false
 }
 
@@ -72,7 +83,8 @@ const HEAVY_CELL_FX_COUNT = 16
 const HEAVY_PARTICLE_COUNT = 60
 
 function repaintDelayMs(rt: GameCanvasRuntime, mode: 'full' | 'ambient'): number {
-  const ambientGap = ambientFrameMs(rt.state.width)
+  const lowPower = isLowPowerPreview(rt)
+  const ambientGap = ambientFrameMs(rt.state.width, lowPower)
   const minGap =
     mode === 'full' && (rt.state.cellEffects.length > HEAVY_CELL_FX_COUNT || rt.state.particles.length > HEAVY_PARTICLE_COUNT)
       ? HEAVY_FULL_FRAME_MS

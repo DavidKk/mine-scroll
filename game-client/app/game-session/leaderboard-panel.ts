@@ -40,6 +40,12 @@ export interface LeaderboardPanelOptions {
   isRankedMode?: () => boolean
   onClose: () => void
   notify?: Pick<GameNotificationController, 'success' | 'error'>
+  /** Attract / preview — static rows, no API or local profile reads. */
+  attractMode?: {
+    entries: LeaderboardEntryView[]
+    self: LeaderboardSelfSnapshot
+    subtitle?: string
+  }
 }
 
 export type { LeaderboardSelfSnapshot } from '../../storage/ranked-local-store.ts'
@@ -133,7 +139,8 @@ function sanitizeDisplayName(name: string): string {
     .slice(0, 24)
 }
 
-function resolveSelfDisplayName(fallback: string): string {
+function resolveSelfDisplayName(fallback: string, attractSelf?: LeaderboardSelfSnapshot): string {
+  if (attractSelf) return attractSelf.name
   return getCachedDisplayName() || fallback
 }
 
@@ -248,8 +255,10 @@ function resolveSubtitle(storage: 'redis' | 'memory' | 'none' | undefined, ranke
 export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPanelOptions): LeaderboardPanel {
   const modeId = options.modeId ?? 'endless'
   const depthColumnLabel = options.depthColumnLabel ?? (modeId === 'puzzle-rush' ? 'Boards' : 'Depth')
+  const isAttract = Boolean(options.attractMode)
   const shell = document.createElement('div')
   shell.className = 'leaderboard-modal'
+  if (isAttract) shell.classList.add('leaderboard-modal--attract')
   shell.hidden = true
   shell.innerHTML = `
     <div class="leaderboard-modal__backdrop" data-close="true" aria-hidden="true"></div>
@@ -334,6 +343,9 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
   const renameInput = shell.querySelector<HTMLInputElement>('.leaderboard-rename__input')!
 
   shell.querySelector<HTMLButtonElement>('.leaderboard-modal__close')?.append(createHeroicon('x-mark', 'leaderboard-modal__icon'))
+  if (isAttract) {
+    shell.querySelector<HTMLButtonElement>('.leaderboard-modal__close')!.hidden = true
+  }
 
   const disposeScroll = wrapWithCustomScrollbar(listEl, 'scroll-host scroll-host--leaderboard')
 
@@ -399,6 +411,11 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     label.className = 'leaderboard-modal__self-label'
     label.textContent = 'You'
 
+    if (isAttract) {
+      selfHeadEl.append(label)
+      return
+    }
+
     const actions = document.createElement('div')
     actions.className = 'leaderboard-modal__self-actions'
 
@@ -419,7 +436,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
   }
 
   function createPinnedSelfCard(row: LeaderboardDisplayRow, showDepth: boolean, showCountry: boolean): HTMLElement {
-    const displayName = resolveSelfDisplayName(row.entry.name)
+    const displayName = resolveSelfDisplayName(row.entry.name, options.attractMode?.self)
 
     const card = document.createElement('div')
     card.className = 'leaderboard-modal__self-card'
@@ -453,7 +470,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     if (showCountry) item.classList.add('leaderboard-modal__entry--with-country')
     if (row.isSelf) item.classList.add('leaderboard-modal__entry--self-in-list')
 
-    const displayName = row.isSelf ? resolveSelfDisplayName(row.entry.name) : row.entry.name
+    const displayName = row.isSelf ? resolveSelfDisplayName(row.entry.name, options.attractMode?.self) : row.entry.name
 
     item.append(
       createRankTrophyCell(row.rank),
@@ -472,7 +489,13 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
 
   function renderEntries(entries: LeaderboardEntryView[], playerId = getCachedPlayerId().trim()): void {
     lastEntries = entries
-    const view = buildLeaderboardViewModel(entries, { playerId, modeId })
+    const attractSelf = options.attractMode?.self
+    const resolvedPlayerId = attractSelf?.id.trim() || playerId
+    const view = buildLeaderboardViewModel(entries, {
+      playerId: resolvedPlayerId,
+      modeId,
+      selfSnapshot: attractSelf ?? undefined,
+    })
     pinnedEl.replaceChildren()
     listEl.replaceChildren()
 
@@ -486,7 +509,7 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     selfZoneEl.hidden = !view.pinned
 
     if (view.pinned) {
-      const displayName = resolveSelfDisplayName(view.pinned.entry.name)
+      const displayName = resolveSelfDisplayName(view.pinned.entry.name, options.attractMode?.self)
       populateSelfZoneHead(displayName)
       pinnedEl.append(createPinnedSelfCard(view.pinned, showDepth, showCountry))
     } else {
@@ -614,7 +637,20 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     )
   }
 
+  function renderAttractEntries(): void {
+    const attract = options.attractMode
+    if (!attract) return
+    renderEntries(attract.entries, attract.self.id)
+    subtitleEl.textContent = attract.subtitle ?? resolveSubtitle(undefined, options.isRankedMode?.() ?? true, modeId)
+    applyStatus('')
+    setLoading(false)
+  }
+
   async function refresh(): Promise<void> {
+    if (options.attractMode) {
+      renderAttractEntries()
+      return
+    }
     const generation = ++fetchGeneration
     setLoading(true)
 
@@ -665,8 +701,10 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     options.onClose()
   }
 
-  shell.querySelector('.leaderboard-modal__close')?.addEventListener('click', close)
-  shell.querySelector('.leaderboard-modal__backdrop')?.addEventListener('click', close)
+  if (!isAttract) {
+    shell.querySelector('.leaderboard-modal__close')?.addEventListener('click', close)
+    shell.querySelector('.leaderboard-modal__backdrop')?.addEventListener('click', close)
+  }
   renameShell.querySelectorAll('[data-rename-close]').forEach((el) => {
     el.addEventListener('click', closeRenameDialog)
   })
@@ -691,14 +729,21 @@ export function createLeaderboardPanel(host: HTMLElement, options: LeaderboardPa
     setOpen(next) {
       open = next
       shell.hidden = !next
-      host.classList.toggle('app--leaderboard-open', next)
+      host.classList.toggle('app--leaderboard-open', next && !isAttract)
       if (next) {
-        subtitleEl.textContent = resolveSubtitle(undefined, options.isRankedMode?.() ?? true, modeId)
-        applyTableDepthLayout(options.isRankedMode?.() ?? true)
-        primeSelfZoneFromCache()
-        setLoading(true)
-        panel.focus()
-        void refresh()
+        if (options.attractMode) {
+          subtitleEl.textContent = options.attractMode.subtitle ?? resolveSubtitle(undefined, options.isRankedMode?.() ?? true, modeId)
+          applyTableDepthLayout(options.isRankedMode?.() ?? true)
+          renderAttractEntries()
+          panel.focus()
+        } else {
+          subtitleEl.textContent = resolveSubtitle(undefined, options.isRankedMode?.() ?? true, modeId)
+          applyTableDepthLayout(options.isRankedMode?.() ?? true)
+          primeSelfZoneFromCache()
+          setLoading(true)
+          panel.focus()
+          void refresh()
+        }
       } else {
         fetchGeneration += 1
         setLoading(false)

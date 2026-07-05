@@ -1,14 +1,15 @@
 import { BRAND_NAME } from '../../../lib/brand.ts'
 import { layoutSnapshotFromRuntime } from '../../ranked/layout-snapshot.ts'
-import { createFpsOverlay } from './fps-overlay.ts'
+import { createFpsOverlay, createNoopFpsOverlay } from './fps-overlay.ts'
 import { bindCanvasInputListeners } from './input/listener-bindings.ts'
 import { destroyTouchGesture, initTouchGesture } from './input/pointer-handlers.ts'
 import { initialSquareLayout, syncPreviewLayout, syncSquareLayout } from './layout/board-layout.ts'
 import { resolveInitialCellSize } from './layout/viewport-fit.ts'
 import { beginBoardAdvance } from './overlay/board-advance.ts'
-import { clearPendingPanelTransition } from './overlay/panel-transition.ts'
+import { beginPanelTransition, clearPendingPanelTransition } from './overlay/panel-transition.ts'
 import { collectCellEffects } from './runtime/cell-effects-runtime.ts'
 import type { GameCanvasRuntime } from './runtime/context.ts'
+import { cancelFlagSwipePreview,playFlagSwipePreview } from './runtime/flag-swipe-preview.ts'
 import { paint } from './runtime/paint.ts'
 import { bindPaintScheduler, cancelScheduledPaint, requestRepaint, startAmbientLoop } from './runtime/paint-scheduler.ts'
 import { queueScrollMineGhosts, queueScrollWrongFlagGhosts } from './runtime/scroll-ghost-fx.ts'
@@ -72,20 +73,26 @@ export function createGameCanvas(
   rt.state.squareLayout = initialSquareLayout(rt, currentRows, cols)
   rt.state.boardWidth = rt.state.squareLayout.width
   rt.state.boardHeight = rt.state.squareLayout.height
-  rt.state.width = fullscreen ? window.innerWidth : rt.state.boardWidth
-  rt.state.height = fullscreen ? window.innerHeight : rt.state.boardHeight
+  const hostViewport = canvasOptions.viewportSize
+  rt.state.width = hostViewport ? hostViewport.width : fullscreen ? window.innerWidth : rt.state.boardWidth
+  rt.state.height = hostViewport ? hostViewport.height : fullscreen ? window.innerHeight : rt.state.boardHeight
+
+  if (canvasOptions.previewMode?.skipIntro) {
+    rt.state.gameIntroComplete = true
+    rt.state.gameIntroStartedAt = -1
+  }
 
   rt.canvas.className = fullscreen ? 'game-canvas game-canvas--fullscreen' : 'game-canvas'
   rt.canvas.setAttribute('role', 'application')
   rt.canvas.setAttribute('aria-label', `${BRAND_NAME} board`)
   wrap.appendChild(rt.canvas)
   container.appendChild(wrap)
-  rt.fpsOverlay = createFpsOverlay(wrap)
+  rt.fpsOverlay = canvasOptions.previewMode ? createNoopFpsOverlay() : createFpsOverlay(wrap)
 
   const context = rt.canvas.getContext('2d')
   if (!context) throw new Error('Canvas 2D context not available')
   rt.ctx = context
-  applyCanvasSize(rt.canvas, rt.ctx, rt.state.width, rt.state.height)
+  applyCanvasSize(rt.canvas, rt.ctx, rt.state.width, rt.state.height, canvasOptions.previewMode?.maxDpr)
   rt.fpsOverlay.syncSize(rt.state.width, rt.state.height)
 
   rt.paint = () => paint(rt)
@@ -94,8 +101,12 @@ export function createGameCanvas(
   rt.inputBindings = bindCanvasInputListeners(rt) ?? undefined
 
   const onResize = () => rt.paint()
-  if (fullscreen) {
+  if (fullscreen && !hostViewport) {
     window.addEventListener('resize', onResize)
+    if (!canvasOptions.previewMode?.lowPower) {
+      startAmbientLoop(rt)
+    }
+  } else if (fullscreen && !canvasOptions.previewMode?.lowPower) {
     startAmbientLoop(rt)
   }
 
@@ -114,6 +125,9 @@ export function createGameCanvas(
       syncPreviewLayout(rt, options?.previewRows ?? 0)
 
       collectCellEffects(rt, rt.state.currentViews, views)
+      if (status === 'lost' && rt.state.currentStatus !== 'lost' && rt.fullscreen) {
+        beginPanelTransition(rt, 'retry', () => {})
+      }
       if (status === 'idle' && rt.state.currentStatus !== 'idle') {
         rt.state.cellEffects.length = 0
         rt.state.particles.length = 0
@@ -176,8 +190,17 @@ export function createGameCanvas(
     },
     queueScrollMineGhosts: (cells) => queueScrollMineGhosts(rt, cells),
     queueScrollWrongFlagGhosts: (cells) => queueScrollWrongFlagGhosts(rt, cells),
+    playFlagSwipePreview: (row, col, options) => playFlagSwipePreview(rt, row, col, options),
+    cancelFlagSwipePreview: () => cancelFlagSwipePreview(rt),
     getRankedLayoutSnapshot: () => layoutSnapshotFromRuntime(rt),
+    suspendRendering() {
+      cancelScheduledPaint(rt)
+    },
+    resumeRendering() {
+      requestRepaint(rt)
+    },
     destroy() {
+      cancelFlagSwipePreview(rt)
       controller.stopTimer()
       clearPendingPanelTransition(rt)
       rt.state.boardAdvanceStartedAt = 0
@@ -188,12 +211,10 @@ export function createGameCanvas(
       destroyTouchGesture(rt)
       rt.inputBindings?.unbind()
       rt.inputBindings = undefined
-      if (fullscreen) window.removeEventListener('resize', onResize)
+      if (fullscreen && !hostViewport) window.removeEventListener('resize', onResize)
       rt.fpsOverlay.destroy()
-      if (typeof wrap.remove === 'function') {
+      if (wrap.isConnected) {
         wrap.remove()
-      } else {
-        wrap.parentElement?.removeChild(wrap)
       }
     },
   }
