@@ -5,7 +5,7 @@ import type { BackdropMood } from '../../ambient-backdrop.ts'
 import type { BoardPointerState } from '../../cell-fx.ts'
 import type { GameStageLayout } from '../../game-stage-layout.ts'
 import type { LayoutMetrics } from '../../renderer/index.ts'
-import type { GameCanvasHudStats } from '../types.ts'
+import type { DifficultyAlertKind, GameCanvasHudStats } from '../types.ts'
 
 export type CellFxKind = 'reveal' | 'flag' | 'unflag' | 'explode' | 'scroll-mine-ghost' | 'scroll-wrong-flag-ghost'
 
@@ -110,7 +110,8 @@ export interface CanvasRuntimeState {
   activeLifeLossEvent: GameCanvasHudStats['lifeLossEvent'] | null
   lastDifficultySpeedTier: number | null
   lastDifficultyBatchTier: number | null
-  activeDifficultyAlert: { kind: 'speed-up' | 'danger-rise'; startedAt: number } | null
+  lastDifficultyAlertEventId: number
+  activeDifficultyAlert: { kind: DifficultyAlertKind; startedAt: number } | null
   animationFrameId: number | null
   ambientDelayId: number | null
   lastPaintAt: number
@@ -220,6 +221,7 @@ export function createInitialRuntimeState(
     activeLifeLossEvent: null,
     lastDifficultySpeedTier: null,
     lastDifficultyBatchTier: null,
+    lastDifficultyAlertEventId: 0,
     activeDifficultyAlert: null,
     animationFrameId: null,
     ambientDelayId: null,

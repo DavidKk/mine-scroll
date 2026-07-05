@@ -1,9 +1,11 @@
 import { getNeighbors } from '../../board.ts'
 import type { Board, CellView, LifeLossReport } from '../../types.ts'
 import { cellKey, isCellBlocked } from '../../types.ts'
-import { buildFirstClickSafeZone, clonePuzzleBoard, createPuzzleBoard, isBoardCleared, placeMinesFromSeed, revealAllMines, revealSingle } from './board.ts'
+import { clonePuzzleBoard, createPuzzleBoard, isBoardCleared, revealAllMines, revealSingle } from './board.ts'
+import { placePuzzleBoardMines } from './board-profile.ts'
 import { CLEAN_BOARDS_HEAL_EVERY, PUZZLE_LIVES } from './constants.ts'
 import { boardClearScore, nextBoardSeed } from './score.ts'
+import { getPuzzleRushTierForBoardIndex } from './tier.ts'
 import type { PuzzleRushSession, StreakBreakReport } from './types.ts'
 
 function mineKey(row: number, col: number): string {
@@ -50,7 +52,8 @@ function applyLifeLoss(session: PuzzleRushSession, board: Board, damage: number,
 
 function advanceAfterBoardClear(session: PuzzleRushSession, elapsedMs: number): PuzzleRushSession {
   const streakAfter = session.streak + 1
-  const { scoreAdded, timeBonus } = boardClearScore(streakAfter, elapsedMs)
+  const tier = getPuzzleRushTierForBoardIndex(session.boardIndex)
+  const { scoreAdded, timeBonus } = boardClearScore(elapsedMs, session.boardIndex)
   const nextIndex = session.boardIndex + 1
   const nextSeed = nextBoardSeed(session.state.board.worldSeed ?? 1, nextIndex, streakAfter)
 
@@ -80,6 +83,8 @@ function advanceAfterBoardClear(session: PuzzleRushSession, elapsedMs: number): 
       streakAfter,
       timeBonus,
       boardIndex: nextIndex,
+      tier: tier.tier,
+      elapsedMs,
       ...(livesGained > 0 ? { livesGained, livesAfter: lives } : {}),
     },
   }
@@ -88,6 +93,7 @@ function advanceAfterBoardClear(session: PuzzleRushSession, elapsedMs: number): 
 export function puzzleRushCommitNextBoard(session: PuzzleRushSession, nowMs = Date.now()): PuzzleRushSession {
   if (session.pendingNextSeed === undefined) return session
   const seed = session.pendingNextSeed
+  const { mines } = getPuzzleRushTierForBoardIndex(session.boardIndex)
   return {
     ...session,
     pendingNextSeed: undefined,
@@ -97,18 +103,19 @@ export function puzzleRushCommitNextBoard(session: PuzzleRushSession, nowMs = Da
     state: {
       ...session.state,
       status: 'playing',
-      board: createPuzzleBoard(seed),
+      board: createPuzzleBoard(seed, mines),
     },
   }
 }
 
 export function createPuzzleRushSession(seed?: number): PuzzleRushSession {
   const normalizedSeed = (seed ?? (Date.now() ^ (Math.random() * 0x1_0000_0000)) >>> 0) >>> 0
+  const { mines } = getPuzzleRushTierForBoardIndex(0)
   return {
     modeId: 'puzzle-rush',
     state: {
       status: 'idle',
-      board: createPuzzleBoard(normalizedSeed),
+      board: createPuzzleBoard(normalizedSeed, mines),
       modeId: 'puzzle-rush',
     },
     lives: PUZZLE_LIVES,
@@ -118,15 +125,17 @@ export function createPuzzleRushSession(seed?: number): PuzzleRushSession {
     livesAtBoardStart: PUZZLE_LIVES,
     boardIndex: 0,
     boardStartedAtMs: 0,
+    runStartedAtMs: 0,
     hitMineKeys: [],
   }
 }
 
-export function puzzleRushBeginRun(session: PuzzleRushSession): PuzzleRushSession {
+export function puzzleRushBeginRun(session: PuzzleRushSession, nowMs = Date.now()): PuzzleRushSession {
   if (session.state.status !== 'idle') return session
   return {
     ...session,
-    boardStartedAtMs: Date.now(),
+    boardStartedAtMs: nowMs,
+    runStartedAtMs: session.runStartedAtMs > 0 ? session.runStartedAtMs : nowMs,
     livesAtBoardStart: session.lives,
     state: { ...session.state, status: 'playing' },
   }
@@ -142,13 +151,14 @@ export function puzzleRushRevealAt(session: PuzzleRushSession, row: number, col:
   let next: PuzzleRushSession = session
 
   if (!board.minesPlaced) {
-    placeMinesFromSeed(board, buildFirstClickSafeZone(row, col, board))
+    placePuzzleBoardMines(board, row, col, next, nowMs)
   }
 
   if (state.status === 'idle') {
     next = {
       ...next,
       boardStartedAtMs: nowMs,
+      runStartedAtMs: next.runStartedAtMs > 0 ? next.runStartedAtMs : nowMs,
       livesAtBoardStart: session.lives,
       state: { ...next.state, status: 'playing' },
     }

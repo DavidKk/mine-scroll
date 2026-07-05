@@ -9,10 +9,9 @@ import { findSafeChords } from './chords.ts'
 import { pickExpansion, pickLastResortBreakthrough } from './expansion.ts'
 import { pickCspMove, pickFrontierEdge } from './guess.ts'
 
-export function pickTacticalMove(board: SolverBoard, deduced: Deduction, lives: number, blocks: AiBlockedSets | undefined, batchRows = 1): AiMove | null {
+export function pickLogicOnlyMove(board: SolverBoard, deduced: Deduction, blocks: AiBlockedSets | undefined): AiMove | null {
   const endless = Boolean(board.endless)
   const bottom = bottomRow(board)
-  const bottomEmergency = endless && batchRows > 1
 
   const excess = findExcessFlagMove(board, deduced.mines)
   if (excess && !isFlagBlocked(blocks, excess.row, excess.col)) {
@@ -35,6 +34,16 @@ export function pickTacticalMove(board: SolverBoard, deduced: Deduction, lives: 
   if (reveal) return reveal
   const chord = pickCertainChord(board, deduced, blocks, null)
   if (chord) return chord
+
+  return null
+}
+
+export function pickTacticalMove(board: SolverBoard, deduced: Deduction, lives: number, blocks: AiBlockedSets | undefined, batchRows = 1): AiMove | null {
+  const endless = Boolean(board.endless)
+  const bottomEmergency = endless && batchRows > 1
+
+  const logic = pickLogicOnlyMove(board, deduced, blocks)
+  if (logic) return logic
 
   const edge = pickFrontierEdge(board, deduced, lives, blocks, bottomEmergency)
   if (edge) return edge

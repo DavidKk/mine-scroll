@@ -144,8 +144,9 @@ export function drawDifficultyAlert(rt: GameCanvasRuntime, shellCtx: CanvasRende
   const stageScale = rt.state.stageLayout?.scale ?? 1
   const kind = rt.state.activeDifficultyAlert.kind
   const isDanger = kind === 'danger-rise'
+  const isRampUp = kind === 'ramp-up'
   const image = isDanger ? HUD_FEEDBACK_ASSETS.dangerRiseAlert : HUD_FEEDBACK_ASSETS.speedUpAlert
-  const label = isDanger ? 'DANGER RISE' : 'SPEED UP'
+  const label = isDanger ? 'DANGER RISE' : isRampUp ? 'RAMP UP' : 'SPEED UP'
   const main = isDanger ? '255, 76, 86' : '255, 190, 55'
   const soft = isDanger ? '251, 113, 36' : '45, 236, 255'
   const textColor = isDanger ? '#ffe4e6' : '#fef3c7'

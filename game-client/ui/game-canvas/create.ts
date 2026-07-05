@@ -126,6 +126,7 @@ export function createGameCanvas(
         rt.state.activeDifficultyAlert = null
         rt.state.lastDifficultySpeedTier = null
         rt.state.lastDifficultyBatchTier = null
+        rt.state.lastDifficultyAlertEventId = 0
         rt.state.boardLayerCacheKey = ''
       }
       if (
@@ -138,6 +139,9 @@ export function createGameCanvas(
       rt.state.currentViews = views
       rt.state.currentStatus = status
       rt.state.currentFlagCount = flagCount
+      if (typeof options?.mineTotal === 'number') {
+        rt.mineTotal = options.mineTotal
+      }
       rt.state.currentHudLeftDisplay = options?.hudLeftDisplay
       rt.state.currentHudRightDisplay = options?.hudRightDisplay
       rt.state.currentAiHint = options?.aiHint

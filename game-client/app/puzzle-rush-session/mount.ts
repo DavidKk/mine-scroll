@@ -5,6 +5,8 @@ import {
   createPuzzleBoard,
   createPuzzleRushSession,
   getPuzzleRushFlagCount,
+  getPuzzleRushTierForBoardIndex,
+  PUZZLE_INTRO_BOARD_COUNT,
   PUZZLE_LIVES,
   puzzleRushBeginRun,
   puzzleRushChordAt,
@@ -21,7 +23,7 @@ import { createRankedInputRecorder } from '../../ranked/input-recorder.ts'
 import { createRankedInputUploader } from '../../ranked/input-uploader.ts'
 import { createPuzzleRushRankedSession, createRankedRunOnServer, finishRankedRunOnServer } from '../../ranked/ranked-run-client.ts'
 import { isRankedStorageUnavailableMessage } from '../../ranked/ranked-storage.ts'
-import type { RankedRunStatus,RunInputEvent } from '../../ranked/types.ts'
+import type { RankedRunStatus, RunInputEvent } from '../../ranked/types.ts'
 import {
   appendLocalScoreRecord,
   appendRunTraceEvents,
@@ -54,6 +56,7 @@ interface PuzzleRushPresentation {
   scoreEvent?: GameCanvasHudStats['scoreEvent']
   breakEvent?: GameCanvasHudStats['breakEvent']
   lifeLossEvent?: GameCanvasHudStats['lifeLossEvent']
+  difficultyAlertEvent?: GameCanvasHudStats['difficultyAlertEvent']
 }
 
 interface PuzzleRushRuntime {
@@ -120,6 +123,13 @@ function applyPuzzleSession(runtime: PuzzleRushRuntime, next: PuzzleRushSession,
       scoreAdded: next.lastBoardClear.scoreAdded,
       scoreAfter: next.score,
       comboAfter: next.lastBoardClear.streakAfter,
+    }
+    if (next.boardIndex === PUZZLE_INTRO_BOARD_COUNT) {
+      runtime.presentation.eventId += 1
+      runtime.presentation.difficultyAlertEvent = {
+        id: runtime.presentation.eventId,
+        kind: 'ramp-up',
+      }
     }
   }
 
@@ -314,6 +324,7 @@ export function mountPuzzleRushSession(root: HTMLElement): () => void {
       rows,
       cols,
       aiHint: runtime.aiHint,
+      mineTotal: runtime.session.state.board.mineCount,
     })
   }
 
@@ -330,6 +341,7 @@ export function mountPuzzleRushSession(root: HTMLElement): () => void {
       devAutoVisible: isDev,
       devAutoActive: runtime.aiAutoActive,
       devSpeedVisible: false,
+      difficultyAlertEvent: runtime.presentation.difficultyAlertEvent,
       backdrop: {
         scrollElapsedMs: 0,
         scrollDepth: runtime.session.boardIndex,
@@ -355,7 +367,8 @@ export function mountPuzzleRushSession(root: HTMLElement): () => void {
     applyPuzzleSession(runtime, next)
 
     const outgoingViews = toPuzzleRushCellViews(runtime.session)
-    const incomingViews = toPuzzleBoardCellViews(createPuzzleBoard(pendingSeed))
+    const nextTier = getPuzzleRushTierForBoardIndex(next.boardIndex)
+    const incomingViews = toPuzzleBoardCellViews(createPuzzleBoard(pendingSeed, nextTier.mines))
 
     runtime.view.beginBoardAdvance(outgoingViews, incomingViews, () => {
       runtime.session = puzzleRushCommitNextBoard(runtime.session)
@@ -524,6 +537,10 @@ export function mountPuzzleRushSession(root: HTMLElement): () => void {
             else gameAudio.play('uiHover')
           },
           onUiClick: () => gameAudio.play('uiClick'),
+          onDifficultyAlert: (kind) => {
+            gameAudio.unlock()
+            gameAudio.play(kind === 'danger-rise' ? 'lifeWarning' : 'scrollUp')
+          },
           onPointerDown: () => gameAudio.unlock(),
           getBgmMuted: () => gameAudio.isIdleBgmMuted(),
           onToggleBgmMute: () => {

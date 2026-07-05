@@ -40,7 +40,7 @@ import {
   syncLeaderboardSelfFromHistory,
 } from '../../storage/ranked-local-store.ts'
 import { createGameAudio, hadMineLifeLoss, playFlagToggleAudio, playHealRewardAudio, playLifeLossAudio, playRevealAudio } from '../../ui/game-audio.ts'
-import { createGameCanvas, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts'
+import { createGameCanvas, type DifficultyAlertKind, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts'
 import { resolveViewportEndlessVisibleRows } from '../../ui/game-stage-layout.ts'
 import { createGameNotificationStack } from '../../ui/notification.ts'
 import { createAiController } from './ai-loop.ts'
@@ -492,7 +492,7 @@ export function mountGameSession(root: HTMLElement, _callbacks: GameSessionCallb
         gameAudio.unlock()
         scroll.performScrollTick(true)
       },
-      onDifficultyAlert: (kind: 'speed-up' | 'danger-rise') => {
+      onDifficultyAlert: (kind: DifficultyAlertKind) => {
         gameAudio.unlock()
         gameAudio.play(kind === 'danger-rise' ? 'lifeWarning' : 'scrollUp')
       },

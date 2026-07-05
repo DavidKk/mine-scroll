@@ -13,6 +13,8 @@ export interface BoardClearReport {
   streakAfter: number
   timeBonus: number
   boardIndex: number
+  tier?: number
+  elapsedMs?: number
   livesGained?: number
   livesAfter?: number
 }
@@ -34,6 +36,8 @@ export interface PuzzleRushSession {
   livesAtBoardStart: number
   boardIndex: number
   boardStartedAtMs: number
+  /** Wall-clock start of the run (first begin / first reveal). */
+  runStartedAtMs: number
   hitMineKeys: string[]
   /** Set after a board clear; committed after the slide-up transition. */
   pendingNextSeed?: number

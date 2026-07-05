@@ -1,5 +1,6 @@
 export { createGameCanvas } from './create.ts'
 export type {
+  DifficultyAlertKind,
   GameCanvasCallbacks,
   GameCanvasController,
   GameCanvasFullscreenOptions,

@@ -1,4 +1,4 @@
-import { cloneBoard, type Coord,getNeighbors } from '../../board.ts'
+import { cloneBoard, type Coord, getNeighbors } from '../../board.ts'
 import type { Board, Cell } from '../../types.ts'
 import { cellKey } from '../../types.ts'
 import { PUZZLE_COLS, PUZZLE_MINES, PUZZLE_ROWS } from './constants.ts'
@@ -39,14 +39,14 @@ export function buildFirstClickSafeZone(row: number, col: number, board: Board):
   return [{ row, col }, ...getNeighbors(board, row, col)]
 }
 
-export function createPuzzleBoard(seed: number): Board {
+export function createPuzzleBoard(seed: number, mineCount = PUZZLE_MINES): Board {
   const normalizedSeed = seed >>> 0
   const cells: Cell[][] = Array.from({ length: PUZZLE_ROWS }, () => Array.from({ length: PUZZLE_COLS }, () => createEmptyCell()))
 
   return {
     rows: PUZZLE_ROWS,
     cols: PUZZLE_COLS,
-    mineCount: PUZZLE_MINES,
+    mineCount,
     cells,
     minesPlaced: false,
     topology: 'fixed',

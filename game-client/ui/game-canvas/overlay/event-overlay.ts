@@ -33,6 +33,13 @@ export function drawFullscreenOverlay(
   const scrollPressure = rt.getScrollPressureFn?.()
   const difficulty = stats?.difficulty
 
+  if (stats?.difficultyAlertEvent && stats.difficultyAlertEvent.id !== rt.state.lastDifficultyAlertEventId) {
+    rt.state.lastDifficultyAlertEventId = stats.difficultyAlertEvent.id
+    rt.state.activeDifficultyAlert = { kind: stats.difficultyAlertEvent.kind, startedAt: performance.now() }
+    shell.onDifficultyAlert?.(stats.difficultyAlertEvent.kind)
+    rt.scheduleAnimationFrame()
+  }
+
   if (difficulty) {
     if (rt.state.lastDifficultySpeedTier === null || rt.state.lastDifficultyBatchTier === null) {
       rt.state.lastDifficultySpeedTier = difficulty.speedTier

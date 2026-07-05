@@ -17,6 +17,8 @@ export interface GameCanvasLogLine {
   kind: 'ai' | 'player' | 'scroll' | 'danger' | 'system'
 }
 
+export type DifficultyAlertKind = 'speed-up' | 'danger-rise' | 'ramp-up'
+
 export interface GameCanvasHudStats {
   score: number
   combo: number
@@ -57,6 +59,11 @@ export interface GameCanvasHudStats {
     speedTier: number
     batchTier: number
   }
+  /** One-shot HUD alert (puzzle rush intro → warmup, etc.). */
+  difficultyAlertEvent?: {
+    id: number
+    kind: DifficultyAlertKind
+  }
 }
 
 export interface GameCanvasFullscreenOptions {
@@ -71,8 +78,8 @@ export interface GameCanvasFullscreenOptions {
   onDevSpeedUp?: () => void
   /** Manual scroll (Space key or on-screen SPACE hint). */
   onManualScroll?: () => void
-  /** Difficulty tier escalated (speed or batch). */
-  onDifficultyAlert?: (kind: 'speed-up' | 'danger-rise') => void
+  /** Difficulty tier escalated (speed, batch, or puzzle ramp). */
+  onDifficultyAlert?: (kind: DifficultyAlertKind) => void
   onUiHover?: (target: string) => void
   onUiClick?: () => void
   /** First pointer on canvas — unlock audio context (browser autoplay policy). */
@@ -125,6 +132,7 @@ export interface GameCanvasRenderOptions {
   cols?: number
   aiHint?: AiHintDisplay | null
   previewRows?: number
+  mineTotal?: number
 }
 
 export interface GameCanvasController {

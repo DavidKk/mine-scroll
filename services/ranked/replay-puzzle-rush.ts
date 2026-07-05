@@ -1,5 +1,6 @@
 import type { PuzzleRushSession } from '@shared/core/modes/puzzle-rush/index.ts'
-import { analyzePuzzleRushSession ,
+import {
+  analyzePuzzleRushSession,
   createPuzzleRushSession,
   puzzleRushBeginRun,
   puzzleRushChordAt,
@@ -86,8 +87,8 @@ export function replayPuzzleRushRun(seed: number, events: RunInputEvent[]): Repl
     }
   }
 
-  let session = puzzleRushBeginRun(createPuzzleRushSession(seed))
-  session = { ...session, boardStartedAtMs: beginT }
+  let session = puzzleRushBeginRun(createPuzzleRushSession(seed), beginT)
+  session = { ...session, boardStartedAtMs: beginT, runStartedAtMs: beginT }
   const shadowAi: ShadowAiMetrics = { comparedMoves: 0, aiMoveMatches: 0, aiMoveMatchRate: 0 }
   let skippedActions = 0
 

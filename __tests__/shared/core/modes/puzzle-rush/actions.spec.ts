@@ -2,6 +2,7 @@ import { isBoardCleared } from '@shared/core/modes/puzzle-rush/board.ts'
 import {
   CLEAN_BOARDS_HEAL_EVERY,
   createPuzzleRushSession,
+  PUZZLE_INTRO_BOARD_COUNT,
   PUZZLE_LIVES,
   puzzleRushBeginRun,
   puzzleRushCommitNextBoard,
@@ -41,11 +42,11 @@ function advanceToNextBoard(session: PuzzleRushSession): PuzzleRushSession {
 }
 
 describe('puzzle-rush', () => {
-  it('creates a 7×7 board with 8 mines', () => {
+  it('creates a 7×7 board with 5 mines on intro board 1', () => {
     const session = createPuzzleRushSession(42)
     expect(session.state.board.rows).toBe(7)
     expect(session.state.board.cols).toBe(7)
-    expect(session.state.board.mineCount).toBe(8)
+    expect(session.state.board.mineCount).toBe(5)
     expect(session.lives).toBe(3)
     expect(session.streak).toBe(0)
   })
@@ -236,5 +237,28 @@ describe('puzzle-rush', () => {
     const cleared = clearBoard(session)
     expect(cleared.cleanBoards).toBe(0)
     expect(cleared.lives).toBe(2)
+  })
+
+  it('escalates mine count after tier boundaries (post-intro progress)', () => {
+    let session = puzzleRushBeginRun(createPuzzleRushSession(777))
+    expect(session.state.board.mineCount).toBe(5)
+
+    for (let i = 0; i < PUZZLE_INTRO_BOARD_COUNT; i += 1) {
+      session = advanceToNextBoard(session)
+    }
+    expect(session.boardIndex).toBe(PUZZLE_INTRO_BOARD_COUNT)
+    expect(session.state.board.mineCount).toBe(8)
+
+    for (let i = 0; i < 5; i += 1) {
+      session = advanceToNextBoard(session)
+    }
+    expect(session.state.board.mineCount).toBe(8)
+    expect(session.boardIndex).toBe(PUZZLE_INTRO_BOARD_COUNT + 5)
+
+    for (let i = 0; i < 5; i += 1) {
+      session = advanceToNextBoard(session)
+    }
+    expect(session.state.board.mineCount).toBe(9)
+    expect(session.boardIndex).toBe(PUZZLE_INTRO_BOARD_COUNT + 10)
   })
 })
