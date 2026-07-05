@@ -1,148 +1,25 @@
-import { getEndlessAiStepMs } from '@shared/core/ai/solver.ts'
 import type { AiMove } from '@shared/core/ai/types.ts'
-import { visibleViewStart } from '@shared/core/modes/endless/grid.ts'
 import { getEndlessPreviewRows, getEndlessScrollProfileForSession, resolveScrollBatchRowsForSession, sessionVisibleRows } from '@shared/core/modes/endless/index.ts'
 import { getFlagCount, toCellViews } from '@shared/core/modes/engine.ts'
 import type { ModeSession } from '@shared/core/types.ts'
 
-import { LANDING_AUDIO_UNLOCK_EVENT, loadLocalSettings, LOCAL_SETTINGS_CHANGE_EVENT, type LocalSettings } from '../../config/local-settings.ts'
+import { loadLocalSettings, LOCAL_SETTINGS_CHANGE_EVENT, type LocalSettings } from '../../config/local-settings.ts'
 import { createRankedSession } from '../../ranked/ranked-run-client.ts'
 import { preloadLandingAudio } from '../../ui/boot/preload-audio.ts'
-import type { GameAudioController } from '../../ui/game-audio.ts'
 import { createGameAudio, playFlagToggleAudio, playHealRewardAudio, playLifeLossAudio } from '../../ui/game-audio.ts'
 import { createGameCanvas, type GameCanvasController, type GameCanvasHudStats } from '../../ui/game-canvas/index.ts'
 import { ATTRACT_PREVIEW_MAX_DPR } from '../../ui/game-canvas/runtime/mobile-perf.ts'
-import { resolveViewportEndlessVisibleRows } from '../../ui/game-stage-layout.ts'
 import { createAiController } from '../game-session/ai-loop.ts'
 import { applySessionUpdate, createGameLog } from '../game-session/logging.ts'
 import { createScrollController } from '../game-session/scroll.ts'
-import type { GameSessionRuntime } from '../game-session/types.ts'
-import {
-  createDemoScript,
-  createScriptedOpeningSession,
-  DEMO_SCRIPT_SEED,
-  DEMO_START_STEP,
-  type DemoPhase,
-  elapsedForScrollStep,
-  profileForDemoStep,
-  setDemoElapsed,
-} from './demo-script.ts'
+import { createDemoScript, createScriptedOpeningSession, DEMO_SCRIPT_SEED, DEMO_START_STEP, type DemoPhase, elapsedForScrollStep, setDemoElapsed } from './demo-script.ts'
+import { applyLandingAudioPrefs, attachDemoAudioUnlock } from './landing-preview-audio.ts'
+import { applyViewportForPreview, createPreviewRuntime, resolveDemoAiStepDelay } from './landing-preview-session.ts'
 import { mountLeaderboardAttract } from './leaderboard-attract.ts'
 import { LANDING_PREVIEW_VIEWPORT } from './viewport.ts'
 
-const PREVIEW_VIEWPORT = LANDING_PREVIEW_VIEWPORT
-
-const DEMO_AI_DELAY = {
-  normalMultiplier: 2.0,
-  normalMinMs: 340,
-  urgentMultiplier: 1.25,
-  urgentMinMs: 200,
-} as const
-
 function noop(): void {
   /* landing preview — input disabled */
-}
-
-function attachDemoAudioUnlock(audio: GameAudioController): () => void {
-  const unlockOnce = (): void => {
-    audio.unlock()
-    if (!loadLocalSettings().soundMuted) {
-      audio.setIdleBgm(true)
-    }
-    window.removeEventListener(LANDING_AUDIO_UNLOCK_EVENT, unlockOnce)
-    window.removeEventListener('pointerdown', unlockOnce, true)
-    window.removeEventListener('keydown', unlockOnce, true)
-    window.removeEventListener('wheel', unlockOnce, true)
-  }
-  window.addEventListener(LANDING_AUDIO_UNLOCK_EVENT, unlockOnce)
-  window.addEventListener('pointerdown', unlockOnce, { capture: true, passive: true })
-  window.addEventListener('keydown', unlockOnce, { capture: true, passive: true })
-  window.addEventListener('wheel', unlockOnce, { capture: true, passive: true })
-  return () => {
-    window.removeEventListener(LANDING_AUDIO_UNLOCK_EVENT, unlockOnce)
-    window.removeEventListener('pointerdown', unlockOnce, true)
-    window.removeEventListener('keydown', unlockOnce, true)
-    window.removeEventListener('wheel', unlockOnce, true)
-  }
-}
-
-function applyLandingAudioPrefs(soundMuted: boolean, opts?: { unlock?: boolean; audio?: GameAudioController }): void {
-  const audio = opts?.audio
-  if (!audio) return
-  audio.setSfxMuted(soundMuted)
-  audio.setIdleBgmMuted(soundMuted)
-  if (soundMuted) {
-    audio.setIdleBgm(false)
-    return
-  }
-  if (opts?.unlock) audio.unlock()
-  audio.setIdleBgm(true)
-}
-
-function applyViewportForPreview(session: ModeSession): ModeSession {
-  const previewRows = getEndlessPreviewRows(session)
-  const visibleRows = resolveViewportEndlessVisibleRows(PREVIEW_VIEWPORT.width, PREVIEW_VIEWPORT.height, previewRows)
-  let next: ModeSession = {
-    ...session,
-    endlessVisibleRows: visibleRows,
-    endlessViewStart: visibleViewStart(session.state.board, visibleRows),
-  }
-  const refinedPreview = getEndlessPreviewRows(next)
-  if (refinedPreview !== previewRows) {
-    const refinedRows = resolveViewportEndlessVisibleRows(PREVIEW_VIEWPORT.width, PREVIEW_VIEWPORT.height, refinedPreview)
-    if (refinedRows !== visibleRows) {
-      next = {
-        ...next,
-        endlessVisibleRows: refinedRows,
-        endlessViewStart: visibleViewStart(next.state.board, refinedRows),
-      }
-    }
-  }
-  return next
-}
-
-function createPreviewRuntime(session: ModeSession): GameSessionRuntime {
-  return {
-    session,
-    timerStarted: false,
-    scrollGameStartedAt: Date.now(),
-    backdropScrollDepth: session.scrollRowCount ?? 0,
-    scrollTimeoutId: null,
-    scrollDeadlineAt: 0,
-    scrollIntervalMs: 0,
-    scrollDetonateTimeoutId: null,
-    scrollPendingTick: null,
-    aiHint: null,
-    aiAutoId: null,
-    aiAutoActive: false,
-    aiWaitLogged: false,
-    aiOscillationCell: null,
-    aiOscillationCount: 0,
-    presentation: {
-      eventId: 0,
-      scoreEvent: undefined,
-      breakEvent: undefined,
-      lifeLossEvent: undefined,
-    },
-    recentLogLines: [],
-    logOpen: false,
-    leaderboardOpen: false,
-    rankedRunId: null,
-    rankedFinishStatus: null,
-    startOverlayOpen: false,
-    view: null,
-  }
-}
-
-function resolveDemoAiStepDelay(session: ModeSession, elapsedMs: number, urgent: boolean, endgameFast: boolean): number {
-  const base = getEndlessAiStepMs(session, elapsedMs)
-  if (endgameFast) {
-    return Math.max(140, Math.round(base * 0.48))
-  }
-  if (urgent) {
-    return Math.max(DEMO_AI_DELAY.urgentMinMs, Math.round(base * DEMO_AI_DELAY.urgentMultiplier))
-  }
-  return Math.max(DEMO_AI_DELAY.normalMinMs, Math.round(base * DEMO_AI_DELAY.normalMultiplier))
 }
 
 export function mountLandingPreview(container: HTMLElement): () => void {
@@ -261,8 +138,9 @@ export function mountLandingPreview(container: HTMLElement): () => void {
   }
 
   function syncDifficultyStep(step: number): void {
-    setDemoElapsed(runtime, elapsedForScrollStep(step))
-    const profile = profileForDemoStep(runtime.session, step)
+    const elapsed = elapsedForScrollStep(step)
+    setDemoElapsed(runtime, elapsed)
+    const profile = getEndlessScrollProfileForSession(runtime.session, elapsed)
     runtime.session = { ...runtime.session, scrollBatchRows: profile.batchRows }
     runtime.scrollIntervalMs = profile.intervalMs
   }
@@ -393,7 +271,7 @@ export function mountLandingPreview(container: HTMLElement): () => void {
       onReset: noop,
     },
     {
-      viewportSize: PREVIEW_VIEWPORT,
+      viewportSize: LANDING_PREVIEW_VIEWPORT,
       fitViewport: {
         cols: runtime.session.state.board.cols,
         rows: sessionVisibleRows(runtime.session),

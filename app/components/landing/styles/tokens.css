@@ -1,0 +1,9 @@
+.scroll-host--landing,
+.landing {
+  --landing-cyan: #2decff;
+  --landing-cyan-soft: rgba(45, 236, 255, 0.35);
+  --landing-indigo: #818cf8;
+  --landing-bg: #030408;
+  --landing-panel: rgba(22, 22, 31, 0.92);
+  --landing-border: rgba(255, 255, 255, 0.08);
+}

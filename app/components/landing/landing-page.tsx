@@ -61,9 +61,17 @@ const SCROLL_INDICATOR_HOLD_MS = 520
 
 export function LandingPage() {
   const scrollViewRef = useRef<HTMLDivElement>(null)
+  const modesSectionRef = useRef<HTMLElement>(null)
   const indicatorRef = useRef<HTMLDivElement>(null)
   const thumbRef = useRef<HTMLDivElement>(null)
   const showPreview = useLandingPreviewEnabled()
+
+  useEffect(() => {
+    const { hash } = window.location
+    if (hash !== '#modes') return
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+    scrollViewRef.current?.scrollTo({ top: 0 })
+  }, [])
 
   useEffect(() => {
     const view = scrollViewRef.current
@@ -77,10 +85,14 @@ export function LandingPage() {
     })
   }, [])
 
+  const scrollToModes = (): void => {
+    modesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   return (
     <div className="scroll-host scroll-host--landing">
       <div className="landing scroll-view" ref={scrollViewRef}>
-        {showPreview ? <LandingSoundToggle /> : null}
+        <LandingSoundToggle />
         <LandingBackdrop scrollRootRef={scrollViewRef} />
 
         <div className="landing__content">
@@ -95,19 +107,21 @@ export function LandingPage() {
                 <Link href="/play" className="landing__cta landing__cta--primary">
                   Play Now
                 </Link>
-                <a href="#modes" className="landing__cta landing__cta--ghost">
+                <button type="button" className="landing__cta landing__cta--ghost" onClick={scrollToModes}>
                   Choose Mode
-                </a>
+                </button>
               </div>
               <p className="landing__scroll-hint">
                 Scroll to explore <span aria-hidden="true">↓</span>
               </p>
             </div>
 
-            {showPreview ? <LandingBoardPreview /> : null}
+            <div className="landing__preview-slot" aria-hidden={!showPreview}>
+              <LandingBoardPreview mountDemo={showPreview} />
+            </div>
           </section>
 
-          <section id="modes" className="landing__section" aria-labelledby="modes-title">
+          <section ref={modesSectionRef} className="landing__section" aria-labelledby="modes-title">
             <div className="landing__section-head">
               <h2 id="modes-title" className="landing__section-title">
                 Pick your run

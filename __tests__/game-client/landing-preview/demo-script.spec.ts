@@ -1,6 +1,6 @@
 import {
   createDemoScript,
-  createDemoScriptOpeningSession,
+  createScriptedOpeningSession,
   DEMO_BATCH_STEP,
   DEMO_LEADERBOARD_MS,
   DEMO_LOST_HOLD_MS,
@@ -10,11 +10,12 @@ import {
   type DemoPhase,
   type DemoScriptContext,
   type DemoTimelineStage,
-  profileForDemoStep,
+  elapsedForScrollStep,
   REQUIRED_DEMO_TIMELINE_STAGES,
 } from '@game-client/app/landing-preview/demo-script.ts'
-import type { AiHintDisplay , AiMove } from '@shared/core/ai/types.ts'
-import { endlessScrollTick, resolveScrollBatchRowsForSession } from '@shared/core/modes/endless/index.ts'
+import { createRankedSession } from '@game-client/ranked/ranked-run-client.ts'
+import type { AiHintDisplay, AiMove } from '@shared/core/ai/types.ts'
+import { endlessScrollTick, getEndlessScrollProfileForSession, resolveScrollBatchRowsForSession } from '@shared/core/modes/endless/index.ts'
 import type { ModeSession } from '@shared/core/types.ts'
 
 function assertSubsequence(actual: readonly string[], expected: readonly string[]): void {
@@ -43,7 +44,7 @@ function createTestContext(onRestart: () => void) {
     scrollGameStartedAt: number
     aiHint: AiHintDisplay | null
   } = {
-    session: createDemoScriptOpeningSession(),
+    session: createScriptedOpeningSession(createRankedSession(DEMO_SCRIPT_SEED)),
     scrollGameStartedAt: Date.now(),
     aiHint: null,
   }
@@ -56,8 +57,9 @@ function createTestContext(onRestart: () => void) {
     render() {},
     syncDifficultyStep(step) {
       difficultySteps.push(step)
-      const profile = profileForDemoStep(runtime.session, step)
-      runtime.scrollGameStartedAt = Date.now() - 10_000 * step
+      const elapsed = elapsedForScrollStep(step)
+      const profile = getEndlessScrollProfileForSession(runtime.session, elapsed)
+      runtime.scrollGameStartedAt = Date.now() - elapsed
       runtime.session = { ...runtime.session, scrollBatchRows: profile.batchRows }
     },
     resyncScrollTimer() {},
@@ -174,7 +176,7 @@ describe('landing-preview/demo-script', () => {
   })
 
   it('uses the choreographed demo seed for opening session', () => {
-    const session = createDemoScriptOpeningSession()
+    const session = createScriptedOpeningSession(createRankedSession(DEMO_SCRIPT_SEED))
     expect(session.lives).toBe(5)
     expect(session.score).toBe(1_420)
     expect(session.state.status).toBe('playing')
