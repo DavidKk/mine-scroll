@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { collectBootAssets } from '../game-client/ui/boot/asset-registry.ts'
 import type { GameAssetManifestSnapshot } from '../game-client/ui/boot/types.ts'
-import { BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_OG_IMAGE_PATH, BRAND_SLUG, brandLogPrefix, brandServiceWorkerCacheName } from '../lib/brand.ts'
+import { BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_SLUG, brandLogPrefix, brandServiceWorkerCacheName } from '../lib/brand.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const publicDir = join(root, 'public')
@@ -27,7 +27,6 @@ try {
 const precache = new Set<string>([
   BRAND_MARK_PATH,
   BRAND_LOGO_PATH,
-  BRAND_OG_IMAGE_PATH,
   '/assets/boot-weights.json',
   '/assets/boot-webp-map.json',
   '/assets/game/manifest.json',

@@ -1,11 +1,15 @@
+import { BRAND_NAME, BRAND_TAGLINE } from '../../../lib/brand.ts'
+
 export interface CreateBootScreenOptions {
   /** Embed inside asset lab instead of fullscreen overlay. */
   embedded?: boolean
   brandName?: string
+  brandTagline?: string
 }
 
 export function createBootScreenElement(options: CreateBootScreenOptions = {}): HTMLElement {
-  const brandName = options.brandName ?? 'MineScroll'
+  const brandName = options.brandName ?? BRAND_NAME
+  const brandTagline = options.brandTagline ?? BRAND_TAGLINE
   const screen = document.createElement('div')
   screen.id = 'boot-screen'
   screen.className = options.embedded ? 'boot-screen boot-screen--embedded' : 'boot-screen'
@@ -35,6 +39,7 @@ export function createBootScreenElement(options: CreateBootScreenOptions = {}): 
         <p class="boot-screen__grid-hint">Tap cells while loading</p>
       </div>
       <h1 class="boot-screen__title">${brandName}</h1>
+      <p class="boot-screen__subtitle">${brandTagline}</p>
       <p class="boot-screen__label" id="boot-label">INITIALIZING — 0%</p>
       <div class="boot-screen__rail-wrap">
         <div class="boot-screen__track-shell">

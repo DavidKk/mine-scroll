@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-import { BRAND_DESCRIPTION, BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_NAME } from '@/lib/brand'
+import { BRAND_DESCRIPTION, BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand'
 import { preferWebpAssetPath } from '@/lib/server-raster-url'
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
   const rasterType = (path: string) => (path.endsWith('.webp') ? 'image/webp' : 'image/png')
 
   return {
-    name: BRAND_NAME,
+    name: `${BRAND_NAME} — ${BRAND_TAGLINE}`,
     short_name: BRAND_NAME,
     description: BRAND_DESCRIPTION,
     start_url: '/play',

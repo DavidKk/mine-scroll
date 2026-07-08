@@ -1,6 +1,6 @@
 import { forwardRef } from 'react'
 
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand'
 
 export const BootScreenShell = forwardRef<HTMLDivElement>(function BootScreenShell(_props, ref) {
   return (
@@ -28,6 +28,7 @@ export const BootScreenShell = forwardRef<HTMLDivElement>(function BootScreenShe
           <p className="boot-screen__grid-hint">Tap cells while loading</p>
         </div>
         <h1 className="boot-screen__title">{BRAND_NAME}</h1>
+        <p className="boot-screen__subtitle">{BRAND_TAGLINE}</p>
         <p className="boot-screen__label" id="boot-label">
           INITIALIZING — 0%
         </p>

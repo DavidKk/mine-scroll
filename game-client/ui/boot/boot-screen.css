@@ -400,7 +400,7 @@
 }
 
 .boot-screen__title {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 26px;
   font-weight: 900;
   letter-spacing: 0.14em;
@@ -409,6 +409,16 @@
   text-shadow:
     0 0 18px rgba(253, 224, 71, 0.35),
     0 0 32px rgba(45, 236, 255, 0.18);
+}
+
+.boot-screen__subtitle {
+  margin: 0 0 8px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.92);
 }
 
 .boot-screen__label {

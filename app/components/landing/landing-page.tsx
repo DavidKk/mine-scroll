@@ -4,7 +4,7 @@ import { attachCustomScrollbar } from '@game-client/ui/custom-scrollbar.ts'
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
 
-import { BRAND_DESCRIPTION, BRAND_NAME } from '@/lib/brand'
+import { BRAND_DETAILS, BRAND_GAME_GENRE, BRAND_IDENTITY, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 import { LANDING_HOW_TO } from '@/lib/landing-content'
 
@@ -110,14 +110,16 @@ export function LandingPage() {
             >
               <div className="flex w-full flex-none flex-col items-start justify-start">
                 <div className="flex w-full max-w-lg min-w-0 flex-none flex-col items-start gap-3.5 text-left">
-                  <p className="m-0 font-mono text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-landing-cyan">Neon minesweeper</p>
+                  <p className="m-0 font-mono text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-landing-cyan">{BRAND_GAME_GENRE} · Browser game</p>
                   <h1
                     id="landing-title"
                     className="m-0 bg-[linear-gradient(135deg,#f8fafc_0%,#818cf8_55%,#2decff_100%)] bg-clip-text text-[clamp(2.4rem,5vw,3.6rem)] font-bold leading-[1.05] tracking-[-0.04em] text-transparent"
                   >
                     {BRAND_NAME}
+                    <span className="sr-only"> — {BRAND_TAGLINE}</span>
                   </h1>
-                  <p className="m-0 max-w-[34ch] text-balance text-[1.05rem] leading-relaxed text-slate-400">{BRAND_DESCRIPTION}</p>
+                  <p className="m-0 max-w-[38ch] text-balance text-[1.05rem] font-medium leading-relaxed text-slate-300">{BRAND_IDENTITY}</p>
+                  <p className="m-0 max-w-[38ch] text-balance text-[1.05rem] leading-relaxed text-slate-400">{BRAND_DETAILS}</p>
                   <div className="mt-0 flex flex-wrap justify-start gap-3">
                     <Link
                       href="/play"
@@ -175,7 +177,7 @@ export function LandingPage() {
               <h2 id="modes-title" className="mb-2.5 text-[clamp(1.6rem,3vw,2rem)] font-bold tracking-[-0.03em]">
                 Pick your run
               </h2>
-              <p className="m-0 text-[0.95rem] text-slate-400">Two arcade modes, one neon board.</p>
+              <p className="m-0 text-[0.95rem] text-slate-400">Two minesweeper arcade modes on one neon board.</p>
             </div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
               {MODES.map((mode) => (

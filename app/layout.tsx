@@ -7,7 +7,7 @@ import type { Metadata, Viewport } from 'next'
 
 import { SiteJsonLd } from '@/app/components/site-json-ld'
 import { VideoGameJsonLd } from '@/app/components/video-game-json-ld'
-import { BRAND_DESCRIPTION, BRAND_KEYWORDS, BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_NAME, BRAND_OG_IMAGE_PATH } from '@/lib/brand'
+import { BRAND_DEFAULT_TITLE, BRAND_DESCRIPTION, BRAND_GAME_GENRE, BRAND_IDENTITY, BRAND_KEYWORDS, BRAND_LOGO_PATH, BRAND_MARK_PATH, BRAND_NAME } from '@/lib/brand'
 import { getRequestMetadataBase } from '@/lib/request-origin'
 import { buildOpenGraph, buildTwitterCard, PUBLIC_INDEX_ROBOTS } from '@/lib/seo'
 import { preferWebpAssetPath } from '@/lib/server-raster-url'
@@ -16,12 +16,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const metadataBase = await getRequestMetadataBase()
   const brandMark = preferWebpAssetPath(BRAND_MARK_PATH)
   const brandLogo = preferWebpAssetPath(BRAND_LOGO_PATH)
-  const brandOg = preferWebpAssetPath(BRAND_OG_IMAGE_PATH)
 
   return {
     metadataBase,
     title: {
-      default: BRAND_NAME,
+      default: BRAND_DEFAULT_TITLE,
       template: `%s · ${BRAND_NAME}`,
     },
     description: BRAND_DESCRIPTION,
@@ -31,6 +30,12 @@ export async function generateMetadata(): Promise<Metadata> {
     creator: BRAND_NAME,
     publisher: BRAND_NAME,
     category: 'game',
+    other: {
+      abstract: BRAND_IDENTITY,
+      subject: BRAND_GAME_GENRE,
+      topic: 'Online minesweeper browser game',
+      'game-genre': BRAND_GAME_GENRE,
+    },
     formatDetection: {
       telephone: false,
     },
@@ -48,8 +53,8 @@ export async function generateMetadata(): Promise<Metadata> {
       apple: [{ url: brandLogo, type: brandLogo.endsWith('.webp') ? 'image/webp' : 'image/png' }],
     },
     manifest: '/manifest.webmanifest',
-    openGraph: buildOpenGraph(metadataBase, BRAND_NAME, BRAND_DESCRIPTION, '/', brandOg),
-    twitter: buildTwitterCard(BRAND_NAME, BRAND_DESCRIPTION, brandOg),
+    openGraph: buildOpenGraph(metadataBase, BRAND_DEFAULT_TITLE, BRAND_DESCRIPTION, '/', brandLogo),
+    twitter: buildTwitterCard(BRAND_DEFAULT_TITLE, BRAND_DESCRIPTION, brandLogo),
   }
 }
 
@@ -72,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+        <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-readable site summary" />
       </head>
       <body>
         <SiteJsonLd />
