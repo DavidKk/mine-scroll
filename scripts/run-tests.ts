@@ -61,7 +61,14 @@ import {
   testResolveRasterUrlUsesWebpWhenSupported,
   testSortBootAssetsForLoadPrioritizesHeavyWithinTier,
 } from './boot-loader-tests.ts'
-import { testResolveKvDirectEnv, testResolveKvMissingReturnsNull, testResolveKvPrefersDirectOverPrefixed, testResolveKvPrefixedVercelEnv } from './kv-tests.ts'
+import {
+  testResolveKvIgnoresLegacyEnv,
+  testResolveKvMissingReturnsNull,
+  testResolveKvPrefersRestUrlAndWriteToken,
+  testResolveKvRedisUrlFallback,
+  testResolveKvRestApiEnv,
+  testResolveKvUrlFallback,
+} from './kv-tests.ts'
 import {
   testLeaderboardScoreBreakthroughWithEmptyHistory,
   testLeaderboardViewModelKeepsSelfInRankedList,
@@ -1151,9 +1158,11 @@ const tests: Array<[string, () => void | Promise<void>]> = [
   ['boot audio url detection', testIsAudioBootUrlDetectsWav],
   ['is ranked mode always true', testIsRankedModeAlwaysTrue],
   ['ranked storage unavailable message', testRankedStorageUnavailableMessage],
-  ['kv env direct credentials', testResolveKvDirectEnv],
-  ['kv env prefixed vercel credentials', testResolveKvPrefixedVercelEnv],
-  ['kv env prefers direct credentials', testResolveKvPrefersDirectOverPrefixed],
+  ['kv env rest api credentials', testResolveKvRestApiEnv],
+  ['kv env url fallback', testResolveKvUrlFallback],
+  ['kv env redis url fallback', testResolveKvRedisUrlFallback],
+  ['kv env prefers rest url and write token', testResolveKvPrefersRestUrlAndWriteToken],
+  ['kv env ignores legacy credentials', testResolveKvIgnoresLegacyEnv],
   ['kv env missing credentials', testResolveKvMissingReturnsNull],
 ]
 

@@ -67,7 +67,7 @@ Required: `JWT_SECRET`, `JWT_EXPIRES_IN`. Register this callback in the auth cen
 https://<your-domain>/auth/vercel-2fa/callback
 ```
 
-Copy `.env.example` to `.env` and fill in values. For ranked runs in production, link Vercel KV or Upstash Redis (`KV_REST_API_*`, `{store}_KV_REST_API_*`, or `UPSTASH_REDIS_REST_*`).
+Copy `.env.example` to `.env` and fill in values. For ranked runs in production, set `MINE_SCROLL_KV_REST_API_URL` + `MINE_SCROLL_KV_REST_API_TOKEN` (optional URL fallbacks: `MINE_SCROLL_KV_URL` / `MINE_SCROLL_REDIS_URL`).
 
 ## Documentation
 

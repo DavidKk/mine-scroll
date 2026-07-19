@@ -1,9 +1,9 @@
 /**
  * KV client wrapper (Upstash Redis).
  *
- * Production: `UPSTASH_REDIS_REST_*`, `KV_REST_API_*`, or prefixed Vercel store vars
- * such as `minescroll_KV_REST_API_*`.
- * Local dev without env: shared in-process memory (globalThis + optional disk cache).
+ * Production: `MINE_SCROLL_KV_REST_API_URL` + `MINE_SCROLL_KV_REST_API_TOKEN`
+ * (optional fallbacks: `MINE_SCROLL_KV_URL` / `MINE_SCROLL_REDIS_URL`,
+ * read-only token). Local dev without env: in-process memory (+ optional disk cache).
  */
 
 import fs from 'node:fs'
