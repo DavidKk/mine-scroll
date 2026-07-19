@@ -1,84 +1,33 @@
+[![中文](https://img.shields.io/badge/%E6%96%87%E6%A1%A3-%E4%B8%AD%E6%96%87-green?style=flat-square&logo=docs)](https://github.com/DavidKk/mine-scroll/blob/main/README.zh-CN.md) [![English](https://img.shields.io/badge/docs-English-green?style=flat-square&logo=docs)](https://github.com/DavidKk/mine-scroll/blob/main/README.md)
+
 # MineScroll
 
-Neon-styled endless-scroll minesweeper built with **Next.js** and a **Canvas 2D** game client. Play classic, hex, and endless modes in the browser, with ranked leaderboards and internal asset tooling for development.
+Free online **minesweeper** in your browser — neon boards, ranked runs, and live leaderboards.
 
-Package manager: **pnpm** (see `packageManager` in `package.json`).
+**Play now → [mine-scroll.vercel.app](https://mine-scroll.vercel.app)**
 
-## Features
+No install. Open the link, pick a mode, start sweeping.
 
-- **Classic** — configurable board size and mine count, chord reveals, first-click safety
-- **Hex** — hexagonal grid with 6-neighbor logic
-- **Endless** — scrolling board, dynamic mine density, lives, combo scoring, and manual scroll
-- **Ranked leaderboard** — server-backed top scores with anti-cheat hooks (KV / Redis)
-- **Admin tools** — asset lab, UI lab, responsive matrix (auth required)
+## How to play
 
-## Quick start
+Classic minesweeper rules:
 
-```bash
-pnpm install
-pnpm dev
-```
+- **Reveal** — click / tap a covered cell
+- **Flag** — right-click / swipe to mark a mine
+- **Chord** — double-click / double-tap a number when flags match
 
-Open [http://localhost:3000](http://localhost:3000). The app redirects to `/play` for the game shell.
+## Modes
 
-### Mobile testing (ngrok)
+| Play                                                    | Mode    | What you do                                         |
+| ------------------------------------------------------- | ------- | --------------------------------------------------- |
+| [Home](https://mine-scroll.vercel.app)                  | Landing | See the game, how-to, and live leaderboard          |
+| [Endless Scroll](https://mine-scroll.vercel.app/play)   | Endless | Board scrolls up — survive with 5 lives and combos  |
+| [Puzzle Rush](https://mine-scroll.vercel.app/play/rush) | Rush    | Clear 7×7 boards back-to-back and stack multipliers |
 
-1. Add `NGROK_AUTHTOKEN` to `.env` ([get a free token](https://dashboard.ngrok.com/get-started/your-authtoken)).
-2. Run `pnpm dev:ngrok` and open the printed `/play` URL on your phone.
-3. Optional: append `?fps=1` to show the FPS overlay while profiling.
+## Why MineScroll
 
-## Scripts
+- Ranked Endless Scroll and Puzzle Rush with verified leaderboards
+- Works on desktop and phone
+- Same minesweeper feel, arcade presentation
 
-| Command          | Description                             |
-| ---------------- | --------------------------------------- |
-| `pnpm dev`       | Next.js dev server                      |
-| `pnpm dev:ngrok` | Dev server + ngrok tunnel (mobile test) |
-| `pnpm build`     | Optimize boot assets + production build |
-| `pnpm start`     | Serve production build                  |
-| `pnpm test`      | Jest unit tests                         |
-| `pnpm typecheck` | TypeScript check                        |
-| `pnpm ok`        | format + lint + build + test            |
-
-## Project layout
-
-```
-app/              Next.js App Router (pages, API routes, auth)
-game-client/      Canvas runtime, HUD, boot loader, admin chrome
-shared/core/      Pure game logic (no DOM)
-services/         Auth, leaderboard, KV storage
-public/assets/    Game sprites, audio, brand assets
-docs/             Specs, architecture, iteration notes
-```
-
-Game rules and mode details live in `docs/SPEC.md` and `docs/MODES.md`.
-
-## Admin authentication
-
-Routes under `/admin/*` (asset lab, UI lab, responsive matrix) require sign-in.
-
-| Environment | Method                                              |
-| ----------- | --------------------------------------------------- |
-| Production  | Signet (`SIGNET_SDK_URL`)                           |
-| Local dev   | Signet and/or `ACCESS_USERNAME` + `ACCESS_PASSWORD` |
-
-Required: `JWT_SECRET`, `JWT_EXPIRES_IN`. Register this callback in the auth center:
-
-```
-https://<your-domain>/auth/vercel-2fa/callback
-```
-
-Copy `.env.example` to `.env` and fill in values. For ranked runs in production, set `MINE_SCROLL_KV_REST_API_URL` + `MINE_SCROLL_KV_REST_API_TOKEN` (optional URL fallbacks: `MINE_SCROLL_KV_URL` / `MINE_SCROLL_REDIS_URL`).
-
-## Documentation
-
-| Doc                            | Contents                          |
-| ------------------------------ | --------------------------------- |
-| `docs/PROJECT.md`              | Current task and iteration status |
-| `docs/SPEC.md`                 | Classic minesweeper rules         |
-| `docs/MODES.md`                | Classic, hex, and endless modes   |
-| `docs/ARCHITECTURE.md`         | Stack and layering                |
-| `docs/NEXTJS-PLATFORM-PLAN.md` | Next.js platform split            |
-
-## License
-
-Private project.
+Ready? **[Play MineScroll](https://mine-scroll.vercel.app)**
